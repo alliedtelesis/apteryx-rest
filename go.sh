@@ -2,8 +2,8 @@
 ROOT=`pwd`
 
 # Check required libraries and tools
-if ! pkg-config --exists glib-2.0 gio-2.0 openssl; then
-        echo "Please install glib-2.0 (sudo apt-get install libglib2.0-dev openssl)"
+if ! pkg-config --exists glib-2.0 libxml-2.0; then
+        echo "Please install glib-2.0 (sudo apt-get install libglib2.0-dev libxml2-dev)"
         exit 1
 fi
 
@@ -76,9 +76,31 @@ rc=$?; if [[ $rc != 0 ]]; then exit $rc; fi
 export LD_LIBRARY_PATH=$BUILD/usr/lib
 $BUILD/usr/bin/apteryxd -b
 
+# Create an example module
+mkdir -p $BUILD/modules
+echo '<?xml version="1.0" encoding="UTF-8"?>
+<MODULE xmlns="https://github.com/alliedtelesis/apteryx"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="https://github.com/alliedtelesis/apteryx
+	https://github.com/alliedtelesis/apteryx/releases/download/v2.10/apteryx.xsd">
+	<NODE name="interfaces">
+		<NODE name="interface" help="Interface List">
+			<NODE name="*" help="Interface Name">
+				<NODE name="name" mode="rw" help="Interface name" />
+				<NODE name="type" mode="rw" help="Interface type" pattern="^(eth|ppp)$" />
+				<NODE name="enabled" mode="rw" default="0" help="Interface admin status">
+					<VALUE name="disabled" value="0" help="The interface is disabled" />
+					<VALUE name="enabled" value="1" help="The interface is enabled" />
+				</NODE>
+			</NODE>
+		</NODE>
+	</NODE>
+</MODULE>
+' > $BUILD/modules/interfaces.xml
+
 # Start rest
 LD_LIBRARY_PATH=$BUILD/usr/lib \
-        ./apteryx-rest -b -m $ROOT/modules -p $BUILD/apteryx-rest.pid \
+        ./apteryx-rest -b -m $BUILD/modules -p $BUILD/apteryx-rest.pid \
         -s $BUILD/apteryx-rest.sock
 rc=$?; if [[ $rc != 0 ]]; then exit $rc; fi
 
@@ -108,7 +130,7 @@ fastcgi.server = (
 $BUILD/usr/sbin/lighttpd -f $BUILD/lighttpd.conf -m $BUILD/usr/lib
 rc=$?; if [[ $rc != 0 ]]; then exit $rc; fi
 
-## Tests
+## Testing
 APTERYX=$BUILD/usr/bin/apteryx
 
 echo -ne "API"
