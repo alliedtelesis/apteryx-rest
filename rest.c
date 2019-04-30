@@ -113,22 +113,22 @@ apteryx_json_search (sch_node * root, const char *path, char **data)
     }
 
     /* Do the Apteryx search */
-    buffer = g_strdup_printf ("{\"%s\": [", len > 2 ? strrchr (_path, '/') + 1 : "");
+    *data = g_strdup_printf ("{\"%s\": [", len > 2 ? strrchr (_path, '/') + 1 : "");
     children = apteryx_search (path);
     for (iter = children; iter; iter = g_list_next (iter))
     {
         path = strrchr ((const char *) iter->data, '/') + 1;
         if (sch_validate_path (root, path, NULL, NULL) != NULL)
         {
-            if (!first)
-                buffer = g_strdup_printf ("%s,\"%s\"", buffer, path);
-            else
-                buffer = g_strdup_printf ("%s\"%s\"", buffer, path);
+            buffer = *data;
+            *data = g_strdup_printf ("%s%s\"%s\"", buffer, first ? "" : ",", path);
+            free (buffer);
             first = false;
         }
     }
-    buffer = g_strdup_printf ("%s]}", buffer);
-    *data = buffer;
+    buffer = *data;
+    *data = g_strdup_printf ("%s]}", buffer);
+    free (buffer);
 
     g_list_free_full (children, free);
     free (_path);
@@ -139,8 +139,13 @@ static char *
 rest_api_search (const char *path)
 {
     char *data = NULL;
-    int rc = apteryx_json_search (sch_root (), path, &data);
-    return g_strdup_printf ("Status: %d\r\n" "\r\n" "%s", rc, data ? : "");
+    char *resp;
+    int rc;
+    
+    rc = apteryx_json_search (sch_root (), path, &data);
+    resp = g_strdup_printf ("Status: %d\r\n" "\r\n" "%s", rc, data ? : "");
+    free (data);
+    return resp;
 }
 
 static char *
@@ -149,6 +154,7 @@ rest_api_get (const char *path)
     GNode *tree;
     json_t *json;
     char *data;
+    char *resp;
 
     VERBOSE ("GET %s\n", path);
 
@@ -181,12 +187,13 @@ rest_api_get (const char *path)
     json_decref (json);
 
     /* Add header */
-    data = g_strdup_printf ("Status: 200\r\n"
+    resp = g_strdup_printf ("Status: 200\r\n"
                             "Content-Type: application/yang.data+json\r\n"
                             "\r\n" "%s", data);
+    free (data);
 
     /* Return response */
-    return data;
+    return resp;
 }
 
 typedef enum
@@ -352,6 +359,7 @@ rest_api_post (const char *path, const char *data, int length)
     {
         rc = apteryx_json_set (path, json);
     }
+    json_decref (json);
     return g_strdup_printf ("Status: %d\r\n" "\r\n", rc);
 }
 

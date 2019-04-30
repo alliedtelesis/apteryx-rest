@@ -99,10 +99,12 @@ echo '<?xml version="1.0" encoding="UTF-8"?>
 ' > $BUILD/modules/interfaces.xml
 
 # Start rest
-LD_LIBRARY_PATH=$BUILD/usr/lib \
-        ./apteryx-rest -b -m $BUILD/modules -p $BUILD/apteryx-rest.pid \
+# TEST_WRAPPER="valgrind --leak-check=full"
+LD_LIBRARY_PATH=$BUILD/usr/lib G_SLICE=always-malloc \
+        $TEST_WRAPPER ./apteryx-rest -b -m $BUILD/modules -p $BUILD/apteryx-rest.pid \
         -s $BUILD/apteryx-rest.sock
 rc=$?; if [[ $rc != 0 ]]; then exit $rc; fi
+sleep 0.5
 
 # Run lighttpd
 sudo killall lighttpd &> /dev/null
@@ -173,7 +175,8 @@ res=$($APTERYX -t)
 # Stop lighttpd
 sudo killall lighttpd
 # Stop apteryx-rest
-sudo killall apteryx-rest
+sudo killall apteryx-rest &> /dev/null
+sudo kill `pidof valgrind.bin` &> /dev/null
 # Stop Apteryx
 $BUILD/usr/bin/apteryx -t
 killall apteryxd

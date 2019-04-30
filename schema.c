@@ -376,13 +376,14 @@ sch_path_to_node (const char *path)
         }
     }
 
+    free (path_cpy);
     return node;
 }
 
 bool
 sch_validate_pattern (sch_node * node, const char *value)
 {
-    const char *pattern = (const char *) xmlGetProp (node, (xmlChar *) "pattern");
+    char *pattern = (char *) xmlGetProp (node, (xmlChar *) "pattern");
     if (pattern)
     {
         char message[100];
@@ -394,6 +395,7 @@ sch_validate_pattern (sch_node * node, const char *value)
         {
             regerror (rc, NULL, message, sizeof (message));
             ERROR ("SCHEMA: %i (\"%s\") for regex %s", rc, message, pattern);
+            xmlFree (pattern);
             return false;
         }
 
@@ -403,9 +405,11 @@ sch_validate_pattern (sch_node * node, const char *value)
         {
             regerror (rc, NULL, message, sizeof (message));
             ERROR ("SCHEMA: %i (\"%s\") for regex %s", rc, message, pattern);
+            xmlFree (pattern);
             return false;
         }
 
+        xmlFree (pattern);
         return (rc == 0);
     }
     return true;

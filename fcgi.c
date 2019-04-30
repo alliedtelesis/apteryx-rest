@@ -131,7 +131,7 @@ handle_http (void *arg)
         if (length != NULL)
         {
             len = strtol (length, NULL, 10);
-            data = malloc (len);
+            data = calloc (len + 1, 1);
             for (i = 0; i < len; i++)
             {
                 if ((data[i] = FCGX_GetChar (request.in)) < 0)
