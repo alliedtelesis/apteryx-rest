@@ -22,6 +22,110 @@
 #include <libxml/parser.h>
 #include <libxml/tree.h>
 
+bool
+sch_node_is_api_node (sch_node *node)
+{
+    xmlNode *xml = (xmlNode *) node;
+    /* Is the XML node type "NODE"? This only checks the first
+     * letter because there is nothing else that begins with 'N'. */
+    return (xml->name[0] == 'N');
+}
+
+bool
+sch_node_is_leaf (sch_node *node)
+{
+    xmlNode *xml = (xmlNode *) node;
+    /* If there is a VALUE tag then assume that no child NODEs will be found. */
+    return !xml->children || !sch_node_is_api_node ((sch_node *) xml->children);
+}
+
+bool
+sch_node_has_mode_flag (sch_node *node, char mode_flag)
+{
+    xmlNode *xml = (xmlNode *) node;
+    char *mode = (char *) xmlGetProp (xml, (xmlChar *) "mode");
+    bool has_flag = mode && strchr (mode, mode_flag);
+    xmlFree (mode);
+    return has_flag;
+}
+
+/* Check path validity against the tree */
+sch_node *
+sch_validate_path (sch_instance *schema, const char *path, bool *read, bool *write)
+{
+    xmlNode *node = (xmlNode *) schema;
+    xmlNode *n;
+    char *name, *mode;
+    char *key = NULL;
+    int len;
+
+    if (read)
+        *read = false;
+    if (write)
+        *write = false;
+
+    if (path[0] == '/')
+        path++;
+    key = strchr (path, '/');
+    if (key)
+    {
+        len = key - path;
+        key = strndup (path, len);
+        path += len;
+    }
+    else
+    {
+        key = strdup (path);
+        path = NULL;
+    }
+
+    for (n = node->children; n; n = n->next)
+    {
+        if (n->type != XML_ELEMENT_NODE)
+            continue;
+        mode = (char *) xmlGetProp (n, (xmlChar *) "mode");
+        name = (char *) xmlGetProp (n, (xmlChar *) "name");
+        if (name && (name[0] == '*' || strcmp (name, key) == 0))
+        {
+            free (key);
+            if (path)
+            {
+                if (mode && strchr (mode, 'p') != NULL)
+                {
+                    xmlFree (name);
+                    xmlFree (mode);
+                    /* restart search from root
+                     *
+                     * currently proxies are only used to redirect to the root
+                     * node of another stack members database. So for now we can
+                     * simply re-validate from root.
+                     */
+                    return sch_validate_path (g_schema, path, read, write);
+                }
+                xmlFree (name);
+                xmlFree (mode);
+                return sch_validate_path (n, path, read, write);
+            }
+            if (read && (!mode || strchr (mode, 'r') != NULL))
+                *read = true;
+            if (write && mode && strchr (mode, 'w') != NULL)
+                *write = true;
+            xmlFree (name);
+            if (mode)
+                xmlFree (mode);
+            return n;
+        }
+
+        if (name)
+            xmlFree (name);
+        if (mode)
+            xmlFree (mode);
+    }
+
+    free (key);
+    return NULL;
+}
+
 /* List full paths for all XML files in the search path */
 static void
 list_xml_files (GList **files, const char *path)
@@ -390,3 +494,38 @@ sch_name (sch_node *node)
 {
     return (char *) xmlGetProp (node, (xmlChar *) "name");
 }
+
+char*
+sch_pattern (sch_node *node)
+{
+    return (char *) xmlGetProp (node, (xmlChar *) "pattern");
+}
+
+sch_node*
+sch_parent (sch_node *node)
+{
+    return ((xmlNode *) node)->parent;
+}
+
+sch_node*
+sch_first_child (sch_node *node)
+{
+    return ((xmlNode *) node)->children;
+}
+
+sch_node*
+sch_next_child (sch_node *node)
+{
+    return ((xmlNode *) node)->next;
+}
+
+char *
+sch_dump (sch_instance *schema)
+{
+    xmlChar *xmlbuf = NULL;
+    int bufsize;
+
+    xmlDocDumpFormatMemory (((xmlNode *) schema)->doc, &xmlbuf, &bufsize, 1);
+    return (char *) xmlbuf;
+}
+

@@ -19,113 +19,11 @@
 #include "internal.h"
 #include <jansson.h>
 #include <regex.h>
-#include <libxml/parser.h>
-#include <libxml/tree.h>
 
 #define HTTP_CODE_OK                    200
 #define HTTP_CODE_BAD_REQUEST           400
 #define HTTP_CODE_FORBIDDEN             403
 #define HTTP_CODE_INTERNAL_SERVER_ERROR 500
-
-static inline bool
-xml_node_is_api_node (xmlNode * xml_node)
-{
-    /* Is the XML node type "NODE"? This only checks the first
-     * letter because there is nothing else that begins with 'N'. */
-    return (xml_node->name[0] == 'N');
-}
-
-static inline bool
-api_node_is_leaf (xmlNode * api_node)
-{
-    /* If there is a VALUE tag then assume that no child NODEs will be found. */
-    return !api_node->children || !xml_node_is_api_node (api_node->children);
-}
-
-static bool
-api_node_has_mode_flag (xmlNode * api_node, char mode_flag)
-{
-    char *mode = (char *) xmlGetProp (api_node, (xmlChar *) "mode");
-    bool has_flag = mode && strchr (mode, mode_flag);
-    xmlFree (mode);
-    return has_flag;
-}
-
-/* Check path validity against the tree */
-static xmlNode *
-validate_path (xmlNode * node, const char *path, bool * read, bool * write)
-{
-    xmlNode *n;
-    char *name, *mode;
-    char *key = NULL;
-    int len;
-
-    if (read)
-        *read = false;
-    if (write)
-        *write = false;
-
-    if (path[0] == '/')
-        path++;
-    key = strchr (path, '/');
-    if (key)
-    {
-        len = key - path;
-        key = strndup (path, len);
-        path += len;
-    }
-    else
-    {
-        key = strdup (path);
-        path = NULL;
-    }
-
-    for (n = node->children; n; n = n->next)
-    {
-        if (n->type != XML_ELEMENT_NODE)
-            continue;
-        mode = (char *) xmlGetProp (n, (xmlChar *) "mode");
-        name = (char *) xmlGetProp (n, (xmlChar *) "name");
-        if (name && (name[0] == '*' || strcmp (name, key) == 0))
-        {
-            free (key);
-            if (path)
-            {
-                if (mode && strchr (mode, 'p') != NULL)
-                {
-                    xmlFree (name);
-                    xmlFree (mode);
-                    /* restart search from root
-                     *
-                     * currently proxies are only used to redirect to the root
-                     * node of another stack members database. So for now we can
-                     * simply re-validate from root.
-                     */
-                    return validate_path (g_schema, path, read, write);
-                }
-                xmlFree (name);
-                xmlFree (mode);
-                return validate_path (n, path, read, write);
-            }
-            if (read && (!mode || strchr (mode, 'r') != NULL))
-                *read = true;
-            if (write && mode && strchr (mode, 'w') != NULL)
-                *write = true;
-            xmlFree (name);
-            if (mode)
-                xmlFree (mode);
-            return n;
-        }
-
-        if (name)
-            xmlFree (name);
-        if (mode)
-            xmlFree (mode);
-    }
-
-    free (key);
-    return NULL;
-}
 
 static void
 apteryx_log_regex_error (int return_code, const char *regex)
@@ -221,10 +119,7 @@ static char *
 rest_api_xml (void)
 {
     char *resp = NULL;
-    xmlChar *xmlbuf = NULL;
-    int bufsize;
-
-    xmlDocDumpFormatMemory (((xmlNode *) g_schema)->doc, &xmlbuf, &bufsize, 1);
+    char *xmlbuf = sch_dump (g_schema);
     if (xmlbuf)
     {
         resp = g_strdup_printf ("Status: 200\r\n"
@@ -235,7 +130,7 @@ rest_api_xml (void)
 }
 
 static int
-apteryx_json_search (xmlNode * root, const char *path, char **data)
+apteryx_json_search (sch_node *root, const char *path, char **data)
 {
     char *_path;
     int len;
@@ -249,7 +144,7 @@ apteryx_json_search (xmlNode * root, const char *path, char **data)
     _path[len - 1] = '\0';
 
     /* Validate starting path */
-    if ((root = validate_path (root, _path, NULL, NULL)) == NULL)
+    if ((root = sch_validate_path (root, _path, NULL, NULL)) == NULL)
     {
         free (_path);
         return 403;
@@ -261,7 +156,7 @@ apteryx_json_search (xmlNode * root, const char *path, char **data)
     for (iter = children; iter; iter = g_list_next (iter))
     {
         path = strrchr ((const char *) iter->data, '/') + 1;
-        if (validate_path (root, path, NULL, NULL) != NULL)
+        if (sch_validate_path (root, path, NULL, NULL) != NULL)
         {
             if (!first)
                 buffer = g_strdup_printf ("%s,\"%s\"", buffer, path);
@@ -282,7 +177,7 @@ static char *
 rest_api_search (const char *path)
 {
     char *data = NULL;
-    int rc = apteryx_json_search ((xmlNode *) g_schema, path, &data);
+    int rc = apteryx_json_search (g_schema, path, &data);
     return g_strdup_printf ("Status: %d\r\n" "\r\n" "%s", rc, data ? : "");
 }
 
@@ -332,51 +227,48 @@ rest_api_get (const char *path)
     return data;
 }
 
-static xmlNode *
-api_child_get (xmlNode * api_root, const char *search_name)
+static sch_node *
+api_child_get (sch_node * api_root, const char *search_name)
 {
-    xmlNode *api_child;
+    sch_node *api_child;
 
     /* Don't get fooled if this node has value tags as children. */
-    if (api_node_is_leaf (api_root))
+    if (sch_node_is_leaf (api_root))
     {
         return NULL;
     }
 
-    for (api_child = api_root->children; api_child; api_child = api_child->next)
+    for (api_child = sch_first_child (api_root); api_child; api_child = sch_next_child (api_child))
     {
-        char *api_child_name;
-
-        api_child_name = (char *) xmlGetProp (api_child, (xmlChar *) "name");
-
+        char *api_child_name = sch_name (api_child);
         if (api_child_name &&
             (api_child_name[0] == '*' || strcmp (search_name, api_child_name) == 0))
         {
-            xmlFree (api_child_name);
+            free (api_child_name);
             break;
         }
 
-        xmlFree (api_child_name);
+        free (api_child_name);
     }
 
     return api_child;
 }
 
-static xmlNode *
+static sch_node *
 api_node_get (const char *path)
 {
     char *path_cpy = strdup (path);
     char *component;
     char *saveptr = NULL;
-    xmlNode *api_node = (xmlNode *) g_schema;
+    sch_node *api_node = (sch_node *) g_schema;
 
     for (component = strtok_r (path_cpy, "/", &saveptr); component;
          component = strtok_r (NULL, "/", &saveptr))
     {
         /* Restart from root on finding a proxy node */
-        if (api_node_has_mode_flag (api_node, 'p'))
+        if (sch_node_has_mode_flag (api_node, 'p'))
         {
-            api_node = (xmlNode *) g_schema;
+            api_node = (sch_node *) g_schema;
         }
 
         /* Get the node matching this component. */
@@ -405,14 +297,14 @@ typedef enum
 } json_to_tree_result_t;
 
 static char *
-node_to_path (xmlNode * node)
+node_to_path (sch_node * node)
 {
     char *path = NULL;
 
     while (node)
     {
         char *tmp = NULL;
-        char *name = (char *) xmlGetProp (node, (xmlChar *) "name");
+        char *name = sch_name (node);
         if (name == NULL)
         {
             break;
@@ -422,14 +314,14 @@ node_to_path (xmlNode * node)
             free (path);
             path = tmp;
         }
-        xmlFree (name);
-        node = node->parent;
+        free (name);
+        node = sch_parent (node);
     }
     return path;
 }
 
 static void
-json_error (xmlNode * node, char *msg)
+json_error (sch_node * node, char *msg)
 {
     char *path = node_to_path (node);
     ERROR ("JSON: %s \"%s\"\n", msg, path ? : "<unknown>");
@@ -438,7 +330,7 @@ json_error (xmlNode * node, char *msg)
 }
 
 static json_to_tree_result_t
-json_to_tree (xmlNode * api_root, json_t * json_root, GNode * data_root)
+json_to_tree (sch_node * api_root, json_t * json_root, GNode * data_root)
 {
     const char *key;
     json_t *object;
@@ -446,7 +338,7 @@ json_to_tree (xmlNode * api_root, json_t * json_root, GNode * data_root)
 
     json_object_foreach (json_root, key, object)
     {
-        xmlNode *api_child;
+        sch_node *api_child;
         GNode *data_child;
 
         api_child = api_child_get (api_root, key);
@@ -474,14 +366,14 @@ json_to_tree (xmlNode * api_root, json_t * json_root, GNode * data_root)
             char *pattern = NULL;
             bool match;
 
-            if (!api_node_is_leaf (api_child))
+            if (!sch_node_is_leaf (api_child))
             {
                 json_error (api_child, "J2T_RES_VALUE_ON_CORE_NODE");
                 return J2T_RES_VALUE_ON_CORE_NODE;
             }
 
-            if (!api_node_has_mode_flag (api_child, 'w') &&
-                !api_node_has_mode_flag (api_child, 'x'))
+            if (!sch_node_has_mode_flag (api_child, 'w') &&
+                !sch_node_has_mode_flag (api_child, 'x'))
             {
                 json_error (api_child, "J2T_RES_PERMISSION_MISMATCH");
                 return J2T_RES_PERMISSION_MISMATCH;
@@ -491,7 +383,7 @@ json_to_tree (xmlNode * api_root, json_t * json_root, GNode * data_root)
              * is always permitted. */
             if (value[0] != '\0')
             {
-                pattern = (char *) xmlGetProp (api_child, (xmlChar *) "pattern");
+                pattern = sch_pattern (api_child);
             }
 
             /* "pattern" will sometimes be NULL even when setting a non-empty value because some writeable
@@ -499,7 +391,7 @@ json_to_tree (xmlNode * api_root, json_t * json_root, GNode * data_root)
             if (pattern)
             {
                 rc = apteryx_check_regex (pattern, value, &match);
-                xmlFree (pattern);
+                free (pattern);
 
                 if (rc != 0)
                 {
@@ -532,7 +424,7 @@ json_to_tree (xmlNode * api_root, json_t * json_root, GNode * data_root)
 static int
 apteryx_json_set (const char *path, json_t * json)
 {
-    xmlNode *api_subtree;
+    sch_node *api_subtree;
     GNode *data = NULL;
     int rc;
     bool set_successful;
@@ -599,7 +491,7 @@ rest_api_post (const char *path, const char *data, int length)
 }
 
 static int
-apteryx_json_delete (xmlNode * root, const char *path)
+apteryx_json_delete (sch_node * root, const char *path)
 {
     GList *children, *iter;
     char *_path;
@@ -615,7 +507,7 @@ apteryx_json_delete (xmlNode * root, const char *path)
     if (!children)
     {
         /* Validate path */
-        if (!validate_path (root, path, NULL, &writable) || !writable)
+        if (!sch_validate_path (root, path, NULL, &writable) || !writable)
         {
             /* Pretend success for invalid or hidden paths */
             rc = HTTP_CODE_OK;
@@ -645,7 +537,7 @@ apteryx_json_delete (xmlNode * root, const char *path)
 static char *
 rest_api_delete (const char *path)
 {
-    int rc = apteryx_json_delete ((xmlNode *) g_schema, path);
+    int rc = apteryx_json_delete ((sch_node *) g_schema, path);
     return g_strdup_printf ("Status: %d\r\n" "\r\n", rc);
 }
 
