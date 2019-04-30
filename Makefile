@@ -16,15 +16,14 @@ CFLAGS := $(CFLAGS) -g -O2
 EXTRA_CFLAGS += -Werror -Wall -Wno-comment -std=c99 -D_GNU_SOURCE -fPIC
 EXTRA_CFLAGS += -I$(SRCDIR) -I$(SYSROOT)/usr/include
 EXTRA_CFLAGS += `$(PKG_CONFIG) --cflags glib-2.0`
-EXTRA_LDFLAGS += `$(PKG_CONFIG) --libs-only-l glib-2.0`
-EXTRA_LDFLAGS += -L$(SYSROOT)/usr/lib -lfcgi -ljansson -lapteryx-schema -lapteryx
-# TODO
 EXTRA_CFLAGS += `$(PKG_CONFIG) --cflags libxml-2.0`
+EXTRA_LDFLAGS += `$(PKG_CONFIG) --libs-only-l glib-2.0`
 EXTRA_LDFLAGS += `$(PKG_CONFIG) --libs libxml-2.0`
+EXTRA_LDFLAGS += -L$(SYSROOT)/usr/lib -lfcgi -ljansson -lapteryx
 
 DAEMON = apteryx-rest
 
-SOURCE := main.c fcgi.c rest.c
+SOURCE := main.c fcgi.c schema.c rest.c
 
 OBJS=$(SOURCE:%.c=%.o)
 

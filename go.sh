@@ -22,16 +22,6 @@ if [ ! -f apteryx/libapteryx.so ]; then
         cd $BUILD
 fi
 
-# Check Apteryx-XML install
-if [ ! -f apteryx-xml/libapteryx-schema.so ]; then
-        echo "Building Apteryx-XML from source."
-        git clone https://github.com/alliedtelesis/apteryx-xml.git
-        cd apteryx-xml
-        make install DESTDIR=$BUILD
-        rc=$?; if [[ $rc != 0 ]]; then exit $rc; fi
-        cd $BUILD
-fi
-
 # Check lighttpd
 if [ ! -f lighttpd1.4/src/lighttpd ]; then
         echo "Building lighttpd from source."
@@ -55,6 +45,10 @@ if [ ! -f usr/lib/libfcgi.so ]; then
         ./configure --prefix=/usr
         sed -i '1s/^/#include <stdio.h>/' libfcgi/fcgio.cpp
         make install DESTDIR=$BUILD
+        if [ ! -f $BUILD/usr/include/fcgi_config.h  ] ; then
+                cp include/*.h $BUILD/usr/include/
+	        mv $BUILD/usr/include/fcgi_config_x86.h $BUILD/usr/include/fcgi_config.h 
+        fi
         cd $BUILD
 fi
 

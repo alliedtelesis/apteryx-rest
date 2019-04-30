@@ -28,8 +28,12 @@
 #include <syslog.h>
 #include <glib.h>
 #include <glib-unix.h>
+#include <jansson.h>
+#include <regex.h>
+#include <fnmatch.h>
+#include <libxml/parser.h>
+#include <libxml/tree.h>
 #include <apteryx.h>
-#include <apteryx-xml.h>
 
 /* Defaults */
 #define APP_NAME                    "apteryx-rest"
@@ -40,12 +44,6 @@
 /* Helper */
 #define STR_HELPER(x) #x
 #define STR(x) STR_HELPER(x)
-
-/* GLib Main Loop */
-extern GMainLoop *g_loop;
-
-/* Global schema */
-extern sch_instance *g_schema;
 
 /* Debug */
 extern bool debug;
@@ -65,6 +63,20 @@ extern bool verbose;
     } \
 }
 
+/* Schema */
+typedef void sch_instance;
+typedef void sch_node;
+sch_instance* sch_load (const char *path);
+void sch_free (sch_instance *schema);
+sch_node* sch_lookup (sch_instance *schema, const char *path);
+bool sch_is_leaf (sch_node *node);
+bool sch_is_readable (sch_node *node);
+bool sch_is_writable (sch_node *node);
+bool sch_is_config (sch_node *node);
+char* sch_name (sch_node *node);
+char* sch_translate_to (sch_node *node, char *value);
+char* sch_translate_from (sch_node *node, char *value);
+
 /* HTTP handler for rest */
 #define FLAGS_CONTENT_JSON       (1 << 0)
 #define FLAGS_CONTENT_XML        (1 << 1)
@@ -78,5 +90,11 @@ void fcgi_stop (void);
 
 /* Rest */
 char* rest_api (int flags, const char *path, const char *action, const char *data, int length);
+
+/* GLib Main Loop */
+extern GMainLoop *g_loop;
+
+/* Global schema */
+extern sch_instance *g_schema;
 
 #endif /* _REST_H_ */

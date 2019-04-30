@@ -17,10 +17,6 @@
  * along with this library. If not, see <http://www.gnu.org/licenses/>
  */
 #include "internal.h"
-#include <jansson.h>
-#include <regex.h>
-#include <libxml/parser.h>
-#include <libxml/tree.h>
 
 #define HTTP_CODE_OK                    200
 #define HTTP_CODE_BAD_REQUEST           400
