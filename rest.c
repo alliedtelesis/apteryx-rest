@@ -18,50 +18,12 @@
  */
 #include "internal.h"
 #include <jansson.h>
-#include <regex.h>
 
 #define HTTP_CODE_OK                    200
 #define HTTP_CODE_BAD_REQUEST           400
 #define HTTP_CODE_FORBIDDEN             403
 #define HTTP_CODE_INTERNAL_SERVER_ERROR 500
 
-static void
-apteryx_log_regex_error (int return_code, const char *regex)
-{
-    char message[100];
-
-    regerror (return_code, NULL, message, sizeof (message));
-    ERROR ("REST: %i (\"%s\") for regex %s", return_code, message, regex);
-}
-
-static int
-apteryx_check_regex (const char *regex_str, const char *value, bool * matches)
-{
-    regex_t regex_obj;
-    int rc;
-
-    *matches = false;
-
-    rc = regcomp (&regex_obj, regex_str, REG_EXTENDED);
-
-    if (rc != 0)
-    {
-        apteryx_log_regex_error (rc, regex_str);
-        return -1;
-    }
-
-    rc = regexec (&regex_obj, value, 0, NULL, 0);
-    regfree (&regex_obj);
-
-    if (rc == REG_ESPACE)
-    {
-        apteryx_log_regex_error (rc, regex_str);
-        return -1;
-    }
-
-    *matches = (rc == 0);
-    return 0;
-}
 
 static int
 tree_to_json (GNode * node, json_t * json)
@@ -119,7 +81,7 @@ static char *
 rest_api_xml (void)
 {
     char *resp = NULL;
-    char *xmlbuf = sch_dump (g_schema);
+    char *xmlbuf = sch_dump ();
     if (xmlbuf)
     {
         resp = g_strdup_printf ("Status: 200\r\n"
@@ -130,7 +92,7 @@ rest_api_xml (void)
 }
 
 static int
-apteryx_json_search (sch_node *root, const char *path, char **data)
+apteryx_json_search (sch_node * root, const char *path, char **data)
 {
     char *_path;
     int len;
@@ -147,7 +109,7 @@ apteryx_json_search (sch_node *root, const char *path, char **data)
     if ((root = sch_validate_path (root, _path, NULL, NULL)) == NULL)
     {
         free (_path);
-        return 403;
+        return HTTP_CODE_FORBIDDEN;
     }
 
     /* Do the Apteryx search */
@@ -177,7 +139,7 @@ static char *
 rest_api_search (const char *path)
 {
     char *data = NULL;
-    int rc = apteryx_json_search (g_schema, path, &data);
+    int rc = apteryx_json_search (sch_root (), path, &data);
     return g_strdup_printf ("Status: %d\r\n" "\r\n" "%s", rc, data ? : "");
 }
 
@@ -227,61 +189,6 @@ rest_api_get (const char *path)
     return data;
 }
 
-static sch_node *
-api_child_get (sch_node * api_root, const char *search_name)
-{
-    sch_node *api_child;
-
-    /* Don't get fooled if this node has value tags as children. */
-    if (sch_node_is_leaf (api_root))
-    {
-        return NULL;
-    }
-
-    for (api_child = sch_first_child (api_root); api_child; api_child = sch_next_child (api_child))
-    {
-        char *api_child_name = sch_name (api_child);
-        if (api_child_name &&
-            (api_child_name[0] == '*' || strcmp (search_name, api_child_name) == 0))
-        {
-            free (api_child_name);
-            break;
-        }
-
-        free (api_child_name);
-    }
-
-    return api_child;
-}
-
-static sch_node *
-api_node_get (const char *path)
-{
-    char *path_cpy = strdup (path);
-    char *component;
-    char *saveptr = NULL;
-    sch_node *api_node = (sch_node *) g_schema;
-
-    for (component = strtok_r (path_cpy, "/", &saveptr); component;
-         component = strtok_r (NULL, "/", &saveptr))
-    {
-        /* Restart from root on finding a proxy node */
-        if (sch_node_has_mode_flag (api_node, 'p'))
-        {
-            api_node = (sch_node *) g_schema;
-        }
-
-        /* Get the node matching this component. */
-        api_node = api_child_get (api_node, component);
-        if (!api_node)
-        {
-            break;
-        }
-    }
-
-    return api_node;
-}
-
 typedef enum
 {
     J2T_RES_SUCCESS,
@@ -296,34 +203,10 @@ typedef enum
     J2T_RES_SLASH_IN_PATH_COMPONENT,
 } json_to_tree_result_t;
 
-static char *
-node_to_path (sch_node * node)
-{
-    char *path = NULL;
-
-    while (node)
-    {
-        char *tmp = NULL;
-        char *name = sch_name (node);
-        if (name == NULL)
-        {
-            break;
-        }
-        if (asprintf (&tmp, "/%s%s", name, path ? : "") >= 0)
-        {
-            free (path);
-            path = tmp;
-        }
-        free (name);
-        node = sch_parent (node);
-    }
-    return path;
-}
-
 static void
 json_error (sch_node * node, char *msg)
 {
-    char *path = node_to_path (node);
+    char *path = sch_node_to_path (node);
     ERROR ("JSON: %s \"%s\"\n", msg, path ? : "<unknown>");
     free (path);
     return;
@@ -341,7 +224,7 @@ json_to_tree (sch_node * api_root, json_t * json_root, GNode * data_root)
         sch_node *api_child;
         GNode *data_child;
 
-        api_child = api_child_get (api_root, key);
+        api_child = sch_child_get (api_root, key);
         if (!api_child)
         {
             json_error (api_root, "J2T_RES_NO_API_NODE");
@@ -363,8 +246,6 @@ json_to_tree (sch_node * api_root, json_t * json_root, GNode * data_root)
         else if (json_is_string (object))
         {
             const char *value = json_string_value (object);
-            char *pattern = NULL;
-            bool match;
 
             if (!sch_node_is_leaf (api_child))
             {
@@ -383,23 +264,7 @@ json_to_tree (sch_node * api_root, json_t * json_root, GNode * data_root)
              * is always permitted. */
             if (value[0] != '\0')
             {
-                pattern = sch_pattern (api_child);
-            }
-
-            /* "pattern" will sometimes be NULL even when setting a non-empty value because some writeable
-             * nodes don't have patterns. If there is no pattern then accept anything. */
-            if (pattern)
-            {
-                rc = apteryx_check_regex (pattern, value, &match);
-                free (pattern);
-
-                if (rc != 0)
-                {
-                    json_error (api_child, "J2T_RES_REGEX_COMPILATION_FAIL");
-                    return J2T_RES_REGEX_COMPILATION_FAIL;
-                }
-
-                if (!match)
+                if (!sch_validate_pattern (api_child, value))
                 {
                     json_error (api_child, "J2T_RES_REGEX_MISMATCH");
                     return J2T_RES_REGEX_MISMATCH;
@@ -429,7 +294,7 @@ apteryx_json_set (const char *path, json_t * json)
     int rc;
     bool set_successful;
 
-    api_subtree = api_node_get (path);
+    api_subtree = sch_path_to_node (path);
     if (!api_subtree)
     {
         return HTTP_CODE_FORBIDDEN;
@@ -537,7 +402,7 @@ apteryx_json_delete (sch_node * root, const char *path)
 static char *
 rest_api_delete (const char *path)
 {
-    int rc = apteryx_json_delete ((sch_node *) g_schema, path);
+    int rc = apteryx_json_delete (sch_root (), path);
     return g_strdup_printf ("Status: %d\r\n" "\r\n", rc);
 }
 

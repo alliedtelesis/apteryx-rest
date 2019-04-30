@@ -44,29 +44,17 @@ extern bool verbose;
 #define ERROR(fmt, args...) { if (debug) printf (fmt, ## args); else syslog (LOG_CRIT, fmt, ## args); }
 
 /* Schema */
-typedef void sch_instance;
 typedef void sch_node;
-extern sch_instance *g_schema;
-sch_instance* sch_load (const char *path);
-void sch_free (sch_instance *schema);
-sch_node* sch_lookup (sch_instance *schema, const char *path);
-bool sch_is_leaf (sch_node *node);
-bool sch_is_readable (sch_node *node);
-bool sch_is_writable (sch_node *node);
-bool sch_is_config (sch_node *node);
-char* sch_name (sch_node *node);
-char* sch_pattern (sch_node *node);
-char* sch_translate_to (sch_node *node, char *value);
-char* sch_translate_from (sch_node *node, char *value);
-
-sch_node* sch_validate_path (sch_instance *schema, const char *path, bool *read, bool *write);
-bool sch_node_is_api_node (sch_node *node);
+bool sch_load (const char *path);
+sch_node* sch_root (void);
+char* sch_dump (void);
+sch_node* sch_validate_path (sch_node *root, const char *path, bool *read, bool *write);
+sch_node* sch_child_get (sch_node *root, const char *name);
+char* sch_node_to_path (sch_node *node);
+sch_node* sch_path_to_node (const char *path);
 bool sch_node_is_leaf (sch_node *node);
 bool sch_node_has_mode_flag (sch_node *node, char mode_flag);
-char* sch_dump (sch_instance *schema);
-sch_node* sch_parent (sch_node *node);
-sch_node* sch_first_child (sch_node *node);
-sch_node* sch_next_child (sch_node *node);
+bool sch_validate_pattern (sch_node *node, const char *value);
 
 /* HTTP handler for rest */
 #define FLAGS_CONTENT_JSON       (1 << 0)

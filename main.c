@@ -23,9 +23,6 @@
 /* Mainloop handle */
 GMainLoop *g_loop = NULL;
 
-/* Global schema */
-sch_instance *g_schema = NULL;
-
 /* Debug */
 bool debug = false;
 bool verbose = false;
@@ -109,9 +106,8 @@ main (int argc, char *argv[])
     /* Initialise Apteryx client library */
     apteryx_init (verbose);
 
-    /* Initialse XML library */
-    g_schema = sch_load (path);
-    if (!g_schema)
+    /* Load schema */
+    if (!sch_load (path))
     {
         ERROR ("ERROR: Failed to load modules at path \"%s\"\n", path);
         rc = EXIT_FAILURE;
