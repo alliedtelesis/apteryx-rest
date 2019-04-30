@@ -18,6 +18,9 @@
  * along with this library. If not, see <http://www.gnu.org/licenses/>
  */
 #include "internal.h"
+#include <fnmatch.h>
+#include <libxml/parser.h>
+#include <libxml/tree.h>
 
 /* List full paths for all XML files in the search path */
 static void

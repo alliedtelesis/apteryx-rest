@@ -20,19 +20,12 @@
 #ifndef _REST_H_
 #define _REST_H_
 #include <stdio.h>
-#include <assert.h>
-#include <stdbool.h>
+#include <stdlib.h>
+#include <unistd.h>
 #include <inttypes.h>
+#include <stdbool.h>
 #include <string.h>
-#include <sys/socket.h>
 #include <syslog.h>
-#include <glib.h>
-#include <glib-unix.h>
-#include <jansson.h>
-#include <regex.h>
-#include <fnmatch.h>
-#include <libxml/parser.h>
-#include <libxml/tree.h>
 #include <apteryx.h>
 
 /* Defaults */
@@ -40,10 +33,6 @@
 #define DEFAULT_APP_PID             "/var/run/"APP_NAME".pid"
 #define DEFAULT_REST_SOCK           "/var/run/"APP_NAME".sock"
 #define REST_API_PATH               "/api"
-
-/* Helper */
-#define STR_HELPER(x) #x
-#define STR(x) STR_HELPER(x)
 
 /* Debug */
 extern bool debug;
@@ -53,19 +42,11 @@ extern bool verbose;
 #define INFO(fmt, args...) { if (debug) printf (fmt, ## args); else syslog (LOG_INFO, fmt, ## args); }
 #define NOTICE(fmt, args...) { if (debug) printf (fmt, ## args); else syslog (LOG_NOTICE, fmt, ## args); }
 #define ERROR(fmt, args...) { if (debug) printf (fmt, ## args); else syslog (LOG_CRIT, fmt, ## args); }
-#define FATAL(fmt, args...) { if (debug) printf (fmt, ## args); else syslog (LOG_CRIT, fmt, ## args); g_main_loop_quit (g_loop); }
-#define ASSERT(assertion, rcode, fmt, args...) { \
-    if (!(assertion)) { \
-        if (debug) printf (fmt, ## args); \
-        else syslog (LOG_CRIT, fmt, ## args); \
-        g_main_loop_quit (g_loop); \
-        rcode; \
-    } \
-}
 
 /* Schema */
 typedef void sch_instance;
 typedef void sch_node;
+extern sch_instance *g_schema;
 sch_instance* sch_load (const char *path);
 void sch_free (sch_instance *schema);
 sch_node* sch_lookup (sch_instance *schema, const char *path);
@@ -90,11 +71,5 @@ void fcgi_stop (void);
 
 /* Rest */
 char* rest_api (int flags, const char *path, const char *action, const char *data, int length);
-
-/* GLib Main Loop */
-extern GMainLoop *g_loop;
-
-/* Global schema */
-extern sch_instance *g_schema;
 
 #endif /* _REST_H_ */

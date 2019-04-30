@@ -18,6 +18,7 @@
  * along with this library. If not, see <http://www.gnu.org/licenses/>
  */
 #include "internal.h"
+#include <sys/socket.h>
 #include <fcgi_config.h>
 #include <fcgiapp.h>
 
@@ -170,21 +171,21 @@ fcgi_start (const char *socket, http_callback cb)
     /* Initialise the fastcgi library */
     if (FCGX_Init () != 0)
     {
-        FATAL ("FCGX_Init failed: %s\n", strerror (errno));
+        ERROR ("FCGX_Init failed: %s\n", strerror (errno));
         return false;
     }
 
     /* Open the user provided socket */
     if ((g_sock = FCGX_OpenSocket (g_socket, 10)) < 0)
     {
-        FATAL ("FCGX_OpenSocket failed: %s\n", strerror (errno));
+        ERROR ("FCGX_OpenSocket failed: %s\n", strerror (errno));
         return false;
     }
 
     /* Create a thread to handle requests */
     if ((g_thread = g_thread_new ("http handler", &handle_http, NULL)) == NULL)
     {
-        FATAL ("Failed to launch HTTP handler thread\n");
+        ERROR ("Failed to launch HTTP handler thread\n");
         return false;
     }
 

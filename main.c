@@ -18,6 +18,7 @@
  * along with this library. If not, see <http://www.gnu.org/licenses/>
  */
 #include "internal.h"
+#include <glib-unix.h>
 
 /* Mainloop handle */
 GMainLoop *g_loop = NULL;
