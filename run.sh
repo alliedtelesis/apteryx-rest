@@ -111,7 +111,7 @@ rc=$?; if [[ $rc != 0 ]]; then exit $rc; fi
 sleep 0.5
 
 # Run lighttpd
-sudo killall lighttpd &> /dev/null
+killall lighttpd &> /dev/null
 echo '
 server.document-root = "./"
 server.port = 8080
@@ -137,10 +137,10 @@ $BUILD/usr/sbin/lighttpd -D -f $BUILD/lighttpd.conf -m $BUILD/usr/lib
 rc=$?; if [[ $rc != 0 ]]; then exit $rc; fi
 
 # Stop lighttpd
-sudo killall lighttpd &> /dev/null
+killall lighttpd &> /dev/null
 # Stop apteryx-rest
-sudo killall apteryx-rest &> /dev/null
-sudo kill `pidof valgrind.bin` &> /dev/null
+killall apteryx-rest &> /dev/null
+kill `pidof valgrind.bin` &> /dev/null
 # Stop Apteryx
 $BUILD/usr/bin/apteryx -t
 killall apteryxd
