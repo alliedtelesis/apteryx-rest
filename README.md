@@ -29,11 +29,11 @@
 | 404  | Not Found      | The requested URI does not exist. |
 | 500  | Internal Error | Internal error (e.g. no memory) |
 
-## API
-Specified in XML can can be retrieved from teh device.
+## API Schema
+Specified in XML can can be retrieved from the device.
 
 ```
-curl -u manager:friend -k https:// <IP Address/Host Name>/api.xml
+curl -u manager:friend -k https://<IP Address/Host Name>/api.xml
 ```
 
 ```
@@ -70,4 +70,65 @@ curl -u manager:friend -k https:// <IP Address/Host Name>/api.xml
         </NODE>
     </NODE>
 </MODULE>
+```
+
+## GET
+
+* Get the list of firewall rules (note the ending slash to indicate only return direct children)
+```
+curl -u manager:friend -k https://<IP Address/Host Name>/api/firewall/fw_rules/
+```
+```
+{"fw_rules": ["10","20"]}
+```
+
+* Get a single node's value
+```
+curl -u manager:friend -k https://<IP Address/Host Name>/api/firewall/fw_rules/10/application
+```
+```
+{"application": "http"}
+```
+
+* Retrieve the entire rule
+```
+curl -u manager:friend -k https://<IP Address/Host Name>/api/firewall/fw_rules/10
+```
+```
+{"10": {
+    "index": "10",
+    "to": "public",
+    "application": "http",
+    "from": "private",
+    "action": "1"
+}}
+```
+
+* Retrieve the entire firewall configuration
+```
+curl -u manager:friend -k https://<IP Address/Host Name>/api/firewall
+```
+```
+{"firewall": {
+    "settings": {
+        "protect": "1",
+        "state": "2"
+    },
+    "fw_rules": {
+        "10": {
+            "index": "10",
+            "to": "public",
+            "application": "http",
+            "from": "private",
+            "action": "1"
+        },
+        "20": {
+            "index": "20",
+            "to": "public",
+            "application": "ftp",
+            "from": "private",
+            "action": "1"
+        }
+    }
+}}
 ```
