@@ -34,9 +34,7 @@ Specified in XML can can be retrieved from the device.
 
 ```
 curl -u manager:friend -k https://<HOST>/api.xml
-```
 
-```
 <?xml version="1.0" encoding="UTF-8"?>
 <MODULE xmlns="https://github.com/alliedtelesis/apteryx"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -77,24 +75,21 @@ curl -u manager:friend -k https://<HOST>/api.xml
 * Get the list of firewall rules (note the ending slash to indicate only return direct children)
 ```
 curl -u manager:friend -k https://<HOST>/api/firewall/fw_rules/
-```
-```
+
 {"fw_rules": ["10","20"]}
 ```
 
 * Get a single node's value
 ```
 curl -u manager:friend -k https://<HOST>/api/firewall/fw_rules/10/application
-```
-```
+
 {"application": "http"}
 ```
 
 * Retrieve the entire rule
 ```
 curl -u manager:friend -k https://<HOST>/api/firewall/fw_rules/10
-```
-```
+
 {"10": {
     "index": "10",
     "to": "public",
@@ -107,8 +102,7 @@ curl -u manager:friend -k https://<HOST>/api/firewall/fw_rules/10
 * Retrieve the entire firewall configuration
 ```
 curl -u manager:friend -k https://<HOST>/api/firewall
-```
-```
+
 {"firewall": {
     "settings": {
         "protect": "1",
