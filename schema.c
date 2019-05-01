@@ -296,6 +296,26 @@ sch_node_is_leaf (sch_node * node)
 }
 
 bool
+sch_node_is_list (sch_node * node)
+{
+    char *name;
+    bool result;
+
+    if (sch_node_is_leaf (node))
+    {
+        return false;
+    }
+
+    /* Since this is not a leaf node, there must be at least one child xmlNode and all
+     * are of type NODE. If this is a list then there will be exactly one child with
+     * the name "*". */
+    name = (char *) xmlGetProp (((xmlNode *) node)->children, (xmlChar *) "name");
+    result = (name[0] == '*');
+    xmlFree (name);
+    return result;
+}
+
+bool
 sch_node_has_mode_flag (sch_node * node, char mode_flag)
 {
     xmlNode *xml = (xmlNode *) node;

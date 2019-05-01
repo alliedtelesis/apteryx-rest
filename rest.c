@@ -22,60 +22,8 @@
 #define HTTP_CODE_OK                    200
 #define HTTP_CODE_BAD_REQUEST           400
 #define HTTP_CODE_FORBIDDEN             403
+#define HTTP_CODE_NOT_FOUND             404
 #define HTTP_CODE_INTERNAL_SERVER_ERROR 500
-
-
-static int
-tree_to_json (GNode * node, json_t * json)
-{
-    int ret;
-
-    if (APTERYX_HAS_VALUE (node))
-    {
-        ret =
-            json_object_set_new (json, APTERYX_NAME (node),
-                                 json_string (APTERYX_VALUE (node)));
-    }
-    else
-    {
-        json_t *obj = json_object ();
-        GNode *child;
-        for (child = g_node_first_child (node); child; child = g_node_next_sibling (child))
-        {
-            ret = tree_to_json (child, obj);
-            if (ret != 0)
-            {
-                return ret;
-            }
-        }
-        ret = json_object_set (json, APTERYX_NAME (node), obj);
-    }
-    if (ret != 0)
-    {
-        ERROR ("JSON: Failed to parse node %s\n", APTERYX_NAME (node));
-    }
-    return ret;
-}
-
-static json_t *
-g_node_to_url_json (GNode * tree)
-{
-    GNode *child;
-    json_t *json;
-
-    /* Parse the tree to JSON */
-    json = json_object ();
-    for (child = g_node_first_child (tree); child; child = g_node_next_sibling (child))
-    {
-        int ret = tree_to_json (child, json);
-        if (ret != 0)
-        {
-            json_decref (json);
-            return NULL;
-        }
-    }
-    return json;
-}
 
 static char *
 rest_api_xml (void)
@@ -148,37 +96,115 @@ rest_api_search (const char *path)
     return resp;
 }
 
+static json_t *
+_tree_to_json (sch_node * api_root, GNode * data_root, bool use_json_arrays)
+{
+    if (APTERYX_HAS_VALUE (data_root))
+    {
+        /* Assumption: mode fields will only be present on leaf nodes. */
+        if (!sch_node_has_mode_flag (api_root, 'r'))
+        {
+            return NULL;
+        }
+        return json_string (APTERYX_VALUE (data_root));
+    }
+    else
+    {
+        GNode *data_child;
+        json_t *json_root;
+        bool child_added = false;
+        bool print_as_array = false;
+
+        if (use_json_arrays)
+        {
+            print_as_array = sch_node_is_list (api_root);
+        }
+
+        /* Create a JSON node to match the current data node. If it turns out that there
+         * are no readable children then this will be thrown away. */
+        if (print_as_array)
+            json_root = json_array ();
+        else
+            json_root = json_object ();
+        for (data_child = g_node_first_child (data_root); data_child;
+             data_child = g_node_next_sibling (data_child))
+        {
+            sch_node *api_child;
+            json_t *json_child;
+
+            api_child = sch_child_get (api_root, APTERYX_NAME (data_child));
+            if (!api_child)
+            {
+                continue;
+            }
+
+            json_child = _tree_to_json (api_child, data_child, use_json_arrays);
+            if (json_child)
+            {
+                char *name = (print_as_array) ? "$" : APTERYX_NAME (data_child);
+                json_object_set (json_root, name, json_child);
+                json_decref (json_child);
+                child_added = true;
+            }
+        }
+
+        return (child_added) ? json_root : NULL;
+    }
+}
+
+static json_t *
+tree_to_json (sch_node * api_root, GNode * data_root, bool use_json_arrays)
+{
+    json_t *json_root = json_object ();
+    if (data_root)
+    {
+        json_t *json_child = _tree_to_json (api_root, data_root, use_json_arrays);
+        if (json_child)
+        {
+            char *slash;
+            char *name;
+
+            /* The root of the data tree may hold multiple path components separated
+             * by slashes. We only want the last component. */
+            slash = strrchr (APTERYX_NAME (data_root), '/');
+            name = (slash) ? slash + 1 : APTERYX_NAME (data_root);
+            json_object_set (json_root, name, json_child);
+            json_decref (json_child);
+        }
+    }
+    return json_root;
+}
+
 static char *
 rest_api_get (const char *path)
 {
-    GNode *tree;
+    sch_node *api_subtree;
+    GNode *data;
     json_t *json;
-    char *data;
+    char *json_string = NULL;
+    int rc = HTTP_CODE_OK;
     char *resp;
 
-    VERBOSE ("GET %s\n", path);
-
-    /* Get from Apteryx */
-    tree = apteryx_get_tree (path);
-    if (!tree)
+    api_subtree = sch_path_to_node (path);
+    if (!api_subtree)
     {
-        ERROR ("\"%s\" not found\n", path);
-        return NULL;
+        rc = HTTP_CODE_NOT_FOUND;
+        goto exit;
     }
 
-    /* Convert to JSON */
-    json = g_node_to_url_json (tree);
-    if (!json)
+    if (sch_node_is_leaf (api_subtree) && !sch_node_has_mode_flag (api_subtree, 'r'))
     {
-        ERROR ("Failed to convert Apteryx to JSON for path %s\n", path);
-        apteryx_free_tree (tree);
-        return NULL;
+        rc = HTTP_CODE_FORBIDDEN;
+        goto exit;
     }
-    apteryx_free_tree (tree);
+
+    data = apteryx_get_tree (path);
+    json = tree_to_json (api_subtree, data, false);
+    apteryx_free_tree (data);
 
     /* Dump to the output */
-    data = json_dumps (json, 0);
-    if (!data)
+    json_string = json_dumps (json, 0);
+    if (!json_string)
     {
         ERROR ("Failed to format JSON for path %s\n", path);
         json_decref (json);
@@ -186,11 +212,12 @@ rest_api_get (const char *path)
     }
     json_decref (json);
 
+  exit:
     /* Add header */
-    resp = g_strdup_printf ("Status: 200\r\n"
+    resp = g_strdup_printf ("Status: %d\r\n"
                             "Content-Type: application/yang.data+json\r\n"
-                            "\r\n" "%s", data);
-    free (data);
+                            "\r\n" "%s", rc, json_string ? : "");
+    free (json_string);
 
     /* Return response */
     return resp;

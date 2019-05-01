@@ -37,6 +37,16 @@ $(DAEMON): $(OBJS)
 	@echo "Building $@"
 	$(Q)$(CC) $(CFLAGS) $(EXTRA_CFLAGS) -o $@ $(OBJS) $(EXTRA_LDFLAGS)
 
+apteryxd = \
+	if test -e /tmp/apteryxd.pid; then \
+		kill -TERM `cat /tmp/apteryxd.pid` && sleep 0.1; \
+	fi; \
+	rm -f /tmp/apteryxd.pid; \
+	rm -f /tmp/apteryxd.run; \
+	apteryxd -b -p /tmp/apteryxd.pid -r /tmp/apteryxd.run && sleep 0.1; \
+	G_SLICE=always-malloc $(TEST_WRAPPER) $(1) $(TEST_ARGS); \
+	kill -TERM `cat /tmp/apteryxd.pid`;
+
 # make test
 # make test TEST_ARGS="-l"
 # make test TEST_ARGS="-p /schema"
@@ -46,7 +56,7 @@ test: test.c rest.c schema.c
 	@echo "Building $@"
 	$(Q)mkdir -p gcov
 	$(Q)$(CC) $(CFLAGS) $(EXTRA_CFLAGS) -g -fprofile-arcs -fprofile-dir=gcov -ftest-coverage -o $@ $^ $(EXTRA_LDFLAGS)
-	$(Q)G_SLICE=always-malloc $(TEST_WRAPPER) ./test $(TEST_ARGS) 2>&1
+	$(Q)$(call apteryxd,./test)
 	$(Q)mv *.gcno gcov/
 	$(Q)lcov -q --capture --directory . --output-file gcov/coverage.info
 	$(Q)genhtml -q gcov/coverage.info --output-directory gcov

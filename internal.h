@@ -54,6 +54,7 @@ sch_node* sch_child_get (sch_node *root, const char *name);
 char* sch_node_to_path (sch_node *node);
 sch_node* sch_path_to_node (const char *path);
 bool sch_node_is_leaf (sch_node *node);
+bool sch_node_is_list (sch_node *node);
 bool sch_node_has_mode_flag (sch_node *node, char mode_flag);
 bool sch_validate_pattern (sch_node *node, const char *value);
 

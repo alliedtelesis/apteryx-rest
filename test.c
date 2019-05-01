@@ -21,6 +21,10 @@
 bool debug = false;
 bool verbose = false;
 
+#define TEST_PATH       "/test"
+#define TEST_SETUP      g_assert_true (sch_load ("."));
+#define TEST_TEARDOWN   { sch_unload (); g_assert_true (assert_apteryx_empty ()); }
+
 static void generate_test_schemas (void)
 {
     FILE *xml;
@@ -86,6 +90,26 @@ static void destroy_test_schemas ()
     unlink ("test2.xml");
 }
 
+static bool
+assert_apteryx_empty (void)
+{
+    GList *paths = apteryx_search ("/");
+    GList *iter;
+    bool ret = true;
+    for (iter = paths; iter; iter = g_list_next (iter))
+    {
+        char *path = (char *) (iter->data);
+        if (strncmp (TEST_PATH, path, strlen (TEST_PATH)) == 0)
+        {
+            if (ret) fprintf (stderr, "\n");
+            fprintf (stderr, "ERROR: Node still set: %s\n", path);
+            ret = false;
+        }
+    }
+    g_list_free_full (paths, free);
+    return ret;
+}
+
 static void test_schema_load (void)
 {
     g_assert_null (sch_root ());
@@ -95,31 +119,192 @@ static void test_schema_load (void)
     g_assert_null (sch_root ());
 }
 
-static void test_rest_schema (void)
+static void test_schema_get (void)
 {
     char *buffer;
 
-    g_assert_true (sch_load ("."));
+    TEST_SETUP
     buffer = rest_api (FLAGS_ACCEPT_JSON, "/api.xml", "GET", NULL, 0);
     g_assert_nonnull (g_strrstr (buffer, "<MODULE xmlns=\"https://github.com/alliedtelesis/apteryx\""));
     g_assert_nonnull (g_strrstr (buffer, "this is a test node"));
     g_assert_null (g_strrstr (buffer, "that will be merged"));
     g_assert_nonnull (g_strrstr (buffer, "Read only field"));
     free (buffer);
-    sch_unload ();
+    TEST_TEARDOWN
+}
+
+static void test_set_node (void)
+{
+    char *data = "{\"debug\": \"0\"}";
+    int len = strlen (data);
+
+    TEST_SETUP
+    char *resp = rest_api (FLAGS_ACCEPT_JSON, "/api/test", "POST", data, len);
+    char *buffer = apteryx_get ("/test/debug");
+    g_assert_cmpstr (buffer, ==, "0");
+    free (buffer);
+    free (resp);
+    apteryx_set ("/test/debug", NULL);
+    TEST_TEARDOWN
+}
+
+static void test_set_node_null (void)
+{
+    char *data = "{\"debug\": \"\"}";
+    int len = strlen (data);
+
+    TEST_SETUP
+    apteryx_set ("/test/debug", "0");
+    char *resp = rest_api (FLAGS_ACCEPT_JSON, "/api/test", "POST", data, len);
+    g_assert_null (apteryx_get ("/test/debug"));
+    free (resp);
+    TEST_TEARDOWN
+}
+
+static void test_set_node_invalid (void)
+{
+    char *data = "{\"debug\": \"not_valid\"}";
+    int len = strlen (data);
+
+    TEST_SETUP
+    apteryx_set ("/test/debug", "0");
+    char *resp = rest_api (FLAGS_ACCEPT_JSON, "/api/test", "POST", data, len);
+    char *buffer = apteryx_get ("/test/debug");
+    g_assert_cmpstr (buffer, ==, "0");
+    free (buffer);
+    free (resp);
+    apteryx_set ("/test/debug", NULL);
+    TEST_TEARDOWN
+}
+
+static void test_set_tree (void)
+{
+    char *data = "{\"list\": {\"fred\": {\"name\": \"fred\"}}}";
+    int len = strlen (data);
+
+    TEST_SETUP
+    char *resp = rest_api (FLAGS_ACCEPT_JSON, "/api/test", "POST", data, len);
+    char *buffer = apteryx_get ("/test/list/fred/name");
+    g_assert_cmpstr (buffer, ==, "fred");
+    free (buffer);
+    free (resp);
+    apteryx_set ("/test/list/fred/name", NULL);
+    TEST_TEARDOWN
+}
+
+static void test_set_tree_null (void)
+{
+    char *data = "{\"list\": {\"fred\": {\"name\": \"\"}}}";
+    int len = strlen (data);
+
+    TEST_SETUP
+    apteryx_set ("/test/list/fred/name", "fred");
+    char *resp = rest_api (FLAGS_ACCEPT_JSON, "/api/test", "POST", data, len);
+    g_assert_null (apteryx_get ("/test/list/fred/name"));
+    free (resp);
+    TEST_TEARDOWN
+}
+
+static void test_get_node (void)
+{
+    TEST_SETUP
+    apteryx_set ("/test/debug", "0");
+    char *resp = rest_api (FLAGS_ACCEPT_JSON, "/api/test/debug", "GET", NULL, 0);
+    char *json = strstr (resp, "\r\n\r\n");
+    json = json ? json + 4 : "";
+    g_assert_cmpstr (json, ==, "{\"debug\": \"0\"}");
+    free (resp);
+    apteryx_set ("/test/debug", NULL);
+    TEST_TEARDOWN
+}
+
+static void test_get_trunk (void)
+{
+    TEST_SETUP
+    apteryx_set ("/test/debug", "0");
+    char *buffer = rest_api (FLAGS_ACCEPT_JSON, "/api/test", "GET", NULL, 0);
+    char *json = strstr (buffer, "\r\n\r\n");
+    json = json ? json + 4 : "";
+    g_assert_cmpstr (json, ==, "{\"test\": {\"debug\": \"0\"}}");
+    free (buffer);
+    apteryx_set ("/test/debug", NULL);
+    TEST_TEARDOWN
+}
+
+static void test_search_node (void)
+{
+    TEST_SETUP
+    apteryx_set ("/test/list/fred/name", "fred");
+    apteryx_set ("/test/list/tom/name", "tom");
+    char *resp = rest_api (FLAGS_ACCEPT_JSON, "/api/test/list/fred/name/", "GET", NULL, 0);
+    char *json = strstr (resp, "\r\n\r\n");
+    json = json ? json + 4 : "";
+    g_assert_cmpstr (json, ==, "{\"name\": []}");
+    free (resp);
+    apteryx_set ("/test/list/fred/name", NULL);
+    apteryx_set ("/test/list/tom/name", NULL);
+    TEST_TEARDOWN
+}
+
+static void test_search_trunk (void)
+{
+    TEST_SETUP
+    apteryx_set ("/test/list/fred/name", "fred");
+    apteryx_set ("/test/list/tom/name", "tom");
+    char *resp = rest_api (FLAGS_ACCEPT_JSON, "/api/test/list/", "GET", NULL, 0);
+    char *json = strstr (resp, "\r\n\r\n");
+    json = json ? json + 4 : "";
+    g_assert_cmpstr (json, ==, "{\"list\": [\"fred\",\"tom\"]}");
+    free (resp);
+    apteryx_set ("/test/list/fred/name", NULL);
+    apteryx_set ("/test/list/tom/name", NULL);
+    TEST_TEARDOWN
+}
+
+static void test_delete_node (void)
+{
+    TEST_SETUP
+    apteryx_set ("/test/debug", "0");
+    char *resp = rest_api (FLAGS_ACCEPT_JSON, "/api/test/debug", "DELETE", NULL, 0);
+    g_assert_null (apteryx_get ("/test/debug"));
+    free (resp);
+    TEST_TEARDOWN
+}
+
+static void test_delete_trunk (void)
+{
+    TEST_SETUP
+    apteryx_set ("/test/list/fred/name", "fred");
+    char *resp = rest_api (FLAGS_ACCEPT_JSON, "/api/test/list", "DELETE", NULL, 0);
+    g_assert_null (apteryx_get ("/test/list/fred/name"));
+    free (resp);
+    TEST_TEARDOWN
 }
 
 int main (int argc, char *argv[])
 {
     int rc;
 
+    apteryx_init (false);
     generate_test_schemas ();
 
     g_test_init (&argc, &argv, NULL);
     g_test_add_func ("/schema/load", test_schema_load);
-    g_test_add_func ("/rest/schema", test_rest_schema);
+    g_test_add_func ("/schema/get", test_schema_get);
+    g_test_add_func ("/set/node", test_set_node);
+    g_test_add_func ("/set/node/null", test_set_node_null);
+    g_test_add_func ("/set/node/invalid", test_set_node_invalid);
+    g_test_add_func ("/set/tree", test_set_tree);
+    g_test_add_func ("/set/tree/null", test_set_tree_null);
+    g_test_add_func ("/get/node", test_get_node);
+    g_test_add_func ("/get/trunk", test_get_trunk);
+    g_test_add_func ("/search/node", test_search_node);
+    g_test_add_func ("/search/trunk", test_search_trunk);
+    g_test_add_func ("/delete/node", test_delete_node);
+    g_test_add_func ("/delete/trunk", test_delete_trunk);
     rc = g_test_run();
 
     destroy_test_schemas ();
+    apteryx_shutdown ();
     return rc;
 }
