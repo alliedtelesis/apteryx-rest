@@ -72,6 +72,10 @@ cd $ROOT
 make V=1 SYSROOT=$BUILD
 rc=$?; if [[ $rc != 0 ]]; then exit $rc; fi
 
+# Test
+make SYSROOT=$BUILD test
+rc=$?; if [[ $rc != 0 ]]; then exit $rc; fi
+
 # Start Apteryx and populate the database
 export LD_LIBRARY_PATH=$BUILD/usr/lib
 $BUILD/usr/bin/apteryxd -b
@@ -129,51 +133,11 @@ fastcgi.server = (
   )
 )
 ' > $BUILD/lighttpd.conf
-$BUILD/usr/sbin/lighttpd -f $BUILD/lighttpd.conf -m $BUILD/usr/lib
+$BUILD/usr/sbin/lighttpd -D -f $BUILD/lighttpd.conf -m $BUILD/usr/lib
 rc=$?; if [[ $rc != 0 ]]; then exit $rc; fi
 
-## Testing
-APTERYX=$BUILD/usr/bin/apteryx
-
-echo -ne "API"
-res=`curl -sG http://127.0.0.1:8080/api.xml`
-[[ $res == *"The interface is disabled"* ]] && (echo " - pass";) || (echo -e " - FAIL\n$res";)
-
-echo -ne "POST"
-res=`curl -s -X POST -d '{"name":"eth2","type":"eth","enabled":"true"}' http://127.0.0.1:8080/api/interfaces/interface/eth2`
-res=$($APTERYX -g /interfaces/interface/eth2/name)
-[[ $res == "eth2" ]] && (echo " - pass";) || (echo -e " - FAIL\n$res";)
-
-echo -ne "POST(tree)"
-res=`curl -sX POST -d '{"eth1":{"name":"eth1","type":"eth","enabled":"true"}}' http://127.0.0.1:8080/api/interfaces/interface`
-res=$($APTERYX -g /interfaces/interface/eth1/name)
-[[ $res == "eth1" ]] && (echo " - pass";) || (echo -e " - FAIL\n$res";)
-
-echo -ne "POST(pattern mismatch)"
-res=`curl -sX POST -d '{"type":"cat"}' http://127.0.0.1:8080/api/interfaces/interface/eth2`
-res=$($APTERYX -g /interfaces/interface/eth2/type)
-[[ $res == "eth" ]] && (echo " - pass";) || (echo -e " - FAIL\n$res";)
-
-echo -ne "GET"
-res=`curl -sG http://127.0.0.1:8080/api/interfaces/interface/eth1`
-[[ "$res" == '{"type": "eth", "enabled": "true", "name": "eth1"}' ]] && (echo " - pass";) || (echo -e " - FAIL\n$res";)
-
-echo -ne "SEARCH"
-res=`curl -sG http://127.0.0.1:8080/api/interfaces/interface/`
-[[ "$res" == '{"interface": ["eth2","eth1"]}' ]] && (echo " - pass";) || (echo -e " - FAIL\n$res";)
-
-echo -ne "DELETE"
-res=`curl -sX "DELETE" http://127.0.0.1:8080/api/interfaces/interface/eth1`
-res=$($APTERYX -t /interfaces/interface/eth1)
-[[ $res == "" ]] && (echo " - pass";) || (echo -e " - FAIL\n$res";)
-
-echo -ne "DELETE(trunk)"
-res=`curl -sX "DELETE" http://127.0.0.1:8080/api/interfaces/interface`
-res=$($APTERYX -t)
-[[ $res == '' ]] && (echo " - pass";) || (echo -e " - FAIL\n$res";)
-
 # Stop lighttpd
-sudo killall lighttpd
+sudo killall lighttpd &> /dev/null
 # Stop apteryx-rest
 sudo killall apteryx-rest &> /dev/null
 sudo kill `pidof valgrind.bin` &> /dev/null

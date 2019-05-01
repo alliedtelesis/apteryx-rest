@@ -3,7 +3,7 @@ ifneq ($(V),1)
 	Q=@
 endif
 
-SYSROOT ?= .
+SYSROOT ?=
 SRCDIR ?= .
 DESTDIR ?= ./
 PREFIX ?= /usr/
@@ -43,7 +43,8 @@ apteryxd = \
 	fi; \
 	rm -f /tmp/apteryxd.pid; \
 	rm -f /tmp/apteryxd.run; \
-	apteryxd -b -p /tmp/apteryxd.pid -r /tmp/apteryxd.run && sleep 0.1; \
+	export LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):$(SYSROOT)/usr/lib; \
+	$(SYSROOT)/usr/bin/apteryxd -b -p /tmp/apteryxd.pid -r /tmp/apteryxd.run && sleep 0.1; \
 	G_SLICE=always-malloc $(TEST_WRAPPER) $(1) $(TEST_ARGS); \
 	kill -TERM `cat /tmp/apteryxd.pid`;
 
