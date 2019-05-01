@@ -1,5 +1,52 @@
 # RESTful API for Apteryx
 
+## Build
+Dependencies:
+```
+glib-2.0 libxml-2.0 fcgi-2.4.0 jansson-2.12 apteryx-4.32
+```
+
+Make and install:
+```
+make install
+```
+
+Unit tests:
+```
+make test
+```
+
+Run using modules installed in /etc/modules:
+```
+apteryx-rest -b -m /etc/modules -p /var/run/apteryx-rest.pid -s /var/run/apteryx-rest.sock
+
+```
+
+Lighttpd:
+```
+fastcgi.server = (
+"/api" => (
+  "fastcgi.handler" => (
+    "socket" => "/var/run/apteryx-rest.sock",
+    "check-local" => "disable",
+    )
+  )
+)
+```
+
+## Demo
+* Requires installed glib-2.0 libxml-2.0
+* Builds in a sandbox (.build/)
+* Downloads and compiles fcgi-2.4.0 jansson-2.12 apteryx-git lighttpd1.4
+* Runs unit tests
+* Starts Apteryx with a simple demo schema
+* Starts lighttpd on localhost:8080
+```
+./run.sh
+
+curl http://localhost:8080/api.xml
+```
+
 ## Protocol
 * RESTful API over HTTP using HTTP GET, POST and DELETE
 * API and data model specified using XML
