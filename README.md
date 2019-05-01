@@ -11,11 +11,6 @@ Make and install:
 make install
 ```
 
-Unit tests:
-```
-make test
-```
-
 Run using modules installed in /etc/modules:
 ```
 apteryx-rest -b -m /etc/modules -p /var/run/apteryx-rest.pid -s /var/run/apteryx-rest.sock
@@ -32,6 +27,22 @@ fastcgi.server = (
     )
   )
 )
+```
+## Unit tests
+Uses GLib testing framework (https://developer.gnome.org/glib/stable/glib-Testing.html)
+```
+make test
+```
+
+Test arguments passed to GLib via $TEST_ARGS:
+* -l: List test cases available in a test executable.
+* --verbose: Run tests verbosely.
+* -p PATH: Execute all tests matching the given path.
+* -s PATH: Skip all tests matching the given path.
+
+e.g.
+```
+make test TEST_ARGS="--verbose -p /get"
 ```
 
 ## Demo
