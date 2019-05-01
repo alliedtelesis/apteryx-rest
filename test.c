@@ -231,6 +231,21 @@ static void test_get_trunk (void)
     TEST_TEARDOWN
 }
 
+static void test_get_array (void)
+{
+    TEST_SETUP
+    apteryx_set ("/test/list/fred/name", "fred");
+    apteryx_set ("/test/list/tom/name", "tom");
+    char *buffer = rest_api (FLAGS_ACCEPT_JSON, "/api/test/list", "GET", NULL, 0);
+    char *json = strstr (buffer, "\r\n\r\n");
+    json = json ? json + 4 : "";
+    g_assert_cmpstr (json, ==, "{\"list\": [{\"name\": \"fred\"}, {\"name\": \"tom\"}]}");
+    free (buffer);
+    apteryx_set ("/test/list/fred/name", NULL);
+    apteryx_set ("/test/list/tom/name", NULL);
+    TEST_TEARDOWN
+}
+
 static void test_search_node (void)
 {
     TEST_SETUP
@@ -285,10 +300,10 @@ int main (int argc, char *argv[])
 {
     int rc;
 
-    apteryx_init (false);
-    generate_test_schemas ();
-
     g_test_init (&argc, &argv, NULL);
+    debug = verbose = g_test_verbose ();
+    apteryx_init (verbose);
+    generate_test_schemas ();
     g_test_add_func ("/schema/load", test_schema_load);
     g_test_add_func ("/schema/get", test_schema_get);
     g_test_add_func ("/set/node", test_set_node);
@@ -298,12 +313,12 @@ int main (int argc, char *argv[])
     g_test_add_func ("/set/tree/null", test_set_tree_null);
     g_test_add_func ("/get/node", test_get_node);
     g_test_add_func ("/get/trunk", test_get_trunk);
+    g_test_add_func ("/get/array", test_get_array);
     g_test_add_func ("/search/node", test_search_node);
     g_test_add_func ("/search/trunk", test_search_trunk);
     g_test_add_func ("/delete/node", test_delete_node);
     g_test_add_func ("/delete/trunk", test_delete_trunk);
     rc = g_test_run();
-
     destroy_test_schemas ();
     apteryx_shutdown ();
     return rc;

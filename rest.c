@@ -141,8 +141,10 @@ _tree_to_json (sch_node * api_root, GNode * data_root, bool use_json_arrays)
             json_child = _tree_to_json (api_child, data_child, use_json_arrays);
             if (json_child)
             {
-                char *name = (print_as_array) ? "$" : APTERYX_NAME (data_child);
-                json_object_set (json_root, name, json_child);
+                if (print_as_array)
+                    json_array_append (json_root, json_child);
+                else
+                    json_object_set (json_root, APTERYX_NAME (data_child), json_child);
                 json_decref (json_child);
                 child_added = true;
             }
@@ -199,7 +201,7 @@ rest_api_get (const char *path)
     }
 
     data = apteryx_get_tree (path);
-    json = tree_to_json (api_subtree, data, false);
+    json = tree_to_json (api_subtree, data, true);
     apteryx_free_tree (data);
 
     /* Dump to the output */
