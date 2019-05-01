@@ -33,7 +33,7 @@
 Specified in XML can can be retrieved from the device.
 
 ```
-curl -u manager:friend -k https://<IP Address/Host Name>/api.xml
+curl -u manager:friend -k https://<HOST>/api.xml
 ```
 
 ```
@@ -76,7 +76,7 @@ curl -u manager:friend -k https://<IP Address/Host Name>/api.xml
 
 * Get the list of firewall rules (note the ending slash to indicate only return direct children)
 ```
-curl -u manager:friend -k https://<IP Address/Host Name>/api/firewall/fw_rules/
+curl -u manager:friend -k https://<HOST>/api/firewall/fw_rules/
 ```
 ```
 {"fw_rules": ["10","20"]}
@@ -84,7 +84,7 @@ curl -u manager:friend -k https://<IP Address/Host Name>/api/firewall/fw_rules/
 
 * Get a single node's value
 ```
-curl -u manager:friend -k https://<IP Address/Host Name>/api/firewall/fw_rules/10/application
+curl -u manager:friend -k https://<HOST>/api/firewall/fw_rules/10/application
 ```
 ```
 {"application": "http"}
@@ -92,7 +92,7 @@ curl -u manager:friend -k https://<IP Address/Host Name>/api/firewall/fw_rules/1
 
 * Retrieve the entire rule
 ```
-curl -u manager:friend -k https://<IP Address/Host Name>/api/firewall/fw_rules/10
+curl -u manager:friend -k https://<HOST>/api/firewall/fw_rules/10
 ```
 ```
 {"10": {
@@ -106,7 +106,7 @@ curl -u manager:friend -k https://<IP Address/Host Name>/api/firewall/fw_rules/1
 
 * Retrieve the entire firewall configuration
 ```
-curl -u manager:friend -k https://<IP Address/Host Name>/api/firewall
+curl -u manager:friend -k https://<HOST>/api/firewall
 ```
 ```
 {"firewall": {
@@ -136,28 +136,30 @@ curl -u manager:friend -k https://<IP Address/Host Name>/api/firewall
 ## POST
 * Change the application attribute in firewall rule 10
 ```
-curl -u manager:friend -k -H "Content-Type: application/json" -d '{"application":"skype"}' https://<IP Address/Host Name>/api/firewall/fw-rules/10
+curl -u manager:friend -k -H "Content-Type: application/json" -d \
+'{"application":"skype"}' https://<HOST>/api/firewall/fw-rules/10
 ```
 
 * Create a new rule 30
 ```
-curl -u manager:friend -k -H "Content-Type: application/json" -d '
-{"30": {
+curl -u manager:friend -k -H "Content-Type: application/json" -d \
+'{"30": {
     "index": "30",
     "to": "public",
     "application": "tftp",
     "from": "private",
     "action": "1",
-}}' https:// <IP Address/Host Name>/api/firewall/fw-rules
+}}' https://<HOST>/api/firewall/fw-rules
 ```
 
 * Set the application on rule 10 to NULL (unset)
 ```
-curl -u manager:friend -k -H "Content-Type: application/json" -d '{"application":""}' https://<IP Address/Host Name>/api/firewall/fw-rules/10
+curl -u manager:friend -k -H "Content-Type: application/json" -d \
+'{"application":""}' https://<HOST>/api/firewall/fw-rules/10
 ```
 
 ## DELETE
 * Delete an entire firewall rule by pruning the sub-tree. Note that an HTTP delete is equivalent operation to a traversal and set to NULL.
 ```
-curl -u manager:friend -k -X "DELETE" https://<IP Address/Host Name>/api/firewall/fw_rules/10
+curl -u manager:friend -k -X "DELETE" https://<HOST>/api/firewall/fw_rules/10
 ```
