@@ -1,4 +1,4 @@
-RESTful API for Apteryx
+# RESTful API for Apteryx
 
 ## Protocol
 * RESTful API over HTTP using HTTP GET, POST and DELETE
@@ -24,15 +24,8 @@ RESTful API for Apteryx
 | ---- | -------------- | -------------------------------------------------------------------------- |
 | 200  | OK             | The request was successful. For a SET the configuration change has been applied and the HTTP BODY is empty. For a GET the path was valid and the HTTP body contains the requested data. |
 | 304  | Not Modified   | This status is returned if the user has requested a conditional get and the resource (path and all sub-paths) has not changed since the last retrieval. |
-| 400  | Bad Request    | The request is incorrectly formatted or contains invalid parameters that cannot be applied. To ensure
-compatibility with being a RESTful API, the WebGUI API uses standard HTTP status codes. However, to help the
-user understand why the request failed, a 400 response also supplies a JSON formatted error value and message in
-the HTTP BODY. Error codes below 1000 refer to standard errno values from IEEE Std 1003.1-2001. Values above
-Bad Request 1000 are custom error codes for the specific feature and their definitions are specified in the API for that
-feature. Example error response:
-{"error":"-1004", "message":"IPv6 Address invalid for mode"} |
-| 403  | Forbidden      | The user does not have authorization to access the requested URI. Either the path does not exist or the path has permissions that prevent the operation from being completed (e.g. read-only and a SET was attempted or write-
-only and a GET was attempted). |
+| 400  | Bad Request    | The request is incorrectly formatted or contains invalid parameters that cannot be applied. To ensure compatibility with being a RESTful API, the WebGUI API uses standard HTTP status codes. However, to help the user understand why the request failed, a 400 response also supplies a JSON formatted error value and message in the HTTP BODY. Error codes below 1000 refer to standard errno values from IEEE Std 1003.1-2001. Values above Bad Request 1000 are custom error codes for the specific feature and their definitions are specified in the API for that feature. Example error response: {"error":"-1004", "message":"IPv6 Address invalid for mode"} |
+| 403  | Forbidden      | The user does not have authorization to access the requested URI. Either the path does not exist or the path has permissions that prevent the operation from being completed (e.g. read-only and a SET was attempted or write-only and a GET was attempted). |
 | 404  | Not Found      | The requested URI does not exist. |
 | 500  | Internal Error | Internal error (e.g. no memory) |
 
