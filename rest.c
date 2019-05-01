@@ -141,7 +141,7 @@ rest_api_search (const char *path)
     char *data = NULL;
     char *resp;
     int rc;
-    
+
     rc = apteryx_json_search (sch_root (), path, &data);
     resp = g_strdup_printf ("Status: %d\r\n" "\r\n" "%s", rc, data ? : "");
     free (data);

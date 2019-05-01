@@ -3,3 +3,5 @@
 *.so.*
 .build
 apteryx-rest
+gcov/
+test

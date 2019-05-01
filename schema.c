@@ -40,6 +40,7 @@ list_xml_files (GList ** files, const char *path)
     dpath = strtok_r (cpath, ":", &saveptr);
     while (dpath != NULL)
     {
+        VERBOSE ("SCHEMA: Looking for schema files in \"%s\"\n", dpath);
         dp = opendir (dpath);
         if (dp != NULL)
         {
@@ -49,10 +50,12 @@ list_xml_files (GList ** files, const char *path)
                 if ((fnmatch ("*.xml", ep->d_name, FNM_PATHNAME) != 0) &&
                     (fnmatch ("*.xml.gz", ep->d_name, FNM_PATHNAME) != 0))
                 {
+                    VERBOSE ("SCHEMA: Ignoring \"%s\"\n", ep->d_name);
                     continue;
                 }
                 if (asprintf (&filename, "%s/%s", dpath, ep->d_name) > 0)
                 {
+                    VERBOSE ("SCHEMA: Adding \"%s\"\n", ep->d_name);
                     *files = g_list_append (*files, filename);
                 }
             }
@@ -167,6 +170,16 @@ sch_load (const char *path)
 
     g_schema = (sch_node *) xmlDocGetRootElement (doc);
     return true;
+}
+
+void
+sch_unload (void)
+{
+    if (g_schema)
+    {
+        xmlFreeDoc (g_schema->doc);
+        g_schema = NULL;
+    }
 }
 
 sch_node *

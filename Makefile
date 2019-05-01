@@ -37,6 +37,20 @@ $(DAEMON): $(OBJS)
 	@echo "Building $@"
 	$(Q)$(CC) $(CFLAGS) $(EXTRA_CFLAGS) -o $@ $(OBJS) $(EXTRA_LDFLAGS)
 
+# make test
+# make test TEST_ARGS="-l"
+# make test TEST_ARGS="-p /schema"
+TEST_WRAPPER?=valgrind -q --leak-check=full
+TEST_ARGS?=
+test: test.c rest.c schema.c
+	@echo "Building $@"
+	$(Q)mkdir -p gcov
+	$(Q)$(CC) $(CFLAGS) $(EXTRA_CFLAGS) -g -fprofile-arcs -fprofile-dir=gcov -ftest-coverage -o $@ $^ $(EXTRA_LDFLAGS)
+	$(Q)G_SLICE=always-malloc $(TEST_WRAPPER) ./test $(TEST_ARGS) 2>&1
+	$(Q)mv *.gcno gcov/
+	$(Q)lcov -q --capture --directory . --output-file gcov/coverage.info
+	$(Q)genhtml -q gcov/coverage.info --output-directory gcov
+
 indent:
 	@echo "Fixing coding-style..."
 	$(Q)$(INDENT) $(SOURCE)
@@ -50,4 +64,4 @@ clean:
 	$(Q)rm -fr $(DAEMON) $(OBJS)
 
 .SECONDARY:
-.PHONY: all clean indent
+.PHONY: all test clean indent

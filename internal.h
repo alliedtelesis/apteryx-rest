@@ -46,6 +46,7 @@ extern bool verbose;
 /* Schema */
 typedef void sch_node;
 bool sch_load (const char *path);
+void sch_unload (void);
 sch_node* sch_root (void);
 char* sch_dump (void);
 sch_node* sch_validate_path (sch_node *root, const char *path, bool *read, bool *write);
