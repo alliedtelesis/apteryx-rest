@@ -38,13 +38,14 @@ termination_handler (gpointer arg1)
 void
 help (char *app_name)
 {
-    printf ("Usage: %s [-h] [-b] [-d] [-v] [-m <path>] [-p <pidfile>]\n"
+    printf ("Usage: %s [-h] [-b] [-d] [-v] [-a] [-m <path>] [-p <pidfile>]\n"
             "                [-n] [-l <port>] [-k <key>]\n"
             "                [-r] [-s <socket>]\n"
             "  -h   show this help\n"
             "  -b   background mode\n"
             "  -d   enable debug\n"
             "  -v   enable verbose debug\n"
+            "  -a   enable the use of JSON arrays for lists\n"
             "  -m   search <path> for modules\n"
             "  -p   use <pidfile> (defaults to " DEFAULT_APP_PID ")\n"
             "  -s   rest socket <socket> (defaults to " DEFAULT_REST_SOCK ")\n", app_name);
@@ -75,6 +76,9 @@ main (int argc, char *argv[])
         case 'v':
             debug = true;
             verbose = true;
+            break;
+        case 'a':
+            rest_use_arrays = true;
             break;
         case 'm':
             path = optarg;

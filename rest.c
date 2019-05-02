@@ -26,6 +26,8 @@
 #define HTTP_CODE_NOT_FOUND             404
 #define HTTP_CODE_INTERNAL_SERVER_ERROR 500
 
+bool rest_use_arrays = false;
+
 static char *
 rest_api_xml (void)
 {
@@ -210,7 +212,7 @@ rest_api_get (const char *path, const char *if_none_match)
     }
 
     data = apteryx_get_tree (path);
-    json = tree_to_json (api_subtree, data, true);
+    json = tree_to_json (api_subtree, data, rest_use_arrays);
     apteryx_free_tree (data);
 
     /* Dump to the output */

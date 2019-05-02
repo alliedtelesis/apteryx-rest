@@ -70,6 +70,7 @@ bool fcgi_start (const char *socket, http_callback cb);
 void fcgi_stop (void);
 
 /* Rest */
+extern bool rest_use_arrays;
 char* rest_api (int flags, const char *path, const char *action, const char *if_none_match, const char *data, int length);
 
 #endif /* _REST_H_ */

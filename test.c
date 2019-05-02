@@ -207,6 +207,50 @@ static void test_set_tree_null (void)
     TEST_TEARDOWN
 }
 
+static void test_set_list (void)
+{
+    char *data = "{\"list\": {\"fred\": {\"name\": \"fred\"}, \"tom\": {\"name\": \"tom\"}}}";
+    int len = strlen (data);
+    char *buffer;
+
+    TEST_SETUP
+    char *resp = rest_api (FLAGS_ACCEPT_JSON, "/api/test", "POST", NULL, data, len);
+    g_assert_nonnull (g_strrstr (resp, "Status: 200"));
+    buffer = apteryx_get ("/test/list/fred/name");
+    g_assert_cmpstr (buffer, ==, "fred");
+    free (buffer);
+    buffer = apteryx_get ("/test/list/tom/name");
+    g_assert_cmpstr (buffer, ==, "tom");
+    free (buffer);
+    free (resp);
+    apteryx_set ("/test/list/fred/name", NULL);
+    apteryx_set ("/test/list/tom/name", NULL);
+    TEST_TEARDOWN
+}
+
+// static void test_set_array (void)
+// {
+//     char *data = "{{\"list\": [{\"name\": \"fred\"}, {\"name\": \"tom\"}]}";
+//     int len = strlen (data);
+//     char *buffer;
+
+//     TEST_SETUP
+//     rest_use_arrays = true;
+//     char *resp = rest_api (FLAGS_ACCEPT_JSON, "/api/test", "POST", NULL, data, len);
+//     g_assert_nonnull (g_strrstr (resp, "Status: 200"));
+//     rest_use_arrays = false;
+//     buffer = apteryx_get ("/test/list/fred/name");
+//     g_assert_cmpstr (buffer, ==, "fred");
+//     free (buffer);
+//     buffer = apteryx_get ("/test/list/tom/name");
+//     g_assert_cmpstr (buffer, ==, "tom");
+//     free (buffer);
+//     free (resp);
+//     apteryx_set ("/test/list/fred/name", NULL);
+//     apteryx_set ("/test/list/tom/name", NULL);
+//     TEST_TEARDOWN
+// }
+
 static void test_set_status_200 (void)
 {
     char *data = "{\"debug\": \"0\"}";
@@ -281,7 +325,7 @@ static void test_get_node (void)
     TEST_TEARDOWN
 }
 
-static void test_get_trunk (void)
+static void test_get_tree (void)
 {
     TEST_SETUP
     apteryx_set ("/test/debug", "0");
@@ -294,12 +338,29 @@ static void test_get_trunk (void)
     TEST_TEARDOWN
 }
 
-static void test_get_array (void)
+static void test_get_list (void)
 {
     TEST_SETUP
     apteryx_set ("/test/list/fred/name", "fred");
     apteryx_set ("/test/list/tom/name", "tom");
     char *buffer = rest_api (FLAGS_ACCEPT_JSON, "/api/test/list", "GET", NULL, NULL, 0);
+    char *json = strstr (buffer, "\r\n\r\n");
+    json = json ? json + 4 : "";
+    g_assert_cmpstr (json, ==, "{\"list\": {\"fred\": {\"name\": \"fred\"}, \"tom\": {\"name\": \"tom\"}}}");
+    free (buffer);
+    apteryx_set ("/test/list/fred/name", NULL);
+    apteryx_set ("/test/list/tom/name", NULL);
+    TEST_TEARDOWN
+}
+
+static void test_get_array (void)
+{
+    TEST_SETUP
+    apteryx_set ("/test/list/fred/name", "fred");
+    apteryx_set ("/test/list/tom/name", "tom");
+    rest_use_arrays = true;
+    char *buffer = rest_api (FLAGS_ACCEPT_JSON, "/api/test/list", "GET", NULL, NULL, 0);
+    rest_use_arrays = false;
     char *json = strstr (buffer, "\r\n\r\n");
     json = json ? json + 4 : "";
     g_assert_cmpstr (json, ==, "{\"list\": [{\"name\": \"fred\"}, {\"name\": \"tom\"}]}");
@@ -463,13 +524,16 @@ int main (int argc, char *argv[])
     g_test_add_func ("/set/node/invalid", test_set_node_invalid);
     g_test_add_func ("/set/tree", test_set_tree);
     g_test_add_func ("/set/tree/null", test_set_tree_null);
+    g_test_add_func ("/set/list", test_set_list);
+    //g_test_add_func ("/set/array", test_set_array);
     g_test_add_func ("/set/status/200", test_set_status_200);
     g_test_add_func ("/set/status/400", test_set_status_400);
     g_test_add_func ("/set/status/403", test_set_status_403);
     g_test_add_func ("/set/status/404", test_set_status_404);
     g_test_add_func ("/set/hidden", test_set_hidden);
     g_test_add_func ("/get/node", test_get_node);
-    g_test_add_func ("/get/trunk", test_get_trunk);
+    g_test_add_func ("/get/tree", test_get_tree);
+    g_test_add_func ("/get/list", test_get_list);
     g_test_add_func ("/get/array", test_get_array);
     g_test_add_func ("/get/etag", test_get_etag);
     g_test_add_func ("/get/status/200", test_get_status_200);
