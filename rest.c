@@ -20,6 +20,7 @@
 #include <jansson.h>
 
 #define HTTP_CODE_OK                    200
+#define HTTP_CODE_NOT_MODIFIED          304
 #define HTTP_CODE_BAD_REQUEST           400
 #define HTTP_CODE_FORBIDDEN             403
 #define HTTP_CODE_NOT_FOUND             404
@@ -178,7 +179,7 @@ tree_to_json (sch_node * api_root, GNode * data_root, bool use_json_arrays)
 }
 
 static char *
-rest_api_get (const char *path)
+rest_api_get (const char *path, const char *if_none_match)
 {
     sch_node *api_subtree;
     GNode *data;
@@ -186,6 +187,7 @@ rest_api_get (const char *path)
     char *json_string = NULL;
     int rc = HTTP_CODE_OK;
     char *resp;
+    uint64_t ts = 0;
 
     api_subtree = sch_path_to_node (path);
     if (!api_subtree)
@@ -197,6 +199,13 @@ rest_api_get (const char *path)
     if (sch_node_is_leaf (api_subtree) && !sch_node_has_mode_flag (api_subtree, 'r'))
     {
         rc = HTTP_CODE_FORBIDDEN;
+        goto exit;
+    }
+
+    ts = apteryx_timestamp (path);
+    if (if_none_match && ts == strtoull (if_none_match, NULL, 16))
+    {
+        rc = HTTP_CODE_NOT_MODIFIED;
         goto exit;
     }
 
@@ -217,8 +226,9 @@ rest_api_get (const char *path)
   exit:
     /* Add header */
     resp = g_strdup_printf ("Status: %d\r\n"
+                            "Etag: %" PRIX64 "\r\n"
                             "Content-Type: application/yang.data+json\r\n"
-                            "\r\n" "%s", rc, json_string ? : "");
+                            "\r\n" "%s", rc, ts, json_string ? : "");
     free (json_string);
 
     /* Return response */
@@ -343,6 +353,8 @@ apteryx_json_set (const char *path, json_t * json)
     case J2T_RES_SUCCESS:
         break;
     case J2T_RES_NO_API_NODE:
+        g_node_destroy (data);
+        return HTTP_CODE_NOT_FOUND;
     case J2T_RES_VALUE_ON_CORE_NODE:
     case J2T_RES_PERMISSION_MISMATCH:
         g_node_destroy (data);
@@ -444,7 +456,8 @@ rest_api_delete (const char *path)
 }
 
 char *
-rest_api (int flags, const char *path, const char *action, const char *data, int length)
+rest_api (int flags, const char *path, const char *action, const char *if_none_match,
+          const char *data, int length)
 {
     char *resp = NULL;
 
@@ -468,11 +481,14 @@ rest_api (int flags, const char *path, const char *action, const char *data, int
         else if (path[strlen (path) - 1] == '/')
             resp = rest_api_search (path);
         else
-            resp = rest_api_get (path);
+            resp = rest_api_get (path, if_none_match);
     }
     else if (strcmp (action, "POST") == 0 || strcmp (action, "PUT") == 0)
         resp = rest_api_post (path, data, length);
     else if (strcmp (action, "DELETE") == 0)
         resp = rest_api_delete (path);
+
+    VERBOSE ("RESP:\n%s\n", resp);
+
     return resp;
 }

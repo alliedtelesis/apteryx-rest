@@ -78,6 +78,8 @@ static void generate_test_schemas (void)
 "			<VALUE name=\"up\" value=\"0\" help=\"State is up\" />\n"
 "			<VALUE name=\"down\" value=\"1\" help=\"State is down\" />\n"
 "		</NODE>\n"
+"		<NODE name=\"kick\" mode=\"w\" help=\"Write only field\" pattern=\"^(0|1)$\" />\n"
+"		<NODE name=\"secret\" mode=\"h\" help=\"Hidden field\" />\n"
 "	</NODE>\n"
 "</MODULE>\n");
         fclose (xml);
@@ -124,7 +126,7 @@ static void test_schema_get (void)
     char *buffer;
 
     TEST_SETUP
-    buffer = rest_api (FLAGS_ACCEPT_JSON, "/api.xml", "GET", NULL, 0);
+    buffer = rest_api (FLAGS_ACCEPT_JSON, "/api.xml", "GET", NULL, NULL, 0);
     g_assert_nonnull (g_strrstr (buffer, "<MODULE xmlns=\"https://github.com/alliedtelesis/apteryx\""));
     g_assert_nonnull (g_strrstr (buffer, "this is a test node"));
     g_assert_null (g_strrstr (buffer, "that will be merged"));
@@ -139,7 +141,7 @@ static void test_set_node (void)
     int len = strlen (data);
 
     TEST_SETUP
-    char *resp = rest_api (FLAGS_ACCEPT_JSON, "/api/test", "POST", data, len);
+    char *resp = rest_api (FLAGS_ACCEPT_JSON, "/api/test", "POST", NULL, data, len);
     char *buffer = apteryx_get ("/test/debug");
     g_assert_cmpstr (buffer, ==, "0");
     free (buffer);
@@ -155,7 +157,7 @@ static void test_set_node_null (void)
 
     TEST_SETUP
     apteryx_set ("/test/debug", "0");
-    char *resp = rest_api (FLAGS_ACCEPT_JSON, "/api/test", "POST", data, len);
+    char *resp = rest_api (FLAGS_ACCEPT_JSON, "/api/test", "POST", NULL, data, len);
     g_assert_null (apteryx_get ("/test/debug"));
     free (resp);
     TEST_TEARDOWN
@@ -168,7 +170,7 @@ static void test_set_node_invalid (void)
 
     TEST_SETUP
     apteryx_set ("/test/debug", "0");
-    char *resp = rest_api (FLAGS_ACCEPT_JSON, "/api/test", "POST", data, len);
+    char *resp = rest_api (FLAGS_ACCEPT_JSON, "/api/test", "POST", NULL, data, len);
     char *buffer = apteryx_get ("/test/debug");
     g_assert_cmpstr (buffer, ==, "0");
     free (buffer);
@@ -183,7 +185,7 @@ static void test_set_tree (void)
     int len = strlen (data);
 
     TEST_SETUP
-    char *resp = rest_api (FLAGS_ACCEPT_JSON, "/api/test", "POST", data, len);
+    char *resp = rest_api (FLAGS_ACCEPT_JSON, "/api/test", "POST", NULL, data, len);
     char *buffer = apteryx_get ("/test/list/fred/name");
     g_assert_cmpstr (buffer, ==, "fred");
     free (buffer);
@@ -199,8 +201,69 @@ static void test_set_tree_null (void)
 
     TEST_SETUP
     apteryx_set ("/test/list/fred/name", "fred");
-    char *resp = rest_api (FLAGS_ACCEPT_JSON, "/api/test", "POST", data, len);
+    char *resp = rest_api (FLAGS_ACCEPT_JSON, "/api/test", "POST", NULL, data, len);
     g_assert_null (apteryx_get ("/test/list/fred/name"));
+    free (resp);
+    TEST_TEARDOWN
+}
+
+static void test_set_status_200 (void)
+{
+    char *data = "{\"debug\": \"0\"}";
+    int len = strlen (data);
+
+    TEST_SETUP
+    char *resp = rest_api (FLAGS_ACCEPT_JSON, "/api/test", "POST", NULL, data, len);
+    g_assert_nonnull (g_strrstr (resp, "Status: 200"));
+    free (resp);
+    apteryx_set ("/test/debug", NULL);
+    TEST_TEARDOWN
+}
+
+static void test_set_status_400 (void)
+{
+    char *data = "cabbage";
+    int len = strlen (data);
+
+    TEST_SETUP
+    char *resp = rest_api (FLAGS_ACCEPT_JSON, "/api/test", "POST", NULL, data, len);
+    g_assert_nonnull (g_strrstr (resp, "Status: 400"));
+    free (resp);
+    TEST_TEARDOWN
+}
+
+static void test_set_status_403 (void)
+{
+    char *data = "{\"state\": \"up\"}";
+    int len = strlen (data);
+
+    TEST_SETUP
+    char *resp = rest_api (FLAGS_ACCEPT_JSON, "/api/test", "POST", NULL, data, len);
+    g_assert_nonnull (g_strrstr (resp, "Status: 403"));
+    free (resp);
+    TEST_TEARDOWN
+}
+
+static void test_set_status_404 (void)
+{
+    char *data = "{\"cabbage\": \"0\"}";
+    int len = strlen (data);
+
+    TEST_SETUP
+    char *resp = rest_api (FLAGS_ACCEPT_JSON, "/api/test", "POST", NULL, data, len);
+    g_assert_nonnull (g_strrstr (resp, "Status: 404"));
+    free (resp);
+    TEST_TEARDOWN
+}
+
+static void test_set_hidden (void)
+{
+    char *data = "{\"secret\": \"0\"}";
+    int len = strlen (data);
+
+    TEST_SETUP
+    char *resp = rest_api (FLAGS_ACCEPT_JSON, "/api/test", "POST", NULL, data, len);
+    g_assert_nonnull (g_strrstr (resp, "Status: 403"));
     free (resp);
     TEST_TEARDOWN
 }
@@ -209,7 +272,7 @@ static void test_get_node (void)
 {
     TEST_SETUP
     apteryx_set ("/test/debug", "0");
-    char *resp = rest_api (FLAGS_ACCEPT_JSON, "/api/test/debug", "GET", NULL, 0);
+    char *resp = rest_api (FLAGS_ACCEPT_JSON, "/api/test/debug", "GET", NULL, NULL, 0);
     char *json = strstr (resp, "\r\n\r\n");
     json = json ? json + 4 : "";
     g_assert_cmpstr (json, ==, "{\"debug\": \"0\"}");
@@ -222,7 +285,7 @@ static void test_get_trunk (void)
 {
     TEST_SETUP
     apteryx_set ("/test/debug", "0");
-    char *buffer = rest_api (FLAGS_ACCEPT_JSON, "/api/test", "GET", NULL, 0);
+    char *buffer = rest_api (FLAGS_ACCEPT_JSON, "/api/test", "GET", NULL, NULL, 0);
     char *json = strstr (buffer, "\r\n\r\n");
     json = json ? json + 4 : "";
     g_assert_cmpstr (json, ==, "{\"test\": {\"debug\": \"0\"}}");
@@ -236,7 +299,7 @@ static void test_get_array (void)
     TEST_SETUP
     apteryx_set ("/test/list/fred/name", "fred");
     apteryx_set ("/test/list/tom/name", "tom");
-    char *buffer = rest_api (FLAGS_ACCEPT_JSON, "/api/test/list", "GET", NULL, 0);
+    char *buffer = rest_api (FLAGS_ACCEPT_JSON, "/api/test/list", "GET", NULL, NULL, 0);
     char *json = strstr (buffer, "\r\n\r\n");
     json = json ? json + 4 : "";
     g_assert_cmpstr (json, ==, "{\"list\": [{\"name\": \"fred\"}, {\"name\": \"tom\"}]}");
@@ -246,12 +309,101 @@ static void test_get_array (void)
     TEST_TEARDOWN
 }
 
+static void test_get_etag (void)
+{
+    char *resp1, *resp2, *resp3;
+    char *etag1, *etag2, *etag3;
+
+    TEST_SETUP
+    apteryx_set ("/test/debug", "0");
+    resp1 = rest_api (FLAGS_ACCEPT_JSON, "/api/test/debug", "GET", NULL, NULL, 0);
+    etag1 = g_strrstr (resp1, "Etag");
+    g_assert_nonnull (etag1);
+    resp2 = rest_api (FLAGS_ACCEPT_JSON, "/api/test/debug", "GET", NULL, NULL, 0);
+    etag2 = g_strrstr (resp2, "Etag");
+    g_assert_nonnull (etag2);
+    g_assert_cmpstr (etag1, ==, etag2);
+    apteryx_set ("/test/debug", "1");
+    resp3 = rest_api (FLAGS_ACCEPT_JSON, "/api/test/debug", "GET", NULL, NULL, 0);
+    etag3 = g_strrstr (resp3, "Etag");
+    g_assert_nonnull (etag3);
+    g_assert_cmpstr (etag1, !=, etag3);
+    free (resp1);
+    free (resp2);
+    free (resp3);
+    apteryx_set ("/test/debug", NULL);
+    TEST_TEARDOWN
+}
+
+static void test_get_status_200 (void)
+{
+    TEST_SETUP
+    apteryx_set ("/test/debug", "0");
+    char *resp = rest_api (FLAGS_ACCEPT_JSON, "/api/test/debug", "GET", NULL, NULL, 0);
+    g_assert_nonnull (g_strrstr (resp, "Status: 200"));
+    free (resp);
+    apteryx_set ("/test/debug", NULL);
+    TEST_TEARDOWN
+}
+
+static void test_get_status_304 (void)
+{
+    TEST_SETUP
+    apteryx_set ("/test/debug", "0");
+    char *resp = rest_api (FLAGS_ACCEPT_JSON, "/api/test/debug", "GET", NULL, NULL, 0);
+    char *etag = g_strrstr (resp, "Etag: ");
+    g_assert_nonnull (etag);
+    uint64_t ts = strtoull (etag + 6, NULL, 16);
+    free (resp);
+    g_assert_cmpuint (ts, !=, 0);
+    etag = g_strdup_printf ("%"PRIX64, ts);
+    resp = rest_api (FLAGS_ACCEPT_JSON, "/api/test/debug", "GET", etag, NULL, 0);
+    g_assert_nonnull (g_strrstr (resp, "Status: 304"));
+    free (resp);
+    free (etag);
+    apteryx_set ("/test/debug", NULL);
+    TEST_TEARDOWN
+}
+
+static void test_get_status_403 (void)
+{
+    TEST_SETUP
+    apteryx_set ("/test/kick", "0");
+    char *resp = rest_api (FLAGS_ACCEPT_JSON, "/api/test/kick", "GET", NULL, NULL, 0);
+    g_assert_nonnull (g_strrstr (resp, "Status: 403"));
+    free (resp);
+    apteryx_set ("/test/kick", NULL);
+    TEST_TEARDOWN
+}
+
+static void test_get_status_404 (void)
+{
+    TEST_SETUP
+    apteryx_set ("/test/debug", "0");
+    char *resp = rest_api (FLAGS_ACCEPT_JSON, "/api/test/cabbage", "GET", NULL, NULL, 0);
+    g_assert_nonnull (g_strrstr (resp, "Status: 404"));
+    free (resp);
+    apteryx_set ("/test/debug", NULL);
+    TEST_TEARDOWN
+}
+
+static void test_get_hidden (void)
+{
+    TEST_SETUP
+    apteryx_set ("/test/secret", "0");
+    char *resp = rest_api (FLAGS_ACCEPT_JSON, "/api/test/secret", "GET", NULL, NULL, 0);
+    g_assert_nonnull (g_strrstr (resp, "Status: 403"));
+    free (resp);
+    apteryx_set ("/test/secret", NULL);
+    TEST_TEARDOWN
+}
+
 static void test_search_node (void)
 {
     TEST_SETUP
     apteryx_set ("/test/list/fred/name", "fred");
     apteryx_set ("/test/list/tom/name", "tom");
-    char *resp = rest_api (FLAGS_ACCEPT_JSON, "/api/test/list/fred/name/", "GET", NULL, 0);
+    char *resp = rest_api (FLAGS_ACCEPT_JSON, "/api/test/list/fred/name/", "GET", NULL, NULL, 0);
     char *json = strstr (resp, "\r\n\r\n");
     json = json ? json + 4 : "";
     g_assert_cmpstr (json, ==, "{\"name\": []}");
@@ -266,7 +418,7 @@ static void test_search_trunk (void)
     TEST_SETUP
     apteryx_set ("/test/list/fred/name", "fred");
     apteryx_set ("/test/list/tom/name", "tom");
-    char *resp = rest_api (FLAGS_ACCEPT_JSON, "/api/test/list/", "GET", NULL, 0);
+    char *resp = rest_api (FLAGS_ACCEPT_JSON, "/api/test/list/", "GET", NULL, NULL, 0);
     char *json = strstr (resp, "\r\n\r\n");
     json = json ? json + 4 : "";
     g_assert_cmpstr (json, ==, "{\"list\": [\"fred\",\"tom\"]}");
@@ -280,7 +432,7 @@ static void test_delete_node (void)
 {
     TEST_SETUP
     apteryx_set ("/test/debug", "0");
-    char *resp = rest_api (FLAGS_ACCEPT_JSON, "/api/test/debug", "DELETE", NULL, 0);
+    char *resp = rest_api (FLAGS_ACCEPT_JSON, "/api/test/debug", "DELETE", NULL, NULL, 0);
     g_assert_null (apteryx_get ("/test/debug"));
     free (resp);
     TEST_TEARDOWN
@@ -290,7 +442,7 @@ static void test_delete_trunk (void)
 {
     TEST_SETUP
     apteryx_set ("/test/list/fred/name", "fred");
-    char *resp = rest_api (FLAGS_ACCEPT_JSON, "/api/test/list", "DELETE", NULL, 0);
+    char *resp = rest_api (FLAGS_ACCEPT_JSON, "/api/test/list", "DELETE", NULL, NULL, 0);
     g_assert_null (apteryx_get ("/test/list/fred/name"));
     free (resp);
     TEST_TEARDOWN
@@ -311,9 +463,20 @@ int main (int argc, char *argv[])
     g_test_add_func ("/set/node/invalid", test_set_node_invalid);
     g_test_add_func ("/set/tree", test_set_tree);
     g_test_add_func ("/set/tree/null", test_set_tree_null);
+    g_test_add_func ("/set/status/200", test_set_status_200);
+    g_test_add_func ("/set/status/400", test_set_status_400);
+    g_test_add_func ("/set/status/403", test_set_status_403);
+    g_test_add_func ("/set/status/404", test_set_status_404);
+    g_test_add_func ("/set/hidden", test_set_hidden);
     g_test_add_func ("/get/node", test_get_node);
     g_test_add_func ("/get/trunk", test_get_trunk);
     g_test_add_func ("/get/array", test_get_array);
+    g_test_add_func ("/get/etag", test_get_etag);
+    g_test_add_func ("/get/status/200", test_get_status_200);
+    g_test_add_func ("/get/status/304", test_get_status_304);
+    g_test_add_func ("/get/status/403", test_get_status_403);
+    g_test_add_func ("/get/status/404", test_get_status_404);
+    g_test_add_func ("/get/hidden", test_get_hidden);
     g_test_add_func ("/search/node", test_search_node);
     g_test_add_func ("/search/trunk", test_search_trunk);
     g_test_add_func ("/delete/node", test_delete_node);

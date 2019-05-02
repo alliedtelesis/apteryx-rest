@@ -100,7 +100,7 @@ static void *
 handle_http (void *arg)
 {
     FCGX_Request request;
-    char *path, *action, *length;
+    char *path, *action, *length, *if_none_match;
     int flags;
     char *data = NULL;
     int len = 0;
@@ -126,6 +126,7 @@ handle_http (void *arg)
         /* Process the request */
         path = FCGX_GetParam ("REQUEST_URI", request.envp);
         flags = get_flags (&request);
+        if_none_match = FCGX_GetParam ("If-None-Match", request.envp);
         action = FCGX_GetParam ("REQUEST_METHOD", request.envp);
         length = FCGX_GetParam ("CONTENT_LENGTH", request.envp);
         if (length != NULL)
@@ -141,7 +142,7 @@ handle_http (void *arg)
                 }
             }
         }
-        resp = g_cb (flags, path, action, data, len);
+        resp = g_cb (flags, path, action, if_none_match, data, len);
         free (data);
 
         /* Send the response */

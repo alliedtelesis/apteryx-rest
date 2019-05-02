@@ -185,6 +185,23 @@ curl -u manager:friend -k https://<HOST>/api/firewall
 }}
 ```
 
+## Conditional GET
+HTTP "conditional gets" allow the client to request a resource only if the resource has changed since it was last retrieved. The WebGUI API uses the "Entity Tag" mechanism to avoid the overhead of retrieving large sub-tree's when there have been no changes in that path (and all sub-paths).
+Each GET response from AW+ contains the following header:
+
+```Etag: 51676B1E00314```
+
+The client can then do a conditional request with the following header:
+
+```If-None-Match: 51676B1E00314```
+
+e.g.
+```
+curl -u manager:friend -k https:// <IP Address/Host Name>/api/firewall --header 'If-None-Match: 51676B1E00314'
+
+304 Not Modified
+```
+
 ## POST
 * Change the application attribute in firewall rule 10
 ```
