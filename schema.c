@@ -296,9 +296,10 @@ sch_node_is_leaf (sch_node * node)
 }
 
 bool
-sch_node_is_list (sch_node * node)
+sch_node_is_list (sch_node * node, char **key)
 {
     char *name;
+    xmlNode *n;
     bool result;
 
     if (sch_node_is_leaf (node))
@@ -312,6 +313,20 @@ sch_node_is_list (sch_node * node)
     name = (char *) xmlGetProp (((xmlNode *) node)->children, (xmlChar *) "name");
     result = (name[0] == '*');
     xmlFree (name);
+
+    /* First node in the list is the list key */
+    if (result && key)
+    {
+        for (n = ((xmlNode *) node)->children; n; n = n->next)
+        {
+            if (n->type == XML_ELEMENT_NODE && n->name[0] == 'N')
+            {
+                *key = (char *) xmlGetProp (n->children, (xmlChar *) "name");
+                break;
+            }
+        }
+    }
+
     return result;
 }
 

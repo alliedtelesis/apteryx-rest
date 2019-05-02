@@ -228,28 +228,28 @@ static void test_set_list (void)
     TEST_TEARDOWN
 }
 
-// static void test_set_array (void)
-// {
-//     char *data = "{{\"list\": [{\"name\": \"fred\"}, {\"name\": \"tom\"}]}";
-//     int len = strlen (data);
-//     char *buffer;
+static void test_set_array (void)
+{
+    char *data = "{\"list\": [{\"name\": \"fred\"}, {\"name\": \"tom\"}]}";
+    int len = strlen (data);
+    char *buffer;
 
-//     TEST_SETUP
-//     rest_use_arrays = true;
-//     char *resp = rest_api (FLAGS_ACCEPT_JSON, "/api/test", "POST", NULL, data, len);
-//     g_assert_nonnull (g_strrstr (resp, "Status: 200"));
-//     rest_use_arrays = false;
-//     buffer = apteryx_get ("/test/list/fred/name");
-//     g_assert_cmpstr (buffer, ==, "fred");
-//     free (buffer);
-//     buffer = apteryx_get ("/test/list/tom/name");
-//     g_assert_cmpstr (buffer, ==, "tom");
-//     free (buffer);
-//     free (resp);
-//     apteryx_set ("/test/list/fred/name", NULL);
-//     apteryx_set ("/test/list/tom/name", NULL);
-//     TEST_TEARDOWN
-// }
+    TEST_SETUP
+    rest_use_arrays = true;
+    char *resp = rest_api (FLAGS_ACCEPT_JSON, "/api/test", "POST", NULL, data, len);
+    g_assert_nonnull (g_strrstr (resp, "Status: 200"));
+    rest_use_arrays = false;
+    buffer = apteryx_get ("/test/list/fred/name");
+    g_assert_cmpstr (buffer, ==, "fred");
+    free (buffer);
+    buffer = apteryx_get ("/test/list/tom/name");
+    g_assert_cmpstr (buffer, ==, "tom");
+    free (buffer);
+    free (resp);
+    apteryx_set ("/test/list/fred/name", NULL);
+    apteryx_set ("/test/list/tom/name", NULL);
+    TEST_TEARDOWN
+}
 
 static void test_set_status_200 (void)
 {
@@ -525,7 +525,7 @@ int main (int argc, char *argv[])
     g_test_add_func ("/set/tree", test_set_tree);
     g_test_add_func ("/set/tree/null", test_set_tree_null);
     g_test_add_func ("/set/list", test_set_list);
-    //g_test_add_func ("/set/array", test_set_array);
+    g_test_add_func ("/set/array", test_set_array);
     g_test_add_func ("/set/status/200", test_set_status_200);
     g_test_add_func ("/set/status/400", test_set_status_400);
     g_test_add_func ("/set/status/403", test_set_status_403);

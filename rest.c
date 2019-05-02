@@ -120,7 +120,7 @@ _tree_to_json (sch_node * api_root, GNode * data_root, bool use_json_arrays)
 
         if (use_json_arrays)
         {
-            print_as_array = sch_node_is_list (api_root);
+            print_as_array = sch_node_is_list (api_root, NULL);
         }
 
         /* Create a JSON node to match the current data node. If it turns out that there
@@ -249,6 +249,7 @@ typedef enum
     J2T_RES_REGEX_COMPILATION_FAIL,
     J2T_RES_UNSUPPORTED_JSON_TYPE,
     J2T_RES_SLASH_IN_PATH_COMPONENT,
+    J2T_RES_ARRAY_NOT_LIST,
 } json_to_tree_result_t;
 
 static void
@@ -264,10 +265,10 @@ static json_to_tree_result_t
 json_to_tree (sch_node * api_root, json_t * json_root, GNode * data_root)
 {
     const char *key;
-    json_t *object;
+    json_t *json;
     int rc;
 
-    json_object_foreach (json_root, key, object)
+    json_object_foreach (json_root, key, json)
     {
         sch_node *api_child;
         GNode *data_child;
@@ -279,10 +280,54 @@ json_to_tree (sch_node * api_root, json_t * json_root, GNode * data_root)
             return J2T_RES_NO_API_NODE;
         }
 
-        if (json_is_object (object))
+        if (json_is_array (json))
+        {
+            char *key_name = NULL;
+            size_t index;
+            json_t *json_array;
+            sch_node *api_array;
+            GNode *data_array;
+
+            if (!sch_node_is_list (api_child, &key_name) || key_name == NULL)
+            {
+                json_error (api_root, "J2T_RES_ARRAY_NOT_LIST");
+                return J2T_RES_ARRAY_NOT_LIST;
+            }
+
+            data_child = g_node_new ((char *) key);
+            json_array_foreach (json, index, json_array)
+            {
+                json_t *json_key = json_object_get (json_array, key_name);
+                const char *key_array = json_string_value (json_key);
+
+                api_array = sch_child_get (api_child, key_array);
+                if (!api_array)
+                {
+                    json_error (api_child, "J2T_RES_NO_API_NODE");
+                    g_node_destroy (data_child);
+                    free (key_name);
+                    return J2T_RES_NO_API_NODE;
+                }
+
+                data_array = g_node_new ((char *) key_array);
+                rc = json_to_tree (api_array, json_array, data_array);
+                if (rc != J2T_RES_SUCCESS)
+                {
+                    /* We don't need to do anything with data_child; it must be NULL because this
+                     * function only sets it to something significant on success. */
+                    g_node_destroy (data_array);
+                    g_node_destroy (data_child);
+                    free (key_name);
+                    return rc;
+                }
+                g_node_prepend (data_child, data_array);
+            }
+            free (key_name);
+        }
+        else if (json_is_object (json))
         {
             data_child = g_node_new ((char *) key);
-            rc = json_to_tree (api_child, object, data_child);
+            rc = json_to_tree (api_child, json, data_child);
             if (rc != J2T_RES_SUCCESS)
             {
                 /* We don't need to do anything with data_child; it must be NULL because this
@@ -291,9 +336,9 @@ json_to_tree (sch_node * api_root, json_t * json_root, GNode * data_root)
                 return rc;
             }
         }
-        else if (json_is_string (object))
+        else if (json_is_string (json))
         {
-            const char *value = json_string_value (object);
+            const char *value = json_string_value (json);
 
             if (!sch_node_is_leaf (api_child))
             {
@@ -366,6 +411,7 @@ apteryx_json_set (const char *path, json_t * json)
     case J2T_RES_UNSUPPORTED_JSON_TYPE:
     case J2T_RES_OBJECT_ON_LEAF_NODE:
     case J2T_RES_EMPTY_OBJECT:
+    case J2T_RES_ARRAY_NOT_LIST:
         g_node_destroy (data);
         return HTTP_CODE_BAD_REQUEST;
     case J2T_RES_REGEX_COMPILATION_FAIL:
