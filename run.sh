@@ -1,87 +1,10 @@
 #!/bin/bash
 ROOT=`pwd`
 
-# Check required libraries and tools
-if ! pkg-config --exists glib-2.0 libxml-2.0; then
-        echo "Please install glib-2.0 (sudo apt-get install libglib2.0-dev libxml2-dev)"
-        exit 1
-fi
-
-# Build needed packages
-BUILD=$ROOT/.build
-mkdir -p $BUILD
-cd $BUILD
-
-# Check Apteryx install
-if [ ! -f apteryx/libapteryx.so ]; then
-        echo "Building Apteryx from source."
-        git clone https://github.com/alliedtelesis/apteryx.git
-        cd apteryx
-        make install DESTDIR=$BUILD
-        rc=$?; if [[ $rc != 0 ]]; then exit $rc; fi
-        cd $BUILD
-fi
-
-# Check lighttpd
-if [ ! -f lighttpd1.4/src/lighttpd ]; then
-        echo "Building lighttpd from source."
-        git clone https://git.lighttpd.net/lighttpd/lighttpd1.4.git
-        cd lighttpd1.4
-        ./autogen.sh
-        ./configure --prefix=/usr --without-bzip2
-        make install DESTDIR=$BUILD
-        rc=$?; if [[ $rc != 0 ]]; then exit $rc; fi
-        cd $BUILD
-fi
-
-# Check fastcgi
-if [ ! -f usr/lib/libfcgi.so ]; then
-        echo "Building fcgi from source."
-        if [ ! -d fcgi-2.4.0 ]; then
-                wget -nc https://github.com/LuaDist/fcgi/archive/2.4.0.tar.gz
-                tar -zxf 2.4.0.tar.gz
-        fi
-        cd fcgi-2.4.0
-        ./configure --prefix=/usr
-        sed -i '1s/^/#include <stdio.h>/' libfcgi/fcgio.cpp
-        make install DESTDIR=$BUILD
-        if [ ! -f $BUILD/usr/include/fcgi_config.h  ] ; then
-                cp include/*.h $BUILD/usr/include/
-	        mv $BUILD/usr/include/fcgi_config_x86.h $BUILD/usr/include/fcgi_config.h 
-        fi
-        cd $BUILD
-fi
-
-# Check jansson
-if [ ! -f usr/lib/libjansson.so ]; then
-        echo "Building jansson from source."
-        if [ ! -d jansson-2.12 ]; then
-                wget -nc http://www.digip.org/jansson/releases/jansson-2.12.tar.gz
-                tar -zxf jansson-2.12.tar.gz
-        fi
-        cd jansson-2.12
-        ./configure --prefix=/usr
-        make install DESTDIR=$BUILD
-        rc=$?; if [[ $rc != 0 ]]; then exit $rc; fi
-        cd $BUILD
-fi
-
-cd $ROOT
-
-# Build
-make V=1 SYSROOT=$BUILD
-rc=$?; if [[ $rc != 0 ]]; then exit $rc; fi
-
-# Test
-make SYSROOT=$BUILD test
-rc=$?; if [[ $rc != 0 ]]; then exit $rc; fi
-
-# Start Apteryx and populate the database
-export LD_LIBRARY_PATH=$BUILD/usr/lib
-$BUILD/usr/bin/apteryxd -b
+# Start Apteryx
+apteryxd -b
 
 # Create an example module
-mkdir -p $BUILD/modules
 echo '<?xml version="1.0" encoding="UTF-8"?>
 <MODULE xmlns="https://github.com/alliedtelesis/apteryx"
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -100,13 +23,11 @@ echo '<?xml version="1.0" encoding="UTF-8"?>
 		</NODE>
 	</NODE>
 </MODULE>
-' > $BUILD/modules/interfaces.xml
+' > interfaces.xml
 
 # Start rest
 # TEST_WRAPPER="valgrind --leak-check=full"
-LD_LIBRARY_PATH=$BUILD/usr/lib G_SLICE=always-malloc \
-        $TEST_WRAPPER ./apteryx-rest -b -m $BUILD/modules -p $BUILD/apteryx-rest.pid \
-        -s $BUILD/apteryx-rest.sock
+G_SLICE=always-malloc $TEST_WRAPPER ./apteryx-rest -b -m ./ -p apteryx-rest.pid -s apteryx-rest.sock
 rc=$?; if [[ $rc != 0 ]]; then exit $rc; fi
 sleep 0.5
 
@@ -127,13 +48,13 @@ fastcgi.debug = 1
 fastcgi.server = (
 "/api" => (
   "fastcgi.handler" => (
-    "socket" => "'$BUILD'/apteryx-rest.sock",
+    "socket" => "'$ROOT'/apteryx-rest.sock",
     "check-local" => "disable",
     )
   )
 )
-' > $BUILD/lighttpd.conf
-$BUILD/usr/sbin/lighttpd -D -f $BUILD/lighttpd.conf -m $BUILD/usr/lib
+' > lighttpd.conf
+lighttpd -D -f lighttpd.conf
 rc=$?; if [[ $rc != 0 ]]; then exit $rc; fi
 
 # Stop lighttpd
@@ -142,5 +63,8 @@ killall lighttpd &> /dev/null
 killall apteryx-rest &> /dev/null
 kill `pidof valgrind.bin` &> /dev/null
 # Stop Apteryx
-$BUILD/usr/bin/apteryx -t
-killall apteryxd
+apteryx -t
+killall -9 apteryxd
+rm -f /tmp/apteryx
+rm interfaces.xml
+rm lighttpd.conf

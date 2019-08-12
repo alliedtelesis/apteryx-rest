@@ -1,7 +1,26 @@
+# Output
 *.o
-*.so
-*.so.*
-.build
 apteryx-rest
 gcov/
-test
+unittest
+
+# Autotools
+m4/*
+aclocal.m4
+ar-lib
+autom4te.cache/
+compile
+config.guess
+config.log
+config.status
+config.sub
+configure
+depcomp
+missing
+ltmain.sh
+libtool
+install-sh
+Makefile.in
+Makefile
+.deps
+.libs

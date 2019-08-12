@@ -8,6 +8,8 @@ glib-2.0 libxml-2.0 fcgi-2.4.0 jansson-2.12 apteryx-4.32
 
 Make and install:
 ```
+./autogen.sh
+./configure
 make install
 ```
 
@@ -46,10 +48,7 @@ make test TEST_ARGS="--verbose -p /get"
 ```
 
 ## Demo
-* Requires installed glib-2.0 libxml-2.0
-* Builds in a sandbox (.build/)
-* Downloads and compiles fcgi-2.4.0 jansson-2.12 apteryx-git lighttpd1.4
-* Runs unit tests
+* Requires installed glib-2.0 libxml-2.0 apteryx fcgi-2.4.0 jansson-2.12 lighttpd1.4
 * Starts Apteryx with a simple demo schema
 * Starts lighttpd on localhost:8080
 ```
