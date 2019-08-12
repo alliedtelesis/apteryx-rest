@@ -54,7 +54,7 @@ help (char *app_name)
 int
 main (int argc, char *argv[])
 {
-    const char *path = NULL;
+    const char *path = "./";
     const char *pid_file = DEFAULT_APP_PID;
     const char *socket = DEFAULT_REST_SOCK;
     int i = 0;
