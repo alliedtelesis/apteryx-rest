@@ -75,9 +75,9 @@ get_flags (FCGX_Request * r)
     param = FCGX_GetParam ("HTTP_CONTENT_TYPE", r->envp);
     if (param)
     {
-        if (strcmp (param, "application/yang.data+json") != 0)
+        if (strcmp (param, "application/yang.data+json") == 0)
             flags |= FLAGS_CONTENT_JSON;
-        else if (strcmp (param, "application/yang.data+xml") != 0)
+        else if (strcmp (param, "application/yang.data+xml") == 0)
             flags |= FLAGS_CONTENT_XML;
     }
 
@@ -85,13 +85,22 @@ get_flags (FCGX_Request * r)
     param = FCGX_GetParam ("HTTP_ACCEPT", r->envp);
     if (param)
     {
-        if (strcmp (param, "application/yang.data+json") != 0)
+        if (strcmp (param, "application/yang.data+json") == 0)
             flags |= FLAGS_ACCEPT_JSON;
-        else if (strcmp (param, "application/yang.data+xml") != 0)
+        else if (strcmp (param, "application/yang.data+xml") == 0)
             flags |= FLAGS_ACCEPT_XML;
-        else if (strcmp (param, "*/*") != 0)
+        else if (strcmp (param, "*/*") == 0)
             flags |= (FLAGS_ACCEPT_JSON | FLAGS_ACCEPT_XML);
     }
+
+    /* JSON formatinng */
+    param = FCGX_GetParam ("HTTP_X_JSON_ARRAY", r->envp);
+    if (param && strcmp (param, "on") == 0)
+        flags |= FLAGS_JSON_FORMAT_ARRAYS;
+    param = FCGX_GetParam ("HTTP_X_JSON_ROOT", r->envp);
+    flags |= FLAGS_JSON_FORMAT_ROOT;
+    if (param && strcmp (param, "off") == 0)
+        flags &= ~FLAGS_JSON_FORMAT_ROOT;      
 
     return flags;
 }

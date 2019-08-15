@@ -145,43 +145,45 @@ curl -u manager:friend -k https://<HOST>/api/firewall/fw_rules/10/application
 
 * Retrieve the entire rule
 ```
-curl -u manager:friend -k https://<HOST>/api/firewall/fw_rules/10
-
-{"10": {
-    "index": "10",
-    "to": "public",
-    "application": "http",
-    "from": "private",
-    "action": "1"
-}}
+curl -s -u manager:friend -k https://<HOST>/api/firewall/fw_rules/10 | python -m json.tool
+{
+    "10": {
+        "action": "1",
+        "application": "http",
+        "from": "private",
+        "index": "10",
+        "to": "public"
+    }
+}
 ```
 
 * Retrieve the entire firewall configuration
 ```
-curl -u manager:friend -k https://<HOST>/api/firewall
-
-{"firewall": {
-    "settings": {
-        "protect": "1",
-        "state": "2"
-    },
-    "fw_rules": {
-        "10": {
-            "index": "10",
-            "to": "public",
-            "application": "http",
-            "from": "private",
-            "action": "1"
+curl -s -u manager:friend -k https://<HOST>/api/firewall | python -m json.tool
+{
+    "firewall": {
+        "fw_rules": {
+            "10": {
+                "action": "1",
+                "application": "http",
+                "from": "private",
+                "index": "10",
+                "to": "public"
+            },
+            "20": {
+                "action": "1",
+                "application": "ftp",
+                "from": "private",
+                "index": "20",
+                "to": "public"
+            }
         },
-        "20": {
-            "index": "20",
-            "to": "public",
-            "application": "ftp",
-            "from": "private",
-            "action": "1"
+        "settings": {
+            "protect": "1",
+            "state": "2"
         }
     }
-}}
+}
 ```
 
 ## Conditional GET
@@ -199,6 +201,48 @@ e.g.
 curl -u manager:friend -k https://<HOST>/api/firewall --header 'If-None-Match: 51676B1E00314'
 
 304 Not Modified
+```
+
+## GET Format options
+* Exclude root element
+```
+curl -s -u manager:friend -k https://<HOST>/api/firewall/settings | python -m json.tool
+{
+    "settings": {
+        "protect": "1",
+        "state": "2"
+    }
+}
+```
+```
+curl -s -u manager:friend -H "X-JSON-Root: off" -k https://<HOST>/api/firewall/settings | python -m json.tool
+{
+    "protect": "1",
+    "state": "2"
+}
+```
+
+* JSON arrays for list entries
+```
+curl -s -u manager:friend -H "X-JSON-Array: on" -k https://<HOST>/api/firewall/fw_rules | python -m json.tool
+{
+    "fw_rules": [
+        {
+            "index": "10",
+            "to": "public",
+            "application": "http",
+            "from": "private",
+            "action": "1"
+        },
+        {
+            "index": "20",
+            "to": "public",
+            "application": "ftp",
+            "from": "private",
+            "action": "1"
+        }
+    ]
+}
 ```
 
 ## POST

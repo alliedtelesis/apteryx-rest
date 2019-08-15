@@ -63,6 +63,8 @@ bool sch_validate_pattern (sch_node *node, const char *value);
 #define FLAGS_CONTENT_XML        (1 << 1)
 #define FLAGS_ACCEPT_JSON        (1 << 2)
 #define FLAGS_ACCEPT_XML         (1 << 3)
+#define FLAGS_JSON_FORMAT_ARRAYS (1 << 4)
+#define FLAGS_JSON_FORMAT_ROOT   (1 << 5)
 typedef char* (*http_callback) (int flags, const char *path, const char *action, const char *if_none_match, const char *data, int length);
 
 /* FastCGI */

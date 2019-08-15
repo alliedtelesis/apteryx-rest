@@ -63,7 +63,7 @@ main (int argc, char *argv[])
     int rc = EXIT_SUCCESS;
 
     /* Parse options */
-    while ((i = getopt (argc, argv, "bdvm:s:p:h")) != -1)
+    while ((i = getopt (argc, argv, "bdvam:s:p:h")) != -1)
     {
         switch (i)
         {

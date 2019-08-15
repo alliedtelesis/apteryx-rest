@@ -181,7 +181,7 @@ tree_to_json (sch_node * api_root, GNode * data_root, bool use_json_arrays)
 }
 
 static char *
-rest_api_get (const char *path, const char *if_none_match)
+rest_api_get (int flags, const char *path, const char *if_none_match)
 {
     sch_node *api_subtree;
     GNode *data;
@@ -190,6 +190,7 @@ rest_api_get (const char *path, const char *if_none_match)
     int rc = HTTP_CODE_OK;
     char *resp;
     uint64_t ts = 0;
+    bool json_arrays = rest_use_arrays || (flags & FLAGS_JSON_FORMAT_ARRAYS);
 
     api_subtree = sch_path_to_node (path);
     if (!api_subtree)
@@ -212,11 +213,16 @@ rest_api_get (const char *path, const char *if_none_match)
     }
 
     data = apteryx_get_tree (path);
-    json = tree_to_json (api_subtree, data, rest_use_arrays);
+    json = tree_to_json (api_subtree, data, json_arrays);
     apteryx_free_tree (data);
 
     /* Dump to the output */
-    json_string = json_dumps (json, 0);
+    if (flags & FLAGS_JSON_FORMAT_ROOT)
+        json_string = json_dumps (json, 0);
+    else {
+        void *iter = json_object_iter(json);
+        json_string = json_dumps (json_object_iter_value(iter), 0);
+    }
     if (!json_string)
     {
         ERROR ("Failed to format JSON for path %s\n", path);
@@ -529,7 +535,7 @@ rest_api (int flags, const char *path, const char *action, const char *if_none_m
         else if (path[strlen (path) - 1] == '/')
             resp = rest_api_search (path);
         else
-            resp = rest_api_get (path, if_none_match);
+            resp = rest_api_get (flags, path, if_none_match);
     }
     else if (strcmp (action, "POST") == 0 || strcmp (action, "PUT") == 0)
         resp = rest_api_post (path, data, length);
