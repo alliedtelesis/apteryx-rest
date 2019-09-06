@@ -220,8 +220,11 @@ rest_api_get (int flags, const char *path, const char *if_none_match)
     if (flags & FLAGS_JSON_FORMAT_ROOT)
         json_string = json_dumps (json, 0);
     else {
-        void *iter = json_object_iter(json);
-        json_string = json_dumps (json_object_iter_value(iter), 0);
+        void *iter = json_object_iter (json);
+        json_t *json_root = json_array ();
+        json_array_append (json_root, json_object_iter_value (iter));
+        json_string = json_dumps (json_root, 0);
+        json_decref (json_root);
     }
     if (!json_string)
     {

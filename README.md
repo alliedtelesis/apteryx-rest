@@ -204,7 +204,7 @@ curl -u manager:friend -k https://<HOST>/api/firewall --header 'If-None-Match: 5
 ```
 
 ## GET Format options
-* Exclude root element
+* Replace root element with an array emulating multiple responses
 ```
 curl -s -u manager:friend -k https://<HOST>/api/firewall/settings | python -m json.tool
 {
@@ -216,10 +216,10 @@ curl -s -u manager:friend -k https://<HOST>/api/firewall/settings | python -m js
 ```
 ```
 curl -s -u manager:friend -H "X-JSON-Root: off" -k https://<HOST>/api/firewall/settings | python -m json.tool
-{
+[{
     "protect": "1",
     "state": "2"
-}
+}]
 ```
 
 * JSON arrays for list entries
