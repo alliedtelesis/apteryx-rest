@@ -204,22 +204,24 @@ curl -u manager:friend -k https://<HOST>/api/firewall --header 'If-None-Match: 5
 ```
 
 ## GET Format options
-* Replace root element with an array emulating multiple responses
+* Drop requested node from response
 ```
-curl -s -u manager:friend -k https://<HOST>/api/firewall/settings | python -m json.tool
-{
-    "settings": {
-        "protect": "1",
-        "state": "2"
-    }
-}
+curl -s -u manager:friend -k https://<HOST>/api/firewall/settings/protect | python -m json.tool
+{ "protect": "1" }
 ```
 ```
-curl -s -u manager:friend -H "X-JSON-Root: off" -k https://<HOST>/api/firewall/settings | python -m json.tool
-[{
-    "protect": "1",
-    "state": "2"
-}]
+curl -s -u manager:friend -H "X-JSON-Root: off" -k https://<HOST>/api/firewall/settings/protect | python -m json.tool
+"1"
+```
+
+* Emulate multiple responses by providing a top level array in response
+```
+curl -s -u manager:friend -k https://<HOST>/api/firewall/settings/protect | python -m json.tool
+{ "protect": "1" }
+```
+```
+curl -s -u manager:friend -H "X-JSON-Multi: on" -k https://<HOST>/api/firewall/settings/protect | python -m json.tool
+[ { "protect": "1" } ]
 ```
 
 * JSON arrays for list entries

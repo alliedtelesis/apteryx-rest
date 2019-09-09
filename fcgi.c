@@ -109,6 +109,9 @@ get_flags (FCGX_Request * r)
     flags |= FLAGS_JSON_FORMAT_ROOT;
     if (param && strcmp (param, "off") == 0)
         flags &= ~FLAGS_JSON_FORMAT_ROOT;      
+    param = FCGX_GetParam ("HTTP_X_JSON_MULTI", r->envp);
+    if (param && strcmp (param, "on") == 0)
+        flags |= FLAGS_JSON_FORMAT_MULTI;
 
     return flags;
 }

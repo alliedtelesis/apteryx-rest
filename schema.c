@@ -46,18 +46,14 @@ list_xml_files (GList ** files, const char *path)
         {
             while ((ep = readdir (dp)))
             {
-                char *filename = NULL;
                 if ((fnmatch ("*.xml", ep->d_name, FNM_PATHNAME) != 0) &&
                     (fnmatch ("*.xml.gz", ep->d_name, FNM_PATHNAME) != 0))
                 {
                     VERBOSE ("SCHEMA: Ignoring \"%s\"\n", ep->d_name);
                     continue;
                 }
-                if (asprintf (&filename, "%s/%s", dpath, ep->d_name) > 0)
-                {
-                    VERBOSE ("SCHEMA: Adding \"%s\"\n", ep->d_name);
-                    *files = g_list_append (*files, filename);
-                }
+                VERBOSE ("SCHEMA: Adding \"%s\"\n", ep->d_name);
+                *files = g_list_append (*files, g_strdup_printf ("%s/%s", dpath, ep->d_name));
             }
             (void) closedir (dp);
         }
@@ -353,11 +349,9 @@ sch_node_to_path (sch_node * node)
         {
             break;
         }
-        if (asprintf (&tmp, "/%s%s", name, path ? : "") >= 0)
-        {
-            free (path);
-            path = tmp;
-        }
+        tmp = g_strdup_printf ("/%s%s", name, path ? : "");
+        free (path);
+        path = tmp;
         free (name);
         node = ((xmlNode *) node)->parent;
     }

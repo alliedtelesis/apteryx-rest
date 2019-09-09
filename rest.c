@@ -216,16 +216,29 @@ rest_api_get (int flags, const char *path, const char *if_none_match)
     json = tree_to_json (api_subtree, data, json_arrays);
     apteryx_free_tree (data);
 
-    /* Dump to the output */
-    if (flags & FLAGS_JSON_FORMAT_ROOT)
-        json_string = json_dumps (json, 0);
-    else {
+    /* Process requested JSON format options */
+    if (!(flags & FLAGS_JSON_FORMAT_ROOT) && !json_is_string (json))
+    {
+        /* Chop off the root node */
         void *iter = json_object_iter (json);
-        json_t *json_root = json_array ();
-        json_array_append (json_root, json_object_iter_value (iter));
-        json_string = json_dumps (json_root, 0);
-        json_decref (json_root);
+        json_t *json_new = json_object_iter_value (iter);
+        json_incref (json_new);
+        json_decref (json);
+        json = json_new;
     }
+    if (flags & FLAGS_JSON_FORMAT_MULTI)
+    {
+        /* Top level array */
+        json_t *json_new = json_array ();
+        json_array_append_new (json_new, json);
+        json = json_new;
+    }
+
+    /* Dump to the output */
+    if (!(flags & FLAGS_JSON_FORMAT_ROOT) && json_is_string (json))
+        json_string = g_strdup_printf ("\"%s\"", json_string_value (json));
+    else
+        json_string = json_dumps (json, 0);
     if (!json_string)
     {
         ERROR ("Failed to format JSON for path %s\n", path);
