@@ -454,23 +454,43 @@ apteryx_json_set (const char *path, json_t * json)
 }
 
 static char *
-rest_api_post (const char *path, const char *data, int length)
+rest_api_post (int flags, const char *path, const char *data, int length)
 {
     json_error_t error;
     json_t *json;
     int rc;
 
     json = json_loads (data, 0, &error);
-    if (!json)
+    if (json)
+    {
+        rc = apteryx_json_set (path, json);
+        json_decref (json);
+    }
+    else if (!(flags & FLAGS_JSON_FORMAT_ROOT))
+    {
+        sch_node *node;
+        bool write;
+
+        /* Manage value with no key */
+        node = sch_validate_path (sch_root (), path, NULL, &write);
+        if (!node || !write || !sch_node_is_leaf (node))
+        {
+            rc = HTTP_CODE_FORBIDDEN;
+        }
+        else if (!apteryx_set (path, data))
+        {
+            rc = HTTP_CODE_BAD_REQUEST;
+        }
+        else
+        {
+            rc = HTTP_CODE_OK;
+        }
+    }
+    else
     {
         ERROR ("error: on line %d: %s\n", error.line, error.text);
         rc = HTTP_CODE_BAD_REQUEST;
     }
-    else
-    {
-        rc = apteryx_json_set (path, json);
-    }
-    json_decref (json);
     return g_strdup_printf ("Status: %d\r\n" "\r\n", rc);
 }
 
@@ -554,7 +574,7 @@ rest_api (int flags, const char *path, const char *action, const char *if_none_m
             resp = rest_api_get (flags, path, if_none_match);
     }
     else if (strcmp (action, "POST") == 0 || strcmp (action, "PUT") == 0)
-        resp = rest_api_post (path, data, length);
+        resp = rest_api_post (flags, path, data, length);
     else if (strcmp (action, "DELETE") == 0)
         resp = rest_api_delete (path);
 
