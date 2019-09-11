@@ -316,7 +316,7 @@ json_to_tree (sch_node * api_root, json_t * json_root, GNode * data_root)
                 return J2T_RES_ARRAY_NOT_LIST;
             }
 
-            data_child = g_node_new ((char *) key);
+            data_child = g_node_new (g_strdup (key));
             json_array_foreach (json, index, json_array)
             {
                 json_t *json_key = json_object_get (json_array, key_name);
@@ -326,18 +326,21 @@ json_to_tree (sch_node * api_root, json_t * json_root, GNode * data_root)
                 if (!api_array)
                 {
                     json_error (api_child, "J2T_RES_NO_API_NODE");
+                    free (data_child->data);
                     g_node_destroy (data_child);
                     free (key_name);
                     return J2T_RES_NO_API_NODE;
                 }
 
-                data_array = g_node_new ((char *) key_array);
+                data_array = g_node_new (g_strdup (key_array));
                 rc = json_to_tree (api_array, json_array, data_array);
                 if (rc != J2T_RES_SUCCESS)
                 {
                     /* We don't need to do anything with data_child; it must be NULL because this
                      * function only sets it to something significant on success. */
+                    free (data_array->data);
                     g_node_destroy (data_array);
+                    free (data_child->data);
                     g_node_destroy (data_child);
                     free (key_name);
                     return rc;
@@ -348,19 +351,20 @@ json_to_tree (sch_node * api_root, json_t * json_root, GNode * data_root)
         }
         else if (json_is_object (json))
         {
-            data_child = g_node_new ((char *) key);
+            data_child = g_node_new (g_strdup (key));
             rc = json_to_tree (api_child, json, data_child);
             if (rc != J2T_RES_SUCCESS)
             {
                 /* We don't need to do anything with data_child; it must be NULL because this
                  * function only sets it to something significant on success. */
+                free (data_child->data);
                 g_node_destroy (data_child);
                 return rc;
             }
         }
-        else if (json_is_string (json))
+        else if (json_is_string (json) || json_is_integer (json))
         {
-            const char *value = json_string_value (json);
+            char *value;
 
             if (!sch_node_is_leaf (api_child))
             {
@@ -375,18 +379,29 @@ json_to_tree (sch_node * api_root, json_t * json_root, GNode * data_root)
                 return J2T_RES_PERMISSION_MISMATCH;
             }
 
+            /* Format value always as a string */
+            if (json_is_integer (json))
+            {
+                value = g_strdup_printf ("%d", json_integer_value (json));
+            }
+            else
+            {
+                value = g_strdup (json_string_value (json));
+            }
+                        
             /* We only need to do a pattern check when setting a non-empty value; clearing a value
              * is always permitted. */
-            if (value[0] != '\0')
+            if (value && value[0] != '\0')
             {
                 if (!sch_validate_pattern (api_child, value))
                 {
                     json_error (api_child, "J2T_RES_REGEX_MISMATCH");
+                    free (value);
                     return J2T_RES_REGEX_MISMATCH;
                 }
             }
 
-            data_child = g_node_new ((char *) key);
+            data_child = g_node_new (g_strdup (key));
             g_node_prepend_data (data_child, (char *) value);
         }
         else
@@ -415,18 +430,18 @@ apteryx_json_set (const char *path, json_t * json)
         return HTTP_CODE_FORBIDDEN;
     }
 
-    data = g_node_new ((char *) path);
+    data = g_node_new (g_strdup (path));
     rc = json_to_tree (api_subtree, json, data);
     switch (rc)
     {
     case J2T_RES_SUCCESS:
         break;
     case J2T_RES_NO_API_NODE:
-        g_node_destroy (data);
+        apteryx_free_tree (data);
         return HTTP_CODE_NOT_FOUND;
     case J2T_RES_VALUE_ON_CORE_NODE:
     case J2T_RES_PERMISSION_MISMATCH:
-        g_node_destroy (data);
+        apteryx_free_tree (data);
         return HTTP_CODE_FORBIDDEN;
     case J2T_RES_SLASH_IN_PATH_COMPONENT:
     case J2T_RES_REGEX_MISMATCH:
@@ -434,15 +449,15 @@ apteryx_json_set (const char *path, json_t * json)
     case J2T_RES_OBJECT_ON_LEAF_NODE:
     case J2T_RES_EMPTY_OBJECT:
     case J2T_RES_ARRAY_NOT_LIST:
-        g_node_destroy (data);
+        apteryx_free_tree (data);
         return HTTP_CODE_BAD_REQUEST;
     case J2T_RES_REGEX_COMPILATION_FAIL:
     default:
-        g_node_destroy (data);
+        apteryx_free_tree (data);
         return HTTP_CODE_INTERNAL_SERVER_ERROR;
     }
     set_successful = apteryx_set_tree (data);
-    g_node_destroy (data);
+    apteryx_free_tree (data);
 
     if (!set_successful)
     {
