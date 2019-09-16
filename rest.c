@@ -362,7 +362,7 @@ json_to_tree (sch_node * api_root, json_t * json_root, GNode * data_root)
                 return rc;
             }
         }
-        else if (json_is_string (json) || json_is_integer (json))
+        else if (json_is_string (json) || json_is_integer (json) || json_is_boolean (json))
         {
             char *value;
 
@@ -383,6 +383,10 @@ json_to_tree (sch_node * api_root, json_t * json_root, GNode * data_root)
             if (json_is_integer (json))
             {
                 value = g_strdup_printf ("%d", json_integer_value (json));
+            }
+            else if (json_is_boolean (json))
+            {
+                value = g_strdup_printf ("%s", json_is_true (json) ? "true" : "false");
             }
             else
             {
