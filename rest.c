@@ -472,6 +472,19 @@ apteryx_json_set (const char *path, json_t * json)
     return HTTP_CODE_OK;
 }
 
+/* Helper function to strip quotes from provided string str */
+static void
+strip_quotes (char *str)
+{
+    int j = 0;
+    for (int i = 0; str[i] != '\0'; i++)
+    {
+        if (str[i] != '"')
+            str[j++] = str[i];
+    }
+    str[j] = '\0';
+}
+
 static char *
 rest_api_post (int flags, const char *path, const char *data, int length)
 {
@@ -489,6 +502,14 @@ rest_api_post (int flags, const char *path, const char *data, int length)
     {
         sch_node *node;
         bool write;
+        char *escaped = NULL;
+
+        /* Remove quotes around data if they exist */
+        if (data[0] == '"' && data[strlen (data) - 1] == '"')
+        {
+            escaped = g_strdup (data);
+            strip_quotes (escaped);
+        }
 
         /* Manage value with no key */
         node = sch_validate_path (sch_root (), path, NULL, &write);
@@ -496,13 +517,18 @@ rest_api_post (int flags, const char *path, const char *data, int length)
         {
             rc = HTTP_CODE_FORBIDDEN;
         }
-        else if (!apteryx_set (path, data))
+        else if (!apteryx_set (path, escaped ? escaped : data))
         {
             rc = HTTP_CODE_BAD_REQUEST;
         }
         else
         {
             rc = HTTP_CODE_OK;
+        }
+
+        if (escaped)
+        {
+            g_free (escaped);
         }
     }
     else
