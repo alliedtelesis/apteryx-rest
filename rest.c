@@ -492,9 +492,13 @@ rest_api_post (int flags, const char *path, const char *data, int length)
         char *escaped = NULL;
 
         /* Remove quotes around data if they exist */
-        if (data[0] == '"' && data[strlen (data) - 1] == '"')
+        if (strlen(data) > 1 && data[0] == '"' && data[strlen (data) - 1] == '"')
         {
             escaped = g_strndup (data + 1, strlen (data) - 2);
+        }
+        else
+        {
+            escaped = g_strdup (data);
         }
 
         /* Manage value with no key */
@@ -512,10 +516,7 @@ rest_api_post (int flags, const char *path, const char *data, int length)
             rc = HTTP_CODE_OK;
         }
 
-        if (escaped)
-        {
-            g_free (escaped);
-        }
+        g_free (escaped);
     }
     else
     {
