@@ -489,6 +489,17 @@ rest_api_post (int flags, const char *path, const char *data, int length)
     {
         sch_node *node;
         bool write;
+        char *escaped = NULL;
+
+        /* Remove quotes around data if they exist */
+        if (strlen(data) > 1 && data[0] == '"' && data[strlen (data) - 1] == '"')
+        {
+            escaped = g_strndup (data + 1, strlen (data) - 2);
+        }
+        else
+        {
+            escaped = g_strdup (data);
+        }
 
         /* Manage value with no key */
         node = sch_validate_path (sch_root (), path, NULL, &write);
@@ -496,7 +507,7 @@ rest_api_post (int flags, const char *path, const char *data, int length)
         {
             rc = HTTP_CODE_FORBIDDEN;
         }
-        else if (!apteryx_set (path, data))
+        else if (!apteryx_set (path, escaped ? escaped : data))
         {
             rc = HTTP_CODE_BAD_REQUEST;
         }
@@ -504,6 +515,8 @@ rest_api_post (int flags, const char *path, const char *data, int length)
         {
             rc = HTTP_CODE_OK;
         }
+
+        g_free (escaped);
     }
     else
     {
