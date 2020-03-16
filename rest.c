@@ -26,8 +26,6 @@
 #define HTTP_CODE_NOT_FOUND             404
 #define HTTP_CODE_INTERNAL_SERVER_ERROR 500
 
-bool rest_use_arrays = false;
-
 static char *
 rest_api_xml (void)
 {
@@ -100,7 +98,29 @@ rest_api_search (const char *path)
 }
 
 static json_t *
-_tree_to_json (sch_node * api_root, GNode * data_root, bool use_json_arrays)
+encode_json_type (char *val)
+{
+    json_t *json = NULL;
+    json_int_t i;
+    char *p;
+
+    if (*val != '\0')
+    {
+        i = strtoll (val, &p, 10);
+        if (*p == '\0')
+            json = json_integer (i);
+        if (g_strcmp0 (val, "true") == 0)
+            json = json_true ();
+        if (g_strcmp0 (val, "false") == 0)
+            json = json_false ();
+    }
+    if (!json)
+        json = json_string (val);
+    return json;
+}
+
+static json_t *
+_tree_to_json (sch_node * api_root, GNode * data_root, bool use_json_arrays, bool use_json_types)
 {
     if (APTERYX_HAS_VALUE (data_root))
     {
@@ -109,6 +129,8 @@ _tree_to_json (sch_node * api_root, GNode * data_root, bool use_json_arrays)
         {
             return NULL;
         }
+        if (use_json_types)
+            return encode_json_type (APTERYX_VALUE (data_root));
         return json_string (APTERYX_VALUE (data_root));
     }
     else
@@ -141,7 +163,7 @@ _tree_to_json (sch_node * api_root, GNode * data_root, bool use_json_arrays)
                 continue;
             }
 
-            json_child = _tree_to_json (api_child, data_child, use_json_arrays);
+            json_child = _tree_to_json (api_child, data_child, use_json_arrays, use_json_types);
             if (json_child)
             {
                 if (print_as_array)
@@ -158,12 +180,12 @@ _tree_to_json (sch_node * api_root, GNode * data_root, bool use_json_arrays)
 }
 
 static json_t *
-tree_to_json (sch_node * api_root, GNode * data_root, bool use_json_arrays)
+tree_to_json (sch_node * api_root, GNode * data_root, bool use_json_arrays, bool use_json_types)
 {
     json_t *json_root = json_object ();
     if (data_root)
     {
-        json_t *json_child = _tree_to_json (api_root, data_root, use_json_arrays);
+        json_t *json_child = _tree_to_json (api_root, data_root, use_json_arrays, use_json_types);
         if (json_child)
         {
             char *slash;
@@ -190,7 +212,8 @@ rest_api_get (int flags, const char *path, const char *if_none_match)
     int rc = HTTP_CODE_OK;
     char *resp;
     uint64_t ts = 0;
-    bool json_arrays = rest_use_arrays || (flags & FLAGS_JSON_FORMAT_ARRAYS);
+    bool json_arrays = (flags & FLAGS_JSON_FORMAT_ARRAYS);
+    bool json_types = (flags & FLAGS_JSON_FORMAT_TYPES);
 
     api_subtree = sch_path_to_node (path);
     if (!api_subtree)
@@ -213,7 +236,7 @@ rest_api_get (int flags, const char *path, const char *if_none_match)
     }
 
     data = apteryx_get_tree (path);
-    json = tree_to_json (api_subtree, data, json_arrays);
+    json = tree_to_json (api_subtree, data, json_arrays, json_types);
     apteryx_free_tree (data);
 
     /* Process requested JSON format options */
@@ -235,8 +258,22 @@ rest_api_get (int flags, const char *path, const char *if_none_match)
     }
 
     /* Dump to the output */
-    if (!(flags & FLAGS_JSON_FORMAT_ROOT) && json_is_string (json))
-        json_string = g_strdup_printf ("\"%s\"", json_string_value (json));
+    if (!(flags & FLAGS_JSON_FORMAT_ROOT) &&
+        (json_is_string (json) || json_is_integer (json) || json_is_boolean (json)))
+    {
+        if (json_types && json_is_integer (json))
+        {
+            json_string = g_strdup_printf ("%d", json_integer_value (json));
+        }
+        else if (json_types && json_is_boolean (json))
+        {
+            json_string = g_strdup_printf ("%s", json_is_true (json) ? "true" : "false");
+        }
+        else
+        {
+            json_string = g_strdup_printf ("\"%s\"", json_string_value (json));
+        }
+    }
     else
         json_string = json_dumps (json, 0);
     if (!json_string)

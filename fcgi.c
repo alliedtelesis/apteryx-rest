@@ -102,9 +102,6 @@ get_flags (FCGX_Request * r)
     }
 
     /* JSON formatinng */
-    param = FCGX_GetParam ("HTTP_X_JSON_ARRAY", r->envp);
-    if (param && strcmp (param, "on") == 0)
-        flags |= FLAGS_JSON_FORMAT_ARRAYS;
     param = FCGX_GetParam ("HTTP_X_JSON_ROOT", r->envp);
     flags |= FLAGS_JSON_FORMAT_ROOT;
     if (param && strcmp (param, "off") == 0)
@@ -112,6 +109,22 @@ get_flags (FCGX_Request * r)
     param = FCGX_GetParam ("HTTP_X_JSON_MULTI", r->envp);
     if (param && strcmp (param, "on") == 0)
         flags |= FLAGS_JSON_FORMAT_MULTI;
+    /* Format lists as JSON arrays */
+    if (rest_use_arrays)
+        flags |= FLAGS_JSON_FORMAT_ARRAYS;
+    param = FCGX_GetParam ("HTTP_X_JSON_ARRAY", r->envp);
+    if (param && strcmp (param, "on") == 0)
+        flags |= FLAGS_JSON_FORMAT_ARRAYS;
+    if (param && strcmp (param, "off") == 0)
+        flags &= ~FLAGS_JSON_FORMAT_ARRAYS;
+    /* Encode values as JSON types */
+    if (rest_use_types)
+        flags |= FLAGS_JSON_FORMAT_TYPES;
+    param = FCGX_GetParam ("HTTP_X_JSON_TYPES", r->envp);
+    if (param && strcmp (param, "on") == 0)
+        flags |= FLAGS_JSON_FORMAT_TYPES;
+    if (param && strcmp (param, "off") == 0)
+        flags &= ~FLAGS_JSON_FORMAT_TYPES;
 
     return flags;
 }

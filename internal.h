@@ -66,6 +66,7 @@ bool sch_validate_pattern (sch_node *node, const char *value);
 #define FLAGS_JSON_FORMAT_ARRAYS (1 << 4)
 #define FLAGS_JSON_FORMAT_ROOT   (1 << 5)
 #define FLAGS_JSON_FORMAT_MULTI  (1 << 6)
+#define FLAGS_JSON_FORMAT_TYPES  (1 << 7)
 typedef char* (*http_callback) (int flags, const char *path, const char *action, const char *if_none_match, const char *data, int length);
 
 /* FastCGI */
@@ -74,6 +75,7 @@ void fcgi_stop (void);
 
 /* Rest */
 extern bool rest_use_arrays;
+extern bool rest_use_types;
 char* rest_api (int flags, const char *path, const char *action, const char *if_none_match, const char *data, int length);
 
 #endif /* _REST_H_ */

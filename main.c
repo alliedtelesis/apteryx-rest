@@ -27,6 +27,10 @@ GMainLoop *g_loop = NULL;
 bool debug = false;
 bool verbose = false;
 
+/* Format modes */
+bool rest_use_arrays = false;
+bool rest_use_types = false;
+
 static gboolean
 termination_handler (gpointer arg1)
 {
@@ -38,7 +42,7 @@ termination_handler (gpointer arg1)
 void
 help (char *app_name)
 {
-    printf ("Usage: %s [-h] [-b] [-d] [-v] [-a] [-m <path>] [-p <pidfile>]\n"
+    printf ("Usage: %s [-h] [-b] [-d] [-v] [-a] [-t] [-m <path>] [-p <pidfile>]\n"
             "                [-n] [-l <port>] [-k <key>]\n"
             "                [-r] [-s <socket>]\n"
             "  -h   show this help\n"
@@ -46,6 +50,7 @@ help (char *app_name)
             "  -d   enable debug\n"
             "  -v   enable verbose debug\n"
             "  -a   enable the use of JSON arrays for lists\n"
+            "  -t   encode values as JSON types where possible\n"
             "  -m   search <path> for modules\n"
             "  -p   use <pidfile> (defaults to " DEFAULT_APP_PID ")\n"
             "  -s   rest socket <socket> (defaults to " DEFAULT_REST_SOCK ")\n", app_name);
@@ -63,7 +68,7 @@ main (int argc, char *argv[])
     int rc = EXIT_SUCCESS;
 
     /* Parse options */
-    while ((i = getopt (argc, argv, "bdvam:s:p:h")) != -1)
+    while ((i = getopt (argc, argv, "bdvatm:s:p:h")) != -1)
     {
         switch (i)
         {
@@ -79,6 +84,9 @@ main (int argc, char *argv[])
             break;
         case 'a':
             rest_use_arrays = true;
+            break;
+        case 't':
+            rest_use_types = true;
             break;
         case 'm':
             path = optarg;
