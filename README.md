@@ -247,6 +247,16 @@ curl -s -u manager:friend -H "X-JSON-Array: on" -k https://<HOST>/api/firewall/f
 }
 ```
 
+* JSON type encoding
+```
+curl -s -u manager:friend -k https://<HOST>/api/system/ram/free | python -m json.tool
+{ "free": "1884040" }
+```
+```
+curl -s -u manager:friend -H "X-JSON-Types: on" -k https://<HOST>/api/system/ram/free  | python -m json.tool
+{ "free": 1884040 }
+```
+
 ## POST
 * Change the application attribute in firewall rule 10
 ```
