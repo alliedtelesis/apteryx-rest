@@ -132,7 +132,7 @@ get_flags (FCGX_Request * r)
 static void *
 handle_http (void *arg)
 {
-    FCGX_Request request;
+    FCGX_Request *request = (FCGX_Request *)arg;
     char *path, *action, *length, *if_none_match;
     int flags;
     char *data = NULL;
@@ -140,58 +140,69 @@ handle_http (void *arg)
     char *resp;
     int i;
 
-    while (1)
+    /* Debug */
+    if (verbose)
     {
-        /* Wait for a request */
-        FCGX_InitRequest (&request, g_sock, FCGI_FAIL_ACCEPT_ON_INTR);
-        if (FCGX_Accept_r (&request) < 0)
-        {
-            DEBUG ("FCGX_Accept_r: %s\n", strerror (errno));
-            break;
-        }
+        dump_request (request);
+    }
 
-        /* Debug */
-        if (verbose)
+    /* Process the request */
+    path = FCGX_GetParam ("REQUEST_URI", request->envp);
+    flags = get_flags (request);
+    if_none_match = FCGX_GetParam ("If-None-Match", request->envp);
+    action = FCGX_GetParam ("REQUEST_METHOD", request->envp);
+    length = FCGX_GetParam ("CONTENT_LENGTH", request->envp);
+    if (length != NULL)
+    {
+        len = strtol (length, NULL, 10);
+        data = calloc (len + 1, 1);
+        for (i = 0; i < len; i++)
         {
-            dump_request (&request);
-        }
-
-        /* Process the request */
-        path = FCGX_GetParam ("REQUEST_URI", request.envp);
-        flags = get_flags (&request);
-        if_none_match = FCGX_GetParam ("If-None-Match", request.envp);
-        action = FCGX_GetParam ("REQUEST_METHOD", request.envp);
-        length = FCGX_GetParam ("CONTENT_LENGTH", request.envp);
-        if (length != NULL)
-        {
-            len = strtol (length, NULL, 10);
-            data = calloc (len + 1, 1);
-            for (i = 0; i < len; i++)
+            if ((data[i] = FCGX_GetChar (request->in)) < 0)
             {
-                if ((data[i] = FCGX_GetChar (request.in)) < 0)
-                {
-                    ERROR ("ERROR: Not enough bytes received on standard input\n");
-                    break;
-                }
+                ERROR ("ERROR: Not enough bytes received on standard input\n");
+                break;
             }
         }
-        resp = g_cb (flags, path, action, if_none_match, data, len);
-        free (data);
+    }
+    resp = g_cb (flags, path, action, if_none_match, data, len);
+    free (data);
 
-        /* Send the response */
-        if (!resp)
+    /* Send the response */
+    if (!resp)
+    {
+        resp = g_strdup_printf ("Status: 404\r\n"
+                                "Content-Type: text/html\r\n\r\n"
+                                "The requested URL %s was not found on this server.\n",
+                                path);
+    }
+    FCGX_PutS (resp, request->out);
+    free (resp);
+    FCGX_Finish_r (request);
+    g_free (request);
+
+    return NULL;
+}
+
+static void *
+handle_fcgi (void *arg)
+{
+    GThreadPool *workers = g_thread_pool_new ((GFunc)handle_http, NULL, -1, FALSE, NULL);
+    while (workers)
+    {
+        FCGX_Request *request = g_malloc0 (sizeof (FCGX_Request));
+        FCGX_InitRequest (request, g_sock, FCGI_FAIL_ACCEPT_ON_INTR);
+        if (FCGX_Accept_r (request) < 0)
         {
-            resp = g_strdup_printf ("Status: 404\r\n"
-                                    "Content-Type: text/html\r\n\r\n"
-                                    "The requested URL %s was not found on this server.\n",
-                                    path);
+            DEBUG ("FCGX_Accept_r: %s\n", strerror (errno));
+            g_free (request);
+            break;
         }
-        FCGX_PutS (resp, request.out);
-        free (resp);
-        FCGX_Finish_r (&request);
+        DEBUG ("New FCGI connection\n");
+        g_thread_pool_push (workers, request, NULL);
     }
     DEBUG ("Stopping FCGI handler\n");
-
+    g_thread_pool_free (workers, true, false);
     return NULL;
 }
 
@@ -217,9 +228,9 @@ fcgi_start (const char *socket, http_callback cb)
     }
 
     /* Create a thread to handle requests */
-    if ((g_thread = g_thread_new ("http handler", &handle_http, NULL)) == NULL)
+    if ((g_thread = g_thread_new ("fcgi handler", &handle_fcgi, NULL)) == NULL)
     {
-        ERROR ("Failed to launch HTTP handler thread\n");
+        ERROR ("Failed to launch FCGI handler thread\n");
         return false;
     }
 
