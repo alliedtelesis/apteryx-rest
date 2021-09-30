@@ -19,6 +19,7 @@
  */
 #include "internal.h"
 #include <sys/socket.h>
+#include <poll.h>
 #include <fcgi_config.h>
 #include <fcgiapp.h>
 
@@ -97,6 +98,10 @@ get_flags (FCGX_Request * r)
             flags |= FLAGS_ACCEPT_XML;
         if (g_strrstr (param, "application/yang.data+xml") != 0)
             flags |= FLAGS_ACCEPT_XML;
+        if (g_strrstr (param, "text/event-stream") != 0)
+            flags |= FLAGS_EVENT_STREAM | FLAGS_ACCEPT_JSON;
+        if (g_strrstr (param, "application/stream+json") != 0)
+            flags |= FLAGS_APPLICATION_STREAM | FLAGS_ACCEPT_JSON;
         if (g_strrstr (param, "*/*") != 0)
             flags |= (FLAGS_ACCEPT_JSON | FLAGS_ACCEPT_XML);
     }
@@ -164,7 +169,7 @@ handle_http (void *arg)
             }
         }
     }
-    g_cb ((req_handle)request, &fcgi_send, flags, path, action, if_none_match, data, len);
+    g_cb ((req_handle)request, flags, path, action, if_none_match, data, len);
     free (data);
     FCGX_Finish_r (request);
     g_free (request);
@@ -226,11 +231,26 @@ fcgi_start (const char *socket, req_callback cb)
 }
 
 void
-fcgi_send (req_handle handle, const char *data)
+send_response (req_handle handle, const char *data, bool flush)
 {
     FCGX_Request *request = (FCGX_Request *)handle;
     FCGX_PutS (data, request->out);
-    FCGX_FFlush (request->out);
+    if (flush)
+        FCGX_FFlush (request->out);
+}
+
+bool
+is_connected (req_handle handle, bool block)
+{
+    FCGX_Request *request = (FCGX_Request *)handle;
+    struct pollfd pfd;
+    pfd.fd = request->ipcFd;
+    pfd.events = POLLERR | POLLHUP;
+    pfd.revents = 0;
+    poll (&pfd, 1, block ? -1 : 1000);
+    if (pfd.revents & (POLLERR|POLLHUP))
+        return false;
+    return true;
 }
 
 void

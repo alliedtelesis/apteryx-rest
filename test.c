@@ -114,15 +114,21 @@ assert_apteryx_empty (void)
 }
 
 static char *test_resp = NULL;
-static void
-test_send (req_handle handle, const char *data)
+void
+send_response (req_handle handle, const char *data, bool flush)
 {
     test_resp  = g_strdup (data);
 }
+bool
+is_connected (req_handle handle, bool block)
+{
+    return false;
+}
+
 static inline char *
 test_api (int flags, const char *path, const char *action, const char *if_none_match, const char *data, int length)
 {
-    rest_api (NULL, test_send, flags, path, action, if_none_match, data, length);
+    rest_api (NULL, flags, path, action, if_none_match, data, length);
     return test_resp;
 }
 

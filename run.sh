@@ -72,6 +72,7 @@ mimetype.assign = (
   ".jpg" => "image/jpeg",
   ".png" => "image/png"
 )
+server.stream-response-body = 2
 fastcgi.debug = 1
 fastcgi.server = (
 "/api" => (
@@ -81,12 +82,54 @@ fastcgi.server = (
     )
   )
 )
+server.errorlog = "lighttpd.log"
 ' > lighttpd.conf
-lighttpd -D -f lighttpd.conf
+#lighttpd lighttpd -D -f lighttpd.conf
+#../lighttpd1.4/src/lighttpd -m /mnt/work/atl/lighttpd1.4/src/.libs -D -f lighttpd.conf
+#rc=$?; if [[ $rc != 0 ]]; then exit $rc; fi
+
+# Run nginx
+killall nginx &> /dev/null
+echo '
+daemon off;
+error_log /dev/stdout debug;
+pid '$ROOT'/nginx.pid;
+events {
+    worker_connections 768;
+}
+http {
+    server {
+        listen 8080;
+        location /api {
+            fastcgi_pass unix:'$ROOT'/apteryx-rest.sock;
+            fastcgi_buffering off;
+            fastcgi_read_timeout 1d;
+            fastcgi_param NO_BUFFERING "";
+            fastcgi_param REQUEST_METHOD     $request_method;
+            fastcgi_param REQUEST_URI        $request_uri;
+            fastcgi_param CONTENT_TYPE       $content_type;
+            fastcgi_param CONTENT_LENGTH     $content_length;
+        }
+        error_page   500 502 503 504  /50x.html;
+        location = /50x.html {
+            root   html;
+        }
+    }
+    access_log /dev/stdout;
+    client_body_temp_path '$ROOT'/nginx-client-body;
+    proxy_temp_path '$ROOT'/nginx-proxy;
+    fastcgi_temp_path '$ROOT'/nginx-fastcgi;
+    uwsgi_temp_path '$ROOT'/nginx-uwsgi;
+    scgi_temp_path '$ROOT'/nginx-scgi;
+}
+' > nginx.conf
+nginx -c $PWD/nginx.conf -e $PWD/error.log
+#../nginx/objs/nginx -c $PWD/nginx.conf -e $PWD/error.log
 rc=$?; if [[ $rc != 0 ]]; then exit $rc; fi
 
 # Stop lighttpd
 killall lighttpd &> /dev/null
+killall nginx &> /dev/null
 # Stop apteryx-rest
 killall apteryx-rest &> /dev/null
 kill `pidof valgrind.bin` &> /dev/null

@@ -614,8 +614,93 @@ rest_api_delete (const char *path)
     return g_strdup_printf ("Status: %d\r\n" "\r\n", rc);
 }
 
+typedef struct WatchRequest
+{
+    req_handle handle;
+    int flags;
+    sch_node *api;
+    char *path;
+    char *wpath;
+} WatchRequest;
+
+static bool
+watch_callback (GNode *root, void *data)
+{
+    WatchRequest *req = (WatchRequest *) data;
+    GNode *node = apteryx_path_node (root, req->path);
+    if (!node)
+        return false;
+    json_t *json = tree_to_json (req->api, node, true, true);
+    apteryx_free_tree (root);
+    void *iter = json_object_iter (json);
+    json_t *json_new = json_object_iter_value (iter);
+    json_incref (json_new);
+    json_decref (json);
+    json = json_new;
+    char *json_string = json_dumps (json, 0);
+
+    /* Send the event */
+    if (req->flags & FLAGS_EVENT_STREAM)
+        send_response (req->handle, "data: ", false);
+    send_response (req->handle, json_string, false);
+    if (req->flags & FLAGS_EVENT_STREAM)
+        send_response (req->handle, "\r\n\r\n", true);
+    else
+        send_response (req->handle, "\r\n", true);
+    json_decref (json);
+    free (json_string);
+
+    return true;
+}
+
+static void
+rest_api_watch (req_handle handle, int flags, const char *path)
+{
+    sch_node *api_subtree = sch_path_to_node (path);
+    if (!api_subtree)
+    {
+        char *resp = g_strdup_printf ("Status: 404\r\n"
+                                "Content-Type: text/html\r\n\r\n"
+                                "The requested URL %s was not found on this server.\n",
+                                path);
+        send_response (handle, resp, false);
+        g_free (resp);
+        return;
+    }
+
+    WatchRequest *req = g_malloc0 (sizeof (WatchRequest));
+    req->handle = handle;
+    req->flags = flags;
+    req->api = api_subtree;
+    req->path = g_strdup (path);
+    if (sch_node_is_leaf (api_subtree) )
+        req->wpath = g_strdup (path);
+    else
+        req->wpath = g_strdup_printf ("%s/*", path);
+    add_callback (APTERYX_WATCHERS_PATH, req->wpath, (void *)watch_callback, true, (void *) req, 1);
+
+    send_response (handle, "Status: 200\r\n", false);
+    send_response (handle, "Connection: 'keep-alive'\r\n", false);
+    if (flags & FLAGS_APPLICATION_STREAM)
+        send_response (handle, "Content-type: application/stream+json\r\n", false);
+    else
+        send_response (handle, "Content-type: text/event-stream\r\n", false);
+    send_response (handle, "Cache-Control: 'no-cache'\r\n", false);
+    send_response (handle, "\r\n\r\n", true);
+
+    while (is_connected (req->handle, true))
+    {
+        usleep (1000000);
+    }
+
+    delete_callback (APTERYX_WATCHERS_PATH, req->wpath, (void *)watch_callback);
+    g_free (req->path);
+    g_free (req->wpath);
+    g_free (req);
+}
+
 void
-rest_api (req_handle handle, send_callback send_fn, int flags, const char *path, const char *action,
+rest_api (req_handle handle, int flags, const char *path, const char *action,
           const char *if_none_match, const char *data, int length)
 {
     char *resp = NULL;
@@ -637,6 +722,11 @@ rest_api (req_handle handle, send_callback send_fn, int flags, const char *path,
     {
         if (strcmp (path, ".xml") == 0)
             resp = rest_api_xml ();
+        else if (flags & (FLAGS_EVENT_STREAM | FLAGS_APPLICATION_STREAM))
+        {
+            rest_api_watch (handle, flags, path);
+            return;
+        }
         else if (path[strlen (path) - 1] == '/')
             resp = rest_api_search (path);
         else
@@ -655,7 +745,7 @@ rest_api (req_handle handle, send_callback send_fn, int flags, const char *path,
     }
 
     VERBOSE ("RESP:\n%s\n", resp);
-    send_fn (handle, resp);
+    send_response (handle, resp, false);
     g_free (resp);
     return;
 }
