@@ -22,7 +22,7 @@
 #include <fcgi_config.h>
 #include <fcgiapp.h>
 
-static http_callback g_cb;
+static req_callback g_cb;
 static const char *g_socket = NULL;
 static int g_sock = -1;
 static GThread *g_thread = NULL;
@@ -137,7 +137,6 @@ handle_http (void *arg)
     int flags;
     char *data = NULL;
     int len = 0;
-    char *resp;
     int i;
 
     /* Debug */
@@ -165,19 +164,8 @@ handle_http (void *arg)
             }
         }
     }
-    resp = g_cb (flags, path, action, if_none_match, data, len);
+    g_cb ((req_handle)request, &fcgi_send, flags, path, action, if_none_match, data, len);
     free (data);
-
-    /* Send the response */
-    if (!resp)
-    {
-        resp = g_strdup_printf ("Status: 404\r\n"
-                                "Content-Type: text/html\r\n\r\n"
-                                "The requested URL %s was not found on this server.\n",
-                                path);
-    }
-    FCGX_PutS (resp, request->out);
-    free (resp);
     FCGX_Finish_r (request);
     g_free (request);
 
@@ -207,7 +195,7 @@ handle_fcgi (void *arg)
 }
 
 bool
-fcgi_start (const char *socket, http_callback cb)
+fcgi_start (const char *socket, req_callback cb)
 {
     DEBUG ("Starting FCGI handler on %s\n", socket);
     g_socket = socket;
@@ -235,6 +223,14 @@ fcgi_start (const char *socket, http_callback cb)
     }
 
     return true;
+}
+
+void
+fcgi_send (req_handle handle, const char *data)
+{
+    FCGX_Request *request = (FCGX_Request *)handle;
+    FCGX_PutS (data, request->out);
+    FCGX_FFlush (request->out);
 }
 
 void
