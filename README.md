@@ -21,15 +21,35 @@ apteryx-rest -b -m /etc/modules -p /var/run/apteryx-rest.pid -s /var/run/apteryx
 
 Lighttpd:
 ```
+server.stream-response-body = 2
 fastcgi.server = (
-"/api" => (
-  "fastcgi.handler" => (
-    "socket" => "/var/run/apteryx-rest.sock",
-    "check-local" => "disable",
+    "/api" => (
+        "fastcgi.handler" => (
+            "socket" => "/var/run/apteryx-rest.sock",
+            "check-local" => "disable",
+        )
     )
-  )
 )
 ```
+
+NGINX
+```
+http {
+    server {
+        location /api {
+            fastcgi_pass unix:/var/run/apteryx-rest.sock;
+            fastcgi_buffering off;
+            fastcgi_read_timeout 600s;
+            fastcgi_param NO_BUFFERING "";
+            fastcgi_param REQUEST_METHOD $request_method;
+            fastcgi_param REQUEST_URI    $request_uri;
+            fastcgi_param CONTENT_TYPE   $content_type;
+            fastcgi_param CONTENT_LENGTH $content_length;
+        }
+    }
+}
+```
+
 ## Unit tests
 Uses GLib testing framework (https://developer.gnome.org/glib/stable/glib-Testing.html)
 ```
@@ -286,4 +306,35 @@ curl -u manager:friend -k -H "Content-Type: application/json" -d \
 * Delete an entire firewall rule by pruning the sub-tree. Note that an HTTP delete is equivalent operation to a traversal and set to NULL.
 ```
 curl -u manager:friend -k -X "DELETE" https://<HOST>/api/firewall/fw_rules/10
+```
+
+## STREAMS
+* Send a GET request with content type text/event-stream to receive asynchronous changes for a path from the server
+
+```
+var source = new EventSource("/api/firewall");
+source.onmessage = function(event) {
+  console.log(event.data);
+};
+ƒ (event) {
+  console.log(event.data);
+}
+{"state": 1}
+{"state": 0}
+```
+
+```
+curl -N -H "X-JSON-Types: on" -H "Accept:text/event-stream" http://localhost:8080/api/firewall/settings
+
+data: {"state": 1}
+
+data: {"state": 0}
+
+```
+
+```
+curl -N -H "X-JSON-Types: on" -H "Accept:application/stream+json" http://localhost:8080/api/firewall/settings
+
+{"state": 1}
+{"state": 0}
 ```
