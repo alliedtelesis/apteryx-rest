@@ -20,6 +20,7 @@
 
 bool debug = false;
 bool verbose = false;
+bool rest_use_arrays = false;
 
 #define TEST_PATH       "/test"
 #define TEST_SETUP      g_assert_true (sch_load ("."));
