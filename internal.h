@@ -67,15 +67,18 @@ bool sch_validate_pattern (sch_node *node, const char *value);
 #define FLAGS_JSON_FORMAT_ROOT   (1 << 5)
 #define FLAGS_JSON_FORMAT_MULTI  (1 << 6)
 #define FLAGS_JSON_FORMAT_TYPES  (1 << 7)
-typedef char* (*http_callback) (int flags, const char *path, const char *action, const char *if_none_match, const char *data, int length);
+typedef void* req_handle;
+typedef void (*send_callback) (req_handle handle, const char *data);
+typedef char* (*req_callback) (req_handle handle, send_callback send_fn, int flags, const char *path, const char *action, const char *if_none_match, const char *data, int length);
 
 /* FastCGI */
-bool fcgi_start (const char *socket, http_callback cb);
+bool fcgi_start (const char *socket, req_callback cb);
+void fcgi_send (req_handle handle, const char *data);
 void fcgi_stop (void);
 
 /* Rest */
 extern bool rest_use_arrays;
 extern bool rest_use_types;
-char* rest_api (int flags, const char *path, const char *action, const char *if_none_match, const char *data, int length);
+void rest_api (req_handle handle, send_callback send_fn, int flags, const char *path, const char *action, const char *if_none_match, const char *data, int length);
 
 #endif /* _REST_H_ */

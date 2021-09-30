@@ -614,9 +614,9 @@ rest_api_delete (const char *path)
     return g_strdup_printf ("Status: %d\r\n" "\r\n", rc);
 }
 
-char *
-rest_api (int flags, const char *path, const char *action, const char *if_none_match,
-          const char *data, int length)
+void
+rest_api (req_handle handle, send_callback send_fn, int flags, const char *path, const char *action,
+          const char *if_none_match, const char *data, int length)
 {
     char *resp = NULL;
 
@@ -627,7 +627,7 @@ rest_api (int flags, const char *path, const char *action, const char *if_none_m
     {
         ERROR ("ERROR: invalid parameters (flags:0x%x, path:%s, action:%s)\n",
                flags, path, action);
-        return NULL;
+        return;
     }
     VERBOSE ("%s(0x%x) %s\n", action, flags, path);
 
@@ -646,8 +646,16 @@ rest_api (int flags, const char *path, const char *action, const char *if_none_m
         resp = rest_api_post (flags, path, data, length);
     else if (strcmp (action, "DELETE") == 0)
         resp = rest_api_delete (path);
+    if (!resp)
+    {
+        resp = g_strdup_printf ("Status: 404\r\n"
+                                "Content-Type: text/html\r\n\r\n"
+                                "The requested URL %s was not found on this server.\n",
+                                path);
+    }
 
     VERBOSE ("RESP:\n%s\n", resp);
-
-    return resp;
+    send_fn (handle, resp);
+    g_free (resp);
+    return;
 }
