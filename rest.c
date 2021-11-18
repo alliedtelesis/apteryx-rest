@@ -51,6 +51,7 @@ apteryx_json_search (sch_node * root, const char *path, char **data)
     GList *children, *iter;
     bool first = true;
     char *buffer;
+    bool read;
 
     /* Create a version of the path without the trailing '/' */
     _path = strdup (path);
@@ -58,7 +59,7 @@ apteryx_json_search (sch_node * root, const char *path, char **data)
     _path[len - 1] = '\0';
 
     /* Validate starting path */
-    if ((root = sch_validate_path (root, _path, NULL, NULL)) == NULL)
+    if ((root = sch_validate_path (root, _path, &read, NULL)) == NULL || !read)
     {
         free (_path);
         return HTTP_CODE_FORBIDDEN;
@@ -67,10 +68,11 @@ apteryx_json_search (sch_node * root, const char *path, char **data)
     /* Do the Apteryx search */
     *data = g_strdup_printf ("{\"%s\": [", len > 2 ? strrchr (_path, '/') + 1 : "");
     children = apteryx_search (path);
+    children = g_list_sort (children, (GCompareFunc) strcasecmp);
     for (iter = children; iter; iter = g_list_next (iter))
     {
         path = strrchr ((const char *) iter->data, '/') + 1;
-        if (sch_validate_path (root, path, NULL, NULL) != NULL)
+        if (sch_validate_path (root, path, &read, NULL) != NULL && read)
         {
             buffer = *data;
             *data = g_strdup_printf ("%s%s\"%s\"", buffer, first ? "" : ",", path);
@@ -88,14 +90,31 @@ apteryx_json_search (sch_node * root, const char *path, char **data)
 }
 
 static char *
-rest_api_search (const char *path)
+rest_api_search (const char *path, const char *if_none_match)
 {
+    char *_path;
     char *data = NULL;
+    uint64_t ts = 0;
     char *resp;
     int rc;
 
+    _path = strdup (path);
+    _path[strlen (path) - 1] = '\0';
+    ts = apteryx_timestamp (_path);
+    g_free (_path);
+    if (if_none_match && if_none_match[0] != '\0' && ts == strtoull (if_none_match, NULL, 16))
+    {
+        rc = HTTP_CODE_NOT_MODIFIED;
+        goto exit;
+    }
+
     rc = apteryx_json_search (sch_root (), path, &data);
-    resp = g_strdup_printf ("Status: %d\r\n" "\r\n" "%s", rc, data ? : "");
+
+exit:
+    resp = g_strdup_printf ("Status: %d\r\n"
+                        "Etag: %" PRIX64 "\r\n"
+                        "Content-Type: application/yang.data+json\r\n"
+                        "\r\n" "%s", rc, ts, data ? : "");
     free (data);
     return resp;
 }
@@ -127,14 +146,21 @@ _tree_to_json (sch_node * api_root, GNode * data_root, bool use_json_arrays, boo
 {
     if (APTERYX_HAS_VALUE (data_root))
     {
+        json_t *json_value;
+
         /* Assumption: mode fields will only be present on leaf nodes. */
         if (!sch_node_has_mode_flag (api_root, 'r'))
         {
             return NULL;
         }
+        char *value = strdup (APTERYX_VALUE (data_root));
+        value = sch_translate_to (api_root, value);
         if (use_json_types)
-            return encode_json_type (APTERYX_VALUE (data_root));
-        return json_string (APTERYX_VALUE (data_root));
+            json_value = encode_json_type (value);
+        else 
+            json_value = json_string (value);
+        free (value);
+        return json_value;
     }
     else
     {
@@ -154,6 +180,8 @@ _tree_to_json (sch_node * api_root, GNode * data_root, bool use_json_arrays, boo
             json_root = json_array ();
         else
             json_root = json_object ();
+        if (use_json_arrays)
+            apteryx_sort_children (data_root, g_strcmp0);
         for (data_child = g_node_first_child (data_root); data_child;
              data_child = g_node_next_sibling (data_child))
         {
@@ -177,6 +205,8 @@ _tree_to_json (sch_node * api_root, GNode * data_root, bool use_json_arrays, boo
                 child_added = true;
             }
         }
+        if (!child_added)
+            json_decref (json_root);
 
         return (child_added) ? json_root : NULL;
     }
@@ -232,7 +262,7 @@ rest_api_get (int flags, const char *path, const char *if_none_match)
     }
 
     ts = apteryx_timestamp (path);
-    if (if_none_match && ts == strtoull (if_none_match, NULL, 16))
+    if (if_none_match && if_none_match[0] != '\0' && ts == strtoull (if_none_match, NULL, 16))
     {
         rc = HTTP_CODE_NOT_MODIFIED;
         goto exit;
@@ -432,11 +462,12 @@ json_to_tree (sch_node * api_root, json_t * json_root, GNode * data_root)
             {
                 value = g_strdup (json_string_value (json));
             }
-                        
+
             /* We only need to do a pattern check when setting a non-empty value; clearing a value
              * is always permitted. */
             if (value && value[0] != '\0')
             {
+                value = sch_translate_from (api_child, value);
                 if (!sch_validate_pattern (api_child, value))
                 {
                     json_error (api_child, "J2T_RES_REGEX_MISMATCH");
@@ -731,7 +762,7 @@ rest_api (req_handle handle, int flags, const char *path, const char *action,
             return;
         }
         else if (path[strlen (path) - 1] == '/')
-            resp = rest_api_search (path);
+            resp = rest_api_search (path, if_none_match);
         else
             resp = rest_api_get (flags, path, if_none_match);
     }

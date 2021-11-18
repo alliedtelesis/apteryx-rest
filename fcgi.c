@@ -155,7 +155,7 @@ handle_http (void *arg)
     /* Process the request */
     path = FCGX_GetParam ("REQUEST_URI", request->envp);
     flags = get_flags (request);
-    if_none_match = FCGX_GetParam ("If-None-Match", request->envp);
+    if_none_match = FCGX_GetParam ("HTTP_IF_NONE_MATCH", request->envp);
     action = FCGX_GetParam ("REQUEST_METHOD", request->envp);
     length = FCGX_GetParam ("CONTENT_LENGTH", request->envp);
     if (length != NULL)

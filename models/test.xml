@@ -10,7 +10,9 @@
         <VALUE name="true" value="true"/>
         <VALUE name="false" value="false"/>
       </NODE>
-      <NODE name="priority" mode="rw" help="integer"/>
+      <NODE name="priority" mode="rw" help="integer" pattern="^[1-5]$"/>
+      <NODE name="writeonly" mode="w" help="A write only field"/>
+      <NODE name="hidden" mode="h" help="A hidden field"/>
     </NODE>
     <NODE name="state" help="State">
       <NODE name="counter" mode="r" default="0" help="uint32"/>

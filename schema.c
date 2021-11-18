@@ -337,6 +337,62 @@ sch_node_has_mode_flag (sch_node * node, char mode_flag)
 }
 
 char *
+sch_translate_to (sch_node *node, char *value)
+{
+    xmlNode *xml = (xmlNode *) node;
+    xmlNode *n;
+    char *val;
+
+    /* Get the default if needed - untranslated */
+    if (!value)
+    {
+        value = (char *) xmlGetProp (node, (xmlChar *) "default");
+    }
+
+    /* Find the VALUE node with this value */
+    for (n = xml->children; n && value; n = n->next)
+    {
+        if (n->type == XML_ELEMENT_NODE && n->name[0] == 'V')
+        {
+            val = (char *) xmlGetProp (n, (xmlChar *) "value");
+            if (val && strcmp (value, val) == 0)
+            {
+                free (value);
+                free (val);
+                return (char *) xmlGetProp (n, (xmlChar *) "name");
+            }
+            free (val);
+        }
+    }
+    return value;
+}
+
+char *
+sch_translate_from (sch_node *node, char *value)
+{
+    xmlNode *xml = (xmlNode *) node;
+    xmlNode *n;
+    char *val;
+
+    /* Find the VALUE node with this name */
+    for (n = xml->children; n && value; n = n->next)
+    {
+        if (n->type == XML_ELEMENT_NODE && n->name[0] == 'V')
+        {
+            val = (char *) xmlGetProp (n, (xmlChar *) "name");
+            if (val && strcmp (value, val) == 0)
+            {
+                free (value);
+                free (val);
+                return (char *) xmlGetProp (n, (xmlChar *) "value");
+            }
+            free (val);
+        }
+    }
+    return value;
+}
+
+char *
 sch_node_to_path (sch_node * node)
 {
     char *path = NULL;
@@ -425,6 +481,7 @@ sch_path_to_node (const char *path)
 bool
 sch_validate_pattern (sch_node * node, const char *value)
 {
+    xmlNode *xml = (xmlNode *) node;
     char *pattern = (char *) xmlGetProp (node, (xmlChar *) "pattern");
     if (pattern)
     {
@@ -453,6 +510,42 @@ sch_validate_pattern (sch_node * node, const char *value)
 
         xmlFree (pattern);
         return (rc == 0);
+    }
+    else if (xml->children)
+    {
+        bool enumeration = false;
+        int rc = false;
+        xmlNode *n;
+        char *val;
+
+        for (n = xml->children; n && value; n = n->next)
+        {
+            if (n->type == XML_ELEMENT_NODE && n->name[0] == 'V')
+            {
+                enumeration = true;
+                val = (char *) xmlGetProp (n, (xmlChar *) "name");
+                if (val && strcmp (value, val) == 0)
+                {
+                    free (val);
+                    rc = true;
+                    break;
+                }
+                free (val);
+                val = (char *) xmlGetProp (n, (xmlChar *) "value");
+                if (val && strcmp (value, val) == 0)
+                {
+                    free (val);
+                    rc = true;
+                    break;
+                }
+                free (val);
+            }
+        }
+        if (enumeration && !rc)
+        {
+            ERROR ("SCHEMA: \"%s\" not in enumeration\n", value);
+            return false;
+        }
     }
     return true;
 }

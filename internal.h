@@ -57,6 +57,8 @@ bool sch_node_is_leaf (sch_node *node);
 bool sch_node_is_list (sch_node *node, char **key);
 bool sch_node_has_mode_flag (sch_node *node, char mode_flag);
 bool sch_validate_pattern (sch_node *node, const char *value);
+char* sch_translate_to (sch_node *node, char *value);
+char* sch_translate_from (sch_node *node, char *value);
 
 /* HTTP handler for rest */
 #define FLAGS_CONTENT_JSON       (1 << 0)
