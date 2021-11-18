@@ -142,7 +142,7 @@ else
     fi
     if [ ! -f $BUILD/usr/sbin/lighttpd ]; then
             cd lighttpd-1.4.53
-            ./configure --prefix=/usr
+            ./configure --prefix=/usr --disable-ipv6 CFLAGS=-Wno-error
             make install DESTDIR=$BUILD
             rc=$?; if [[ $rc != 0 ]]; then exit $rc; fi
             cd $BUILD

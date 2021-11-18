@@ -53,7 +53,8 @@ list_xml_files (GList ** files, const char *path)
                     continue;
                 }
                 VERBOSE ("SCHEMA: Adding \"%s\"\n", ep->d_name);
-                *files = g_list_append (*files, g_strdup_printf ("%s/%s", dpath, ep->d_name));
+                *files =
+                    g_list_append (*files, g_strdup_printf ("%s/%s", dpath, ep->d_name));
             }
             (void) closedir (dp);
         }
@@ -196,7 +197,7 @@ sch_dump (void)
 
 /* Check path validity against the tree */
 sch_node *
-sch_validate_path (sch_node * root, const char *path, bool * read, bool * write)
+sch_validate_path (sch_node * root, const char *path, bool *read, bool *write)
 {
     xmlNode *node = (xmlNode *) root;
     xmlNode *n;
@@ -337,7 +338,7 @@ sch_node_has_mode_flag (sch_node * node, char mode_flag)
 }
 
 char *
-sch_translate_to (sch_node *node, char *value)
+sch_translate_to (sch_node * node, char *value)
 {
     xmlNode *xml = (xmlNode *) node;
     xmlNode *n;
@@ -368,7 +369,7 @@ sch_translate_to (sch_node *node, char *value)
 }
 
 char *
-sch_translate_from (sch_node *node, char *value)
+sch_translate_from (sch_node * node, char *value)
 {
     xmlNode *xml = (xmlNode *) node;
     xmlNode *n;

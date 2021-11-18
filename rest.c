@@ -18,7 +18,8 @@
  */
 #include "internal.h"
 /* From libapteryx */
-extern bool add_callback (const char *type, const char *path, void *fn, bool value, void *data, uint32_t flags);
+extern bool add_callback (const char *type, const char *path, void *fn, bool value,
+                          void *data, uint32_t flags);
 extern bool delete_callback (const char *type, const char *path, void *fn);
 #include <jansson.h>
 
@@ -29,11 +30,13 @@ extern bool delete_callback (const char *type, const char *path, void *fn);
 #define HTTP_CODE_NOT_FOUND             404
 #define HTTP_CODE_INTERNAL_SERVER_ERROR 500
 
+static sch_instance *g_schema = NULL;
+
 static char *
 rest_api_xml (void)
 {
     char *resp = NULL;
-    char *xmlbuf = sch_dump ();
+    char *xmlbuf = sch_dump_xml (g_schema);
     if (xmlbuf)
     {
         resp = g_strdup_printf ("Status: 200\r\n"
@@ -44,14 +47,14 @@ rest_api_xml (void)
 }
 
 static int
-apteryx_json_search (sch_node * root, const char *path, char **data)
+apteryx_json_search (const char *path, char **data)
 {
+    sch_node *root, *node;
     char *_path;
     int len;
     GList *children, *iter;
     bool first = true;
     char *buffer;
-    bool read;
 
     /* Create a version of the path without the trailing '/' */
     _path = strdup (path);
@@ -59,7 +62,7 @@ apteryx_json_search (sch_node * root, const char *path, char **data)
     _path[len - 1] = '\0';
 
     /* Validate starting path */
-    if ((root = sch_validate_path (root, _path, &read, NULL)) == NULL || !read)
+    if ((root = sch_lookup (g_schema, _path)) == NULL || !sch_is_readable (root))
     {
         free (_path);
         return HTTP_CODE_FORBIDDEN;
@@ -72,7 +75,7 @@ apteryx_json_search (sch_node * root, const char *path, char **data)
     for (iter = children; iter; iter = g_list_next (iter))
     {
         path = strrchr ((const char *) iter->data, '/') + 1;
-        if (sch_validate_path (root, path, &read, NULL) != NULL && read)
+        if ((node = sch_node_child (root, path)) != NULL && sch_is_readable (node))
         {
             buffer = *data;
             *data = g_strdup_printf ("%s%s\"%s\"", buffer, first ? "" : ",", path);
@@ -102,19 +105,20 @@ rest_api_search (const char *path, const char *if_none_match)
     _path[strlen (path) - 1] = '\0';
     ts = apteryx_timestamp (_path);
     g_free (_path);
-    if (if_none_match && if_none_match[0] != '\0' && ts == strtoull (if_none_match, NULL, 16))
+    if (if_none_match && if_none_match[0] != '\0' &&
+        ts == strtoull (if_none_match, NULL, 16))
     {
         rc = HTTP_CODE_NOT_MODIFIED;
         goto exit;
     }
 
-    rc = apteryx_json_search (sch_root (), path, &data);
+    rc = apteryx_json_search (path, &data);
 
-exit:
+  exit:
     resp = g_strdup_printf ("Status: %d\r\n"
-                        "Etag: %" PRIX64 "\r\n"
-                        "Content-Type: application/yang.data+json\r\n"
-                        "\r\n" "%s", rc, ts, data ? : "");
+                            "Etag: %" PRIX64 "\r\n"
+                            "Content-Type: application/yang.data+json\r\n"
+                            "\r\n" "%s", rc, ts, data ? : "");
     free (data);
     return resp;
 }
@@ -142,14 +146,15 @@ encode_json_type (char *val)
 }
 
 static json_t *
-_tree_to_json (sch_node * api_root, GNode * data_root, bool use_json_arrays, bool use_json_types)
+_tree_to_json (sch_node * api_root, GNode * data_root, bool use_json_arrays,
+               bool use_json_types)
 {
     if (APTERYX_HAS_VALUE (data_root))
     {
         json_t *json_value;
 
         /* Assumption: mode fields will only be present on leaf nodes. */
-        if (!sch_node_has_mode_flag (api_root, 'r'))
+        if (!sch_is_readable (api_root))
         {
             return NULL;
         }
@@ -157,7 +162,7 @@ _tree_to_json (sch_node * api_root, GNode * data_root, bool use_json_arrays, boo
         value = sch_translate_to (api_root, value);
         if (use_json_types)
             json_value = encode_json_type (value);
-        else 
+        else
             json_value = json_string (value);
         free (value);
         return json_value;
@@ -171,7 +176,7 @@ _tree_to_json (sch_node * api_root, GNode * data_root, bool use_json_arrays, boo
 
         if (use_json_arrays)
         {
-            print_as_array = sch_node_is_list (api_root, NULL);
+            print_as_array = sch_is_list (api_root);
         }
 
         /* Create a JSON node to match the current data node. If it turns out that there
@@ -188,13 +193,14 @@ _tree_to_json (sch_node * api_root, GNode * data_root, bool use_json_arrays, boo
             sch_node *api_child;
             json_t *json_child;
 
-            api_child = sch_child_get (api_root, APTERYX_NAME (data_child));
+            api_child = sch_node_child (api_root, APTERYX_NAME (data_child));
             if (!api_child)
             {
                 continue;
             }
 
-            json_child = _tree_to_json (api_child, data_child, use_json_arrays, use_json_types);
+            json_child =
+                _tree_to_json (api_child, data_child, use_json_arrays, use_json_types);
             if (json_child)
             {
                 if (print_as_array)
@@ -213,12 +219,14 @@ _tree_to_json (sch_node * api_root, GNode * data_root, bool use_json_arrays, boo
 }
 
 static json_t *
-tree_to_json (sch_node * api_root, GNode * data_root, bool use_json_arrays, bool use_json_types)
+tree_to_json (sch_node * api_root, GNode * data_root, bool use_json_arrays,
+              bool use_json_types)
 {
     json_t *json_root = json_object ();
     if (data_root)
     {
-        json_t *json_child = _tree_to_json (api_root, data_root, use_json_arrays, use_json_types);
+        json_t *json_child =
+            _tree_to_json (api_root, data_root, use_json_arrays, use_json_types);
         if (json_child)
         {
             char *slash;
@@ -248,21 +256,22 @@ rest_api_get (int flags, const char *path, const char *if_none_match)
     bool json_arrays = (flags & FLAGS_JSON_FORMAT_ARRAYS);
     bool json_types = (flags & FLAGS_JSON_FORMAT_TYPES);
 
-    api_subtree = sch_path_to_node (path);
+    api_subtree = sch_lookup (g_schema, path);
     if (!api_subtree)
     {
         rc = HTTP_CODE_NOT_FOUND;
         goto exit;
     }
 
-    if (sch_node_is_leaf (api_subtree) && !sch_node_has_mode_flag (api_subtree, 'r'))
+    if (sch_is_leaf (api_subtree) && !sch_is_readable (api_subtree))
     {
         rc = HTTP_CODE_FORBIDDEN;
         goto exit;
     }
 
     ts = apteryx_timestamp (path);
-    if (if_none_match && if_none_match[0] != '\0' && ts == strtoull (if_none_match, NULL, 16))
+    if (if_none_match && if_none_match[0] != '\0' &&
+        ts == strtoull (if_none_match, NULL, 16))
     {
         rc = HTTP_CODE_NOT_MODIFIED;
         goto exit;
@@ -296,7 +305,8 @@ rest_api_get (int flags, const char *path, const char *if_none_match)
     {
         if (json_types && json_is_integer (json))
         {
-            json_string = g_strdup_printf ("%"JSON_INTEGER_FORMAT, json_integer_value (json));
+            json_string =
+                g_strdup_printf ("%" JSON_INTEGER_FORMAT, json_integer_value (json));
         }
         else if (json_types && json_is_boolean (json))
         {
@@ -347,7 +357,7 @@ typedef enum
 static void
 json_error (sch_node * node, char *msg)
 {
-    char *path = sch_node_to_path (node);
+    char *path = sch_path (node);
     ERROR ("JSON: %s \"%s\"\n", msg, path ? : "<unknown>");
     free (path);
     return;
@@ -365,7 +375,7 @@ json_to_tree (sch_node * api_root, json_t * json_root, GNode * data_root)
         sch_node *api_child;
         GNode *data_child;
 
-        api_child = sch_child_get (api_root, key);
+        api_child = sch_node_child (api_root, key);
         if (!api_child)
         {
             json_error (api_root, "J2T_RES_NO_API_NODE");
@@ -380,7 +390,7 @@ json_to_tree (sch_node * api_root, json_t * json_root, GNode * data_root)
             sch_node *api_array;
             GNode *data_array;
 
-            if (!sch_node_is_list (api_child, &key_name) || key_name == NULL)
+            if (!sch_is_list (api_child) || (key_name = sch_list_key (api_child)) == NULL)
             {
                 json_error (api_root, "J2T_RES_ARRAY_NOT_LIST");
                 return J2T_RES_ARRAY_NOT_LIST;
@@ -392,7 +402,7 @@ json_to_tree (sch_node * api_root, json_t * json_root, GNode * data_root)
                 json_t *json_key = json_object_get (json_array, key_name);
                 const char *key_array = json_string_value (json_key);
 
-                api_array = sch_child_get (api_child, key_array);
+                api_array = sch_node_child (api_child, key_array);
                 if (!api_array)
                 {
                     json_error (api_child, "J2T_RES_NO_API_NODE");
@@ -436,14 +446,14 @@ json_to_tree (sch_node * api_root, json_t * json_root, GNode * data_root)
         {
             char *value;
 
-            if (!sch_node_is_leaf (api_child))
+            if (!sch_is_leaf (api_child))
             {
                 json_error (api_child, "J2T_RES_VALUE_ON_CORE_NODE");
                 return J2T_RES_VALUE_ON_CORE_NODE;
             }
 
-            if (!sch_node_has_mode_flag (api_child, 'w') &&
-                !sch_node_has_mode_flag (api_child, 'x'))
+            if (!sch_is_writable (api_child)    /* TODO&&
+                                                 * !sch_node_has_mode_flag (api_child, 'x') */ )
             {
                 json_error (api_child, "J2T_RES_PERMISSION_MISMATCH");
                 return J2T_RES_PERMISSION_MISMATCH;
@@ -452,7 +462,8 @@ json_to_tree (sch_node * api_root, json_t * json_root, GNode * data_root)
             /* Format value always as a string */
             if (json_is_integer (json))
             {
-                value = g_strdup_printf ("%"JSON_INTEGER_FORMAT, json_integer_value (json));
+                value =
+                    g_strdup_printf ("%" JSON_INTEGER_FORMAT, json_integer_value (json));
             }
             else if (json_is_boolean (json))
             {
@@ -499,7 +510,7 @@ apteryx_json_set (const char *path, json_t * json)
     int rc;
     bool set_successful;
 
-    api_subtree = sch_path_to_node (path);
+    api_subtree = sch_lookup (g_schema, path);
     if (!api_subtree)
     {
         return HTTP_CODE_FORBIDDEN;
@@ -559,11 +570,10 @@ rest_api_post (int flags, const char *path, const char *data, int length)
     else if (!(flags & FLAGS_JSON_FORMAT_ROOT))
     {
         sch_node *node;
-        bool write;
         char *escaped = NULL;
 
         /* Remove quotes around data if they exist */
-        if (strlen(data) > 1 && data[0] == '"' && data[strlen (data) - 1] == '"')
+        if (strlen (data) > 1 && data[0] == '"' && data[strlen (data) - 1] == '"')
         {
             escaped = g_strndup (data + 1, strlen (data) - 2);
         }
@@ -573,8 +583,8 @@ rest_api_post (int flags, const char *path, const char *data, int length)
         }
 
         /* Manage value with no key */
-        node = sch_validate_path (sch_root (), path, NULL, &write);
-        if (!node || !write || !sch_node_is_leaf (node))
+        node = sch_lookup (g_schema, path);
+        if (!node || !sch_is_leaf (node) || !sch_is_writable (node))
         {
             rc = HTTP_CODE_FORBIDDEN;
         }
@@ -598,12 +608,12 @@ rest_api_post (int flags, const char *path, const char *data, int length)
 }
 
 static int
-apteryx_json_delete (sch_node * root, const char *path)
+apteryx_json_delete (const char *path)
 {
     GList *children, *iter;
     char *_path;
     int rc = HTTP_CODE_OK;
-    bool writable;
+    sch_node *node;
 
     /* Search the path */
     _path = g_strdup_printf ("%s/", path);
@@ -614,7 +624,7 @@ apteryx_json_delete (sch_node * root, const char *path)
     if (!children)
     {
         /* Validate path */
-        if (!sch_validate_path (root, path, NULL, &writable) || !writable)
+        if ((node = sch_lookup (g_schema, path)) == NULL || !sch_is_writable (node))
         {
             /* Pretend success for invalid or hidden paths */
             rc = HTTP_CODE_OK;
@@ -631,7 +641,7 @@ apteryx_json_delete (sch_node * root, const char *path)
         /* Delete all children */
         for (iter = children; iter; iter = g_list_next (iter))
         {
-            rc = apteryx_json_delete (root, (char *) iter->data);
+            rc = apteryx_json_delete ((char *) iter->data);
             if (rc != HTTP_CODE_OK)
                 break;
         }
@@ -644,7 +654,7 @@ apteryx_json_delete (sch_node * root, const char *path)
 static char *
 rest_api_delete (const char *path)
 {
-    int rc = apteryx_json_delete (sch_root (), path);
+    int rc = apteryx_json_delete (path);
     return g_strdup_printf ("Status: %d\r\n" "\r\n", rc);
 }
 
@@ -658,7 +668,7 @@ typedef struct WatchRequest
 } WatchRequest;
 
 static bool
-watch_callback (GNode *root, void *data)
+watch_callback (GNode * root, void *data)
 {
     WatchRequest *req = (WatchRequest *) data;
     GNode *node = apteryx_path_node (root, req->path);
@@ -690,13 +700,13 @@ watch_callback (GNode *root, void *data)
 static void
 rest_api_watch (req_handle handle, int flags, const char *path)
 {
-    sch_node *api_subtree = sch_path_to_node (path);
+    sch_node *api_subtree = sch_lookup (g_schema, path);
     if (!api_subtree)
     {
         char *resp = g_strdup_printf ("Status: 404\r\n"
-                                "Content-Type: text/html\r\n\r\n"
-                                "The requested URL %s was not found on this server.\n",
-                                path);
+                                      "Content-Type: text/html\r\n\r\n"
+                                      "The requested URL %s was not found on this server.\n",
+                                      path);
         send_response (handle, resp, false);
         g_free (resp);
         return;
@@ -707,11 +717,12 @@ rest_api_watch (req_handle handle, int flags, const char *path)
     req->flags = flags;
     req->api = api_subtree;
     req->path = g_strdup (path);
-    if (sch_node_is_leaf (api_subtree) )
+    if (sch_is_leaf (api_subtree))
         req->wpath = g_strdup (path);
     else
         req->wpath = g_strdup_printf ("%s/*", path);
-    add_callback (APTERYX_WATCHERS_PATH, req->wpath, (void *)watch_callback, true, (void *) req, 1);
+    add_callback (APTERYX_WATCHERS_PATH, req->wpath, (void *) watch_callback, true,
+                  (void *) req, 1);
 
     send_response (handle, "Status: 200\r\n", false);
     send_response (handle, "Connection: 'keep-alive'\r\n", false);
@@ -727,7 +738,7 @@ rest_api_watch (req_handle handle, int flags, const char *path)
         usleep (1000000);
     }
 
-    delete_callback (APTERYX_WATCHERS_PATH, req->wpath, (void *)watch_callback);
+    delete_callback (APTERYX_WATCHERS_PATH, req->wpath, (void *) watch_callback);
     g_free (req->path);
     g_free (req->wpath);
     g_free (req);
@@ -782,4 +793,25 @@ rest_api (req_handle handle, int flags, const char *path, const char *action,
     send_response (handle, resp, false);
     g_free (resp);
     return;
+}
+
+gboolean
+rest_init (const char *path)
+{
+    /* Load Data Models */
+    g_schema = sch_load (path);
+    if (!g_schema)
+    {
+        return false;
+    }
+
+    return true;
+}
+
+void
+rest_shutdown (void)
+{
+    /* Cleanup datamodels */
+    if (g_schema)
+        sch_free (g_schema);
 }

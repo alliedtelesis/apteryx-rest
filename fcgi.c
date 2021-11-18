@@ -112,7 +112,7 @@ get_flags (FCGX_Request * r)
     param = FCGX_GetParam ("HTTP_X_JSON_ROOT", r->envp);
     flags |= FLAGS_JSON_FORMAT_ROOT;
     if (param && strcmp (param, "off") == 0)
-        flags &= ~FLAGS_JSON_FORMAT_ROOT;      
+        flags &= ~FLAGS_JSON_FORMAT_ROOT;
     param = FCGX_GetParam ("HTTP_X_JSON_MULTI", r->envp);
     if (param && strcmp (param, "on") == 0)
         flags |= FLAGS_JSON_FORMAT_MULTI;
@@ -139,7 +139,7 @@ get_flags (FCGX_Request * r)
 static void *
 handle_http (void *arg)
 {
-    FCGX_Request *request = (FCGX_Request *)arg;
+    FCGX_Request *request = (FCGX_Request *) arg;
     char *path, *action, *length, *if_none_match;
     int flags;
     char *data = NULL;
@@ -171,7 +171,7 @@ handle_http (void *arg)
             }
         }
     }
-    g_cb ((req_handle)request, flags, path, action, if_none_match, data, len);
+    g_cb ((req_handle) request, flags, path, action, if_none_match, data, len);
     free (data);
     FCGX_Finish_r (request);
     g_free (request);
@@ -182,7 +182,7 @@ handle_http (void *arg)
 static void *
 handle_fcgi (void *arg)
 {
-    GThreadPool *workers = g_thread_pool_new ((GFunc)handle_http, NULL, -1, FALSE, NULL);
+    GThreadPool *workers = g_thread_pool_new ((GFunc) handle_http, NULL, -1, FALSE, NULL);
     while (workers)
     {
         FCGX_Request *request = g_malloc0 (sizeof (FCGX_Request));
@@ -235,7 +235,7 @@ fcgi_start (const char *socket, req_callback cb)
 void
 send_response (req_handle handle, const char *data, bool flush)
 {
-    FCGX_Request *request = (FCGX_Request *)handle;
+    FCGX_Request *request = (FCGX_Request *) handle;
     FCGX_PutS (data, request->out);
     if (flush)
         FCGX_FFlush (request->out);
@@ -244,13 +244,13 @@ send_response (req_handle handle, const char *data, bool flush)
 bool
 is_connected (req_handle handle, bool block)
 {
-    FCGX_Request *request = (FCGX_Request *)handle;
+    FCGX_Request *request = (FCGX_Request *) handle;
     struct pollfd pfd;
     pfd.fd = request->ipcFd;
     pfd.events = POLLERR | POLLHUP;
     pfd.revents = 0;
     poll (&pfd, 1, block ? -1 : 1000);
-    if (pfd.revents & (POLLERR|POLLHUP))
+    if (pfd.revents & (POLLERR | POLLHUP))
         return false;
     return true;
 }

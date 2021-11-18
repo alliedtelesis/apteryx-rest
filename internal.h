@@ -27,6 +27,7 @@
 #include <string.h>
 #include <syslog.h>
 #include <apteryx.h>
+#include <apteryx-xml.h>
 
 /* Defaults */
 #define APP_NAME                    "apteryx-rest"
@@ -43,23 +44,6 @@ extern bool verbose;
 #define NOTICE(fmt, args...) { if (debug) printf (fmt, ## args); else syslog (LOG_NOTICE, fmt, ## args); }
 #define ERROR(fmt, args...) { if (debug) printf (fmt, ## args); else syslog (LOG_CRIT, fmt, ## args); }
 
-/* Schema */
-typedef void sch_node;
-bool sch_load (const char *path);
-void sch_unload (void);
-sch_node* sch_root (void);
-char* sch_dump (void);
-sch_node* sch_validate_path (sch_node *root, const char *path, bool *read, bool *write);
-sch_node* sch_child_get (sch_node *root, const char *name);
-char* sch_node_to_path (sch_node *node);
-sch_node* sch_path_to_node (const char *path);
-bool sch_node_is_leaf (sch_node *node);
-bool sch_node_is_list (sch_node *node, char **key);
-bool sch_node_has_mode_flag (sch_node *node, char mode_flag);
-bool sch_validate_pattern (sch_node *node, const char *value);
-char* sch_translate_to (sch_node *node, char *value);
-char* sch_translate_from (sch_node *node, char *value);
-
 /* HTTP handler for rest */
 #define FLAGS_CONTENT_JSON       (1 << 0)
 #define FLAGS_CONTENT_XML        (1 << 1)
@@ -71,10 +55,12 @@ char* sch_translate_from (sch_node *node, char *value);
 #define FLAGS_JSON_FORMAT_TYPES  (1 << 7)
 #define FLAGS_EVENT_STREAM       (1 << 8)
 #define FLAGS_APPLICATION_STREAM (1 << 9)
-typedef void* req_handle;
+typedef void *req_handle;
 void send_response (req_handle handle, const char *data, bool flush);
 bool is_connected (req_handle handle, bool block);
-typedef void (*req_callback) (req_handle handle, int flags, const char *path, const char *action, const char *if_none_match, const char *data, int length);
+typedef void (*req_callback) (req_handle handle, int flags, const char *path,
+                              const char *action, const char *if_none_match,
+                              const char *data, int length);
 
 /* FastCGI */
 bool fcgi_start (const char *socket, req_callback cb);
@@ -83,6 +69,9 @@ void fcgi_stop (void);
 /* Rest */
 extern bool rest_use_arrays;
 extern bool rest_use_types;
-void rest_api (req_handle handle, int flags, const char *path, const char *action, const char *if_none_match, const char *data, int length);
+gboolean rest_init (const char *path);
+void rest_api (req_handle handle, int flags, const char *path, const char *action,
+               const char *if_none_match, const char *data, int length);
+void rest_shutdown (void);
 
 #endif /* _REST_H_ */

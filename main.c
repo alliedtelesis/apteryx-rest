@@ -118,8 +118,8 @@ main (int argc, char *argv[])
     /* Initialise Apteryx client library */
     apteryx_init (verbose);
 
-    /* Load schema */
-    if (!sch_load (path))
+    /* Initialise rest */
+    if (!rest_init (path))
     {
         ERROR ("ERROR: Failed to load modules at path \"%s\"\n", path);
         rc = EXIT_FAILURE;
@@ -157,6 +157,9 @@ main (int argc, char *argv[])
 
     /* Cleanup FCGI */
     fcgi_stop ();
+
+    /* Cleanup rest */
+    rest_shutdown ();
 
     /* Cleanup client library */
     apteryx_shutdown ();
