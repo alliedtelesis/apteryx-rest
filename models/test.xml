@@ -1,0 +1,36 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<MODULE xmlns="https://github.com/alliedtelesis/apteryx" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="https://github.com/alliedtelesis/apteryx-xml https://github.com/alliedtelesis/apteryx-xml/releases/download/v1.2/apteryx.xsd">
+  <NODE name="test" help="This is a test node">
+    <NODE name="settings" help="Settings">
+      <NODE name="debug" mode="rw" default="disable" help="Debug configuration">
+        <VALUE name="disable" value="0" help="Debugging is disabled"/>
+        <VALUE name="enable" value="1" help="Debugging is enabled"/>
+      </NODE>
+      <NODE name="enable" mode="rw" default="false" help="boolean">
+        <VALUE name="true" value="true"/>
+        <VALUE name="false" value="false"/>
+      </NODE>
+      <NODE name="priority" mode="rw" help="integer"/>
+    </NODE>
+    <NODE name="state" help="State">
+      <NODE name="counter" mode="r" default="0" help="uint32"/>
+    </NODE>
+    <NODE name="animals">
+      <NODE name="animal" help="This is a list of animals">
+        <NODE name="*" help="The animal entry with key name">
+          <NODE name="name" mode="rw" help="This is the name of the animal"/>
+          <NODE name="type" mode="rw" default="big" help="This is the type of the animal">
+            <VALUE name="big" value="1"/>
+            <VALUE name="little" value="2"/>
+          </NODE>
+          <NODE name="colour" mode="rw" help="This is the colour of the animal"/>
+        </NODE>
+      </NODE>
+      <NODE name="toys">
+        <NODE name="toy" help="This is a simple list of toys">
+          <NODE name="*" mode="rw" help="List of toy"/>
+        </NODE>
+      </NODE>
+    </NODE>
+  </NODE>
+</MODULE>

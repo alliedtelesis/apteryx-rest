@@ -50,31 +50,17 @@ http {
 }
 ```
 
-## Unit tests
-Uses GLib testing framework (https://developer.gnome.org/glib/stable/glib-Testing.html)
-```
-make test
-```
-
-Test arguments passed to GLib via $TEST_ARGS:
-* -l: List test cases available in a test executable.
-* --verbose: Run tests verbosely.
-* -p PATH: Execute all tests matching the given path.
-* -s PATH: Skip all tests matching the given path.
-
-e.g.
-```
-make test TEST_ARGS="--verbose -p /get"
-```
-
-## Demo
-* Requires installed glib-2.0 libxml-2.0 apteryx fcgi-2.4.0 jansson-2.12 lighttpd1.4
-* Starts Apteryx with a simple demo schema
-* Starts lighttpd on localhost:8080
+## Demo and Tests
+* Requires dev packages for glib-2.0 libxml-2.0 jansson-2.12
+* buildsys apteryx, apteryx-xml, fcgi and nginx
+* Starts apteryxd and apteryx-rest using data models in models/
+* Starts nginx on localhost:8080
 ```
 ./run.sh
 
 curl http://localhost:8080/api.xml
+
+pytest
 ```
 
 ## Protocol
