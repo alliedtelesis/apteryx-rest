@@ -45,6 +45,7 @@ http {
             fastcgi_param REQUEST_URI    $request_uri;
             fastcgi_param CONTENT_TYPE   $content_type;
             fastcgi_param CONTENT_LENGTH $content_length;
+            fastcgi_param HTTP_IF_NONE_MATCH $http_if_none_match;
         }
     }
 }
@@ -60,7 +61,9 @@ http {
 
 curl http://localhost:8080/api.xml
 
-pytest
+python3 -m pytest
+
+google-chrome .gcov/index.html
 ```
 
 ## Protocol

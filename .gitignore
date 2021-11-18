@@ -1,10 +1,12 @@
 # Output
 *.o
 apteryx-rest
-gcov/
+.gcov/
 .build/
 .cache/
 __pycache__/
+*.gcda
+*.gcno
 
 # Autotools
 m4/*

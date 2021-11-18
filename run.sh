@@ -75,7 +75,7 @@ if [ ! -f $BUILD/usr/sbin/nginx ]; then
 fi
 
 # Build
-export CFLAGS="-g -Wall -Werror -I$BUILD/usr/include"
+export CFLAGS="-g -Wall -Werror -I$BUILD/usr/include -fprofile-arcs -ftest-coverage"
 export LDFLAGS=-L$BUILD/usr/lib
 export PKG_CONFIG_PATH=$BUILD/usr/lib/pkgconfig
 if [ ! -f $BUILD/../Makefile ]; then
@@ -184,3 +184,11 @@ kill `pidof valgrind.bin` &> /dev/null
 apteryx -t
 killall -9 apteryxd
 rm -f /tmp/apteryx
+
+# Gcov
+cd $BUILD/../
+mkdir -p .gcov
+mv -f *.gcno .gcov/ 2>/dev/null || true
+mv -f *.gcda .gcov/ 2>/dev/null || true
+lcov -q --capture --directory . --output-file .gcov/coverage.info
+genhtml -q .gcov/coverage.info --output-directory .gcov/
