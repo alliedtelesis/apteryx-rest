@@ -2,7 +2,9 @@
 *.o
 apteryx-rest
 gcov/
-unittest
+.build/
+.cache/
+__pycache__/
 
 # Autotools
 m4/*

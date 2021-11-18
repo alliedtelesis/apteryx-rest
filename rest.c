@@ -17,6 +17,9 @@
  * along with this library. If not, see <http://www.gnu.org/licenses/>
  */
 #include "internal.h"
+/* From libapteryx */
+extern bool add_callback (const char *type, const char *path, void *fn, bool value, void *data, uint32_t flags);
+extern bool delete_callback (const char *type, const char *path, void *fn);
 #include <jansson.h>
 
 #define HTTP_CODE_OK                    200
@@ -263,7 +266,7 @@ rest_api_get (int flags, const char *path, const char *if_none_match)
     {
         if (json_types && json_is_integer (json))
         {
-            json_string = g_strdup_printf ("%d", json_integer_value (json));
+            json_string = g_strdup_printf ("%"JSON_INTEGER_FORMAT, json_integer_value (json));
         }
         else if (json_types && json_is_boolean (json))
         {
@@ -419,7 +422,7 @@ json_to_tree (sch_node * api_root, json_t * json_root, GNode * data_root)
             /* Format value always as a string */
             if (json_is_integer (json))
             {
-                value = g_strdup_printf ("%d", json_integer_value (json));
+                value = g_strdup_printf ("%"JSON_INTEGER_FORMAT, json_integer_value (json));
             }
             else if (json_is_boolean (json))
             {

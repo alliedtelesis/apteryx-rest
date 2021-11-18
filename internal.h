@@ -72,7 +72,7 @@ bool sch_validate_pattern (sch_node *node, const char *value);
 typedef void* req_handle;
 void send_response (req_handle handle, const char *data, bool flush);
 bool is_connected (req_handle handle, bool block);
-typedef char* (*req_callback) (req_handle handle, int flags, const char *path, const char *action, const char *if_none_match, const char *data, int length);
+typedef void (*req_callback) (req_handle handle, int flags, const char *path, const char *action, const char *if_none_match, const char *data, int length);
 
 /* FastCGI */
 bool fcgi_start (const char *socket, req_callback cb);

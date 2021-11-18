@@ -20,6 +20,8 @@
 #include "internal.h"
 #include <sys/socket.h>
 #include <poll.h>
+#undef PACKAGE
+#undef VERSION
 #include <fcgi_config.h>
 #include <fcgiapp.h>
 
