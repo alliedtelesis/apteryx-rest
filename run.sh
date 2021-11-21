@@ -13,16 +13,31 @@ BUILD=$ROOT/.build
 mkdir -p $BUILD
 cd $BUILD
 
+# Generic cleanup
+function quit {
+        # Stop lighttpd
+        killall lighttpd &> /dev/null
+        killall nginx &> /dev/null
+        # Stop apteryx-rest
+        killall apteryx-rest &> /dev/null
+        kill `pidof valgrind.bin` &> /dev/null
+        # Stop Apteryx
+        apteryx -t
+        killall -9 apteryxd
+        rm -f /tmp/apteryx
+        exit
+}
+
 # Check Apteryx install
 if [ ! -d apteryx ]; then
         echo "Building Apteryx from source."
         git clone --depth 1 https://github.com/alliedtelesis/apteryx.git
-        rc=$?; if [[ $rc != 0 ]]; then exit $rc; fi
+        rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
 fi
 if [ ! -f $BUILD/usr/lib/libapteryx.so ]; then
         cd apteryx
         make install DESTDIR=$BUILD
-        rc=$?; if [[ $rc != 0 ]]; then exit $rc; fi
+        rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
         cd $BUILD
 fi
 
@@ -30,14 +45,14 @@ fi
 if [ ! -d apteryx-xml ]; then
         echo "Building apteryx-xml from source."
         git clone --depth 1 https://github.com/alliedtelesis/apteryx-xml.git
-        rc=$?; if [[ $rc != 0 ]]; then exit $rc; fi
+        rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
 fi
 if [ ! -f $BUILD/usr/lib/libapteryx-schema.so ]; then
         cd apteryx-xml
         rm -f $BUILD/usr/lib/libapteryx-xml.so
         rm -f $BUILD/usr/lib/libapteryx-schema.so
         make install DESTDIR=$BUILD
-        rc=$?; if [[ $rc != 0 ]]; then exit $rc; fi
+        rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
         cd $BUILD
 fi
 
@@ -45,15 +60,53 @@ fi
 if [ ! -d fcgi-2.4.0 ]; then
         echo "Building fcgi from source."
         wget https://github.com/LuaDist/fcgi/archive/2.4.0.tar.gz
-        rc=$?; if [[ $rc != 0 ]]; then exit $rc; fi
+        rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
         tar -zxf 2.4.0.tar.gz
 fi
 if [ ! -f $BUILD/usr/lib/libfcgi.so ]; then
         cd fcgi-2.4.0
         ./configure --prefix=/usr
         make install DESTDIR=$BUILD
-        rc=$?; if [[ $rc != 0 ]]; then exit $rc; fi
+        rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
         cd $BUILD
+fi
+
+# Build web server
+if [ "$1" == "nginx" ]; then
+    # Build nginx
+    if [ ! -d nginx-1.20.0 ]; then
+            echo "Building nginx from source."
+            wget http://nginx.org/download/nginx-1.20.0.tar.gz
+            rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
+            tar -zxf nginx-1.20.0.tar.gz
+            rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
+    fi
+    if [ ! -f $BUILD/usr/sbin/nginx ]; then
+            cd nginx-1.20.0
+            ./configure --prefix=/var/www/html --sbin-path=/usr/sbin/nginx --conf-path=$BUILD/nginx.conf \
+            --http-log-path=$BUILD/access.log --error-log-path=$BUILD/error.log --with-pcre \
+            --lock-path=$BUILD/nginx.lock --pid-path=$BUILD/nginx.pid --with-http_ssl_module \
+            --modules-path=$BUILD/modules
+            make install DESTDIR=$BUILD
+            rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
+            cd $BUILD
+    fi
+else
+    # Build lighttpd
+    if [ ! -d lighttpd-1.4.53 ]; then
+            echo "Building lighttpd from source."
+            wget https://download.lighttpd.net/lighttpd/releases-1.4.x/lighttpd-1.4.53.tar.xz
+            rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
+            tar -xf lighttpd-1.4.53.tar.xz
+            rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
+    fi
+    if [ ! -f $BUILD/usr/sbin/lighttpd ]; then
+            cd lighttpd-1.4.53
+            ./configure --prefix=/usr --disable-ipv6 CFLAGS=-Wno-error
+            make install DESTDIR=$BUILD
+            rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
+            cd $BUILD
+    fi
 fi
 
 # Build
@@ -67,32 +120,21 @@ if [ ! -f $BUILD/../Makefile ]; then
       APTERYX_XML_CFLAGS=-I$BUILD/usr/include APTERYX_XML_LIBS=-lapteryx-schema \
       LIBFCGI_CFLAGS=-I$BUILD/usr/include LIBFCGI_LIBS=-lfcgi \
       ./configure 
-    rc=$?; if [[ $rc != 0 ]]; then exit $rc; fi
+    rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
     cd $BUILD
 fi
 make -C $BUILD/../
-rc=$?; if [[ $rc != 0 ]]; then exit $rc; fi
+rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
 
-# Chooose web server
+# Start Apteryx
+export LD_LIBRARY_PATH=$BUILD/usr/lib
+rm -f /tmp/apteryx
+$BUILD/usr/bin/apteryxd -b
+rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
+
+# Run web server
 if [ "$1" == "nginx" ]; then
-    # Run nginx
-    if [ ! -d nginx-1.20.0 ]; then
-            echo "Building nginx from source."
-            wget http://nginx.org/download/nginx-1.20.0.tar.gz
-            rc=$?; if [[ $rc != 0 ]]; then exit $rc; fi
-            tar -zxf nginx-1.20.0.tar.gz
-            rc=$?; if [[ $rc != 0 ]]; then exit $rc; fi
-    fi
-    if [ ! -f $BUILD/usr/sbin/nginx ]; then
-            cd nginx-1.20.0
-            ./configure --prefix=/var/www/html --sbin-path=/usr/sbin/nginx --conf-path=$BUILD/nginx.conf \
-            --http-log-path=$BUILD/access.log --error-log-path=$BUILD/error.log --with-pcre \
-            --lock-path=$BUILD/nginx.lock --pid-path=$BUILD/nginx.pid --with-http_ssl_module \
-            --modules-path=$BUILD/modules
-            make install DESTDIR=$BUILD
-            rc=$?; if [[ $rc != 0 ]]; then exit $rc; fi
-            cd $BUILD
-    fi
+    echo Running nginx ...
     killall nginx &> /dev/null
     echo '
     daemon on;
@@ -105,10 +147,12 @@ if [ "$1" == "nginx" ]; then
         server {
             listen 8080;
             location /api {
+                root /api;
                 fastcgi_pass unix:'$BUILD'/apteryx-rest.sock;
                 fastcgi_buffering off;
                 fastcgi_read_timeout 1d;
                 fastcgi_param NO_BUFFERING "";
+                fastcgi_param DOCUMENT_ROOT      $document_root;
                 fastcgi_param REQUEST_METHOD     $request_method;
                 fastcgi_param REQUEST_URI        $request_uri;
                 fastcgi_param CONTENT_TYPE       $content_type;
@@ -128,25 +172,10 @@ if [ "$1" == "nginx" ]; then
         scgi_temp_path '$BUILD'/nginx-scgi;
     }
     ' > $BUILD/nginx.conf
-    echo Running nginx ...
     $BUILD/usr/sbin/nginx
-    rc=$?; if [[ $rc != 0 ]]; then exit $rc; fi
+    rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
 else
-    # Run lighttpd
-    if [ ! -d lighttpd-1.4.53 ]; then
-            echo "Building lighttpd from source."
-            wget https://download.lighttpd.net/lighttpd/releases-1.4.x/lighttpd-1.4.53.tar.xz
-            rc=$?; if [[ $rc != 0 ]]; then exit $rc; fi
-            tar -xf lighttpd-1.4.53.tar.xz
-            rc=$?; if [[ $rc != 0 ]]; then exit $rc; fi
-    fi
-    if [ ! -f $BUILD/usr/sbin/lighttpd ]; then
-            cd lighttpd-1.4.53
-            ./configure --prefix=/usr --disable-ipv6 CFLAGS=-Wno-error
-            make install DESTDIR=$BUILD
-            rc=$?; if [[ $rc != 0 ]]; then exit $rc; fi
-            cd $BUILD
-    fi
+    echo Running lighttpd ...
     killall lighttpd &> /dev/null
     echo '
     server.document-root = "./"
@@ -162,25 +191,19 @@ else
     server.stream-response-body = 2
     fastcgi.debug = 1
     fastcgi.server = (
-    "/api" => (
-    "fastcgi.handler" => (
-        "socket" => "'$BUILD'/apteryx-rest.sock",
-        "check-local" => "disable",
+      "/api" => (
+        "fastcgi.handler" => (
+          "docroot" => "/api",
+          "socket" => "'$BUILD'/apteryx-rest.sock",
+          "check-local" => "disable",
         )
-    )
+      ),
     )
     server.errorlog = "'$BUILD'/lighttpd.log"
     ' > $BUILD/lighttpd.conf
-    echo Running lighttpd ...
     $BUILD/usr/sbin/lighttpd -f $BUILD/lighttpd.conf -m $BUILD/usr/lib
-    rc=$?; if [[ $rc != 0 ]]; then exit $rc; fi
+    rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
 fi
-
-# Start Apteryx
-export LD_LIBRARY_PATH=$BUILD/usr/lib
-rm -f /tmp/apteryx
-$BUILD/usr/bin/apteryxd -b
-rc=$?; if [[ $rc != 0 ]]; then exit $rc; fi
 
 # Start apteryx-rest
 rm -f $BUILD/apteryx-rest.sock
@@ -189,19 +212,8 @@ rm -f $BUILD/apteryx-rest.sock
 # TEST_WRAPPER="valgrind --tool=cachegrind"
 G_SLICE=always-malloc LD_LIBRARY_PATH=$BUILD/usr/lib \
   $TEST_WRAPPER ../apteryx-rest -v -m ../models/ -p apteryx-rest.pid -s apteryx-rest.sock
-rc=$?; if [[ $rc != 0 ]]; then exit $rc; fi
+rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
 sleep 0.5
-
-# Stop lighttpd
-killall lighttpd &> /dev/null
-killall nginx &> /dev/null
-# Stop apteryx-rest
-killall apteryx-rest &> /dev/null
-kill `pidof valgrind.bin` &> /dev/null
-# Stop Apteryx
-apteryx -t
-killall -9 apteryxd
-rm -f /tmp/apteryx
 
 # Gcov
 cd $BUILD/../
@@ -210,3 +222,6 @@ mv -f *.gcno .gcov/ 2>/dev/null || true
 mv -f *.gcda .gcov/ 2>/dev/null || true
 lcov -q --capture --directory . --output-file .gcov/coverage.info
 genhtml -q .gcov/coverage.info --output-directory .gcov/
+
+# Done - cleanup
+quit

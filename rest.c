@@ -745,24 +745,28 @@ rest_api_watch (req_handle handle, int flags, const char *path)
 }
 
 void
-rest_api (req_handle handle, int flags, const char *path, const char *action,
+rest_api (req_handle handle, int flags, const char *rpath, const char *path, const char *action,
           const char *if_none_match, const char *data, int length)
 {
     char *resp = NULL;
 
     /* Sanity check parameters */
-    if (!path || !action ||
-        !(flags & FLAGS_ACCEPT_JSON) ||
-        strncmp (path, REST_API_PATH, strlen (REST_API_PATH)) != 0)
+    if (!rpath || !path || !action || !(flags & FLAGS_ACCEPT_JSON))
     {
-        ERROR ("ERROR: invalid parameters (flags:0x%x, path:%s, action:%s)\n",
-               flags, path, action);
+        ERROR ("ERROR: invalid parameters (flags:0x%x, rpath:%s, path:%s, action:%s)\n",
+               flags, rpath, path, action);
+        resp = g_strdup_printf ("Status: 500\r\n"
+                        "Content-Type: text/html\r\n\r\n"
+                        "Invalid parameters (flags:0x%x, rpath:%s, path:%s, action:%s)\n",
+                        flags, rpath, path, action);
+        send_response (handle, resp, false);
+        g_free (resp);
         return;
     }
     VERBOSE ("%s(0x%x) %s\n", action, flags, path);
 
     /* Process method */
-    path = path + strlen (REST_API_PATH);
+    path = path + strlen (rpath);
     if (strcmp (action, "GET") == 0)
     {
         if (strcmp (path, ".xml") == 0)

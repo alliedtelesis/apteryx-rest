@@ -25,6 +25,7 @@ server.stream-response-body = 2
 fastcgi.server = (
     "/api" => (
         "fastcgi.handler" => (
+            "docroot" => "/api",
             "socket" => "/var/run/apteryx-rest.sock",
             "check-local" => "disable",
         )
@@ -37,14 +38,16 @@ NGINX
 http {
     server {
         location /api {
+            root /api;
             fastcgi_pass unix:/var/run/apteryx-rest.sock;
             fastcgi_buffering off;
             fastcgi_read_timeout 600s;
             fastcgi_param NO_BUFFERING "";
-            fastcgi_param REQUEST_METHOD $request_method;
-            fastcgi_param REQUEST_URI    $request_uri;
-            fastcgi_param CONTENT_TYPE   $content_type;
-            fastcgi_param CONTENT_LENGTH $content_length;
+            fastcgi_param DOCUMENT_ROOT      $document_root;
+            fastcgi_param REQUEST_METHOD     $request_method;
+            fastcgi_param REQUEST_URI        $request_uri;
+            fastcgi_param CONTENT_TYPE       $content_type;
+            fastcgi_param CONTENT_LENGTH     $content_length;
             fastcgi_param HTTP_IF_NONE_MATCH $http_if_none_match;
         }
     }

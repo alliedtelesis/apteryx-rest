@@ -33,7 +33,6 @@
 #define APP_NAME                    "apteryx-rest"
 #define DEFAULT_APP_PID             "/var/run/"APP_NAME".pid"
 #define DEFAULT_REST_SOCK           "/var/run/"APP_NAME".sock"
-#define REST_API_PATH               "/api"
 
 /* Debug */
 extern bool debug;
@@ -58,7 +57,7 @@ extern bool verbose;
 typedef void *req_handle;
 void send_response (req_handle handle, const char *data, bool flush);
 bool is_connected (req_handle handle, bool block);
-typedef void (*req_callback) (req_handle handle, int flags, const char *path,
+typedef void (*req_callback) (req_handle handle, int flags, const char *rpath, const char *path,
                               const char *action, const char *if_none_match,
                               const char *data, int length);
 
@@ -70,7 +69,7 @@ void fcgi_stop (void);
 extern bool rest_use_arrays;
 extern bool rest_use_types;
 gboolean rest_init (const char *path);
-void rest_api (req_handle handle, int flags, const char *path, const char *action,
+void rest_api (req_handle handle, int flags, const char *rpath, const char *path, const char *action,
                const char *if_none_match, const char *data, int length);
 void rest_shutdown (void);
 

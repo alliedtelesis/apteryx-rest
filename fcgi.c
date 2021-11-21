@@ -140,7 +140,7 @@ static void *
 handle_http (void *arg)
 {
     FCGX_Request *request = (FCGX_Request *) arg;
-    char *path, *action, *length, *if_none_match;
+    char *rpath, *path, *action, *length, *if_none_match;
     int flags;
     char *data = NULL;
     int len = 0;
@@ -153,11 +153,26 @@ handle_http (void *arg)
     }
 
     /* Process the request */
+    rpath = FCGX_GetParam ("DOCUMENT_ROOT", request->envp);
     path = FCGX_GetParam ("REQUEST_URI", request->envp);
     flags = get_flags (request);
     if_none_match = FCGX_GetParam ("HTTP_IF_NONE_MATCH", request->envp);
     action = FCGX_GetParam ("REQUEST_METHOD", request->envp);
     length = FCGX_GetParam ("CONTENT_LENGTH", request->envp);
+    if (!rpath || !path || !action)
+    {
+        ERROR ("Invalid server configuration (flags:0x%x, rpath:%s, path:%s, action:%s)\n",
+               flags, rpath, path, action);
+        data = g_strdup_printf ("Status: 500\r\n"
+                        "Content-Type: text/html\r\n\r\n"
+                        "Invalid server configuration (flags:0x%x, rpath:%s, path:%s, action:%s)\n",
+                        flags, rpath, path, action);
+        send_response (request, data, false);
+        g_free (data);
+        FCGX_Finish_r (request);
+        g_free (request);
+        return NULL;
+    }
     if (length != NULL)
     {
         len = strtol (length, NULL, 10);
@@ -171,7 +186,7 @@ handle_http (void *arg)
             }
         }
     }
-    g_cb ((req_handle) request, flags, path, action, if_none_match, data, len);
+    g_cb ((req_handle) request, flags, rpath, path, action, if_none_match, data, len);
     free (data);
     FCGX_Finish_r (request);
     g_free (request);
