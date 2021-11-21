@@ -49,7 +49,7 @@ def run_around_tests():
 
 # API
 
-def test_api_xml():
+def test_rest_api_xml():
     response = requests.get("http://{}:{}/api.xml".format(host,port))
     xml = etree.fromstring(response.content)
     print(etree.tostring(xml, pretty_print=True, encoding="unicode"))
@@ -58,28 +58,28 @@ def test_api_xml():
 
 # GET
 
-def test_get_single_node():
+def test_rest_get_single_node():
     response = requests.get("http://{}:{}/api/test/settings/priority".format(host,port))
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/yang.data+json"
     assert response.json() == json.loads('{ "priority": "1" }')
 
-def test_get_integer_string():
+def test_rest_get_integer_string():
     response = requests.get("http://{}:{}/api/test/settings/priority".format(host,port))
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/yang.data+json"
     assert response.json() == json.loads('{ "priority": "1" }')
 
-def test_get_integer_integer():
+def test_rest_get_integer_integer():
     response = requests.get("http://{}:{}/api/test/settings/priority".format(host,port), headers={"X-JSON-Types":"on","X-JSON-Array":"on"})
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/yang.data+json"
     assert response.json() == json.loads('{ "priority": 1 }')
 
-def test_get_boolean_string():
+def test_rest_get_boolean_string():
     response = requests.get("http://{}:{}/api/test/settings/enable".format(host,port))
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
@@ -92,7 +92,7 @@ def test_get_boolean_string():
     assert response.headers["Content-Type"] == "application/yang.data+json"
     assert response.json() == json.loads('{ "enable": "false" }')
 
-def test_get_boolean_boolean():
+def test_rest_get_boolean_boolean():
     response = requests.get("http://{}:{}/api/test/settings/enable".format(host,port), headers={"X-JSON-Types":"on","X-JSON-Array":"on"})
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
@@ -105,14 +105,14 @@ def test_get_boolean_boolean():
     assert response.headers["Content-Type"] == "application/yang.data+json"
     assert response.json() == json.loads('{ "enable": false }')
 
-def test_get_value_name():
+def test_rest_get_value_name():
     response = requests.get("http://{}:{}/api/test/settings/debug".format(host,port))
     assert response.status_code == 200
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/yang.data+json"
     assert response.json() == json.loads('{ "debug": "enable" }')
 
-def test_get_node_null():
+def test_rest_get_node_null():
     os.system("%s -s %s %s" % (APTERYX, "/test/settings/debug", ""))
     response = requests.get("http://{}:{}/api/test/settings/debug".format(host,port), headers={"X-JSON-Types":"on","X-JSON-Array":"on"})
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -120,7 +120,7 @@ def test_get_node_null():
     assert response.headers["Content-Type"] == "application/yang.data+json"
     assert response.json() == json.loads('{}')
 
-def test_get_tree_strings():
+def test_rest_get_tree_strings():
     response = requests.get("http://{}:{}/api/test/settings".format(host,port))
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
@@ -135,7 +135,7 @@ def test_get_tree_strings():
 }
 """)
 
-def test_get_tree_json_types():
+def test_rest_get_tree_json_types():
     response = requests.get("http://{}:{}/api/test/settings".format(host,port), headers={"X-JSON-Types":"on","X-JSON-Array":"on"})
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
@@ -150,7 +150,7 @@ def test_get_tree_json_types():
 }
 """)
 
-def test_get_list_object():
+def test_rest_get_list_object():
     response = requests.get("http://{}:{}/api/test/animals/animal".format(host,port), headers={"X-JSON-Types":"on"})
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
@@ -165,7 +165,7 @@ def test_get_list_object():
 }
 """)
 
-def test_get_list_array():
+def test_rest_get_list_array():
     response = requests.get("http://{}:{}/api/test/animals/animal".format(host,port), headers={"X-JSON-Types":"on","X-JSON-Array":"on"})
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
@@ -180,7 +180,7 @@ def test_get_list_array():
 }
 """)
 
-def test_get_etag_exists():
+def test_rest_get_etag_exists():
     response = requests.get("http://{}:{}/api/test/settings/debug".format(host,port), headers={"X-JSON-Types":"on","X-JSON-Array":"on"})
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     print(response.headers.get("ETag"))
@@ -189,7 +189,7 @@ def test_get_etag_exists():
     assert response.headers.get("ETag") != None
     assert response.json() == json.loads('{ "debug": "enable" }')
 
-def test_get_etag_changes():
+def test_rest_get_etag_changes():
     response = requests.get("http://{}:{}/api/test/settings/debug".format(host,port), headers={"X-JSON-Types":"on","X-JSON-Array":"on"})
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     print(response.headers.get("ETag"))
@@ -211,7 +211,7 @@ def test_get_etag_changes():
     assert response.json() == json.loads('{ "debug": "disable" }')
     assert tag1 != response.headers.get("ETag")
 
-def test_get_etag_not_modified():
+def test_rest_get_etag_not_modified():
     response = requests.get("http://{}:{}/api/test/settings/debug".format(host,port), headers={"X-JSON-Types":"on","X-JSON-Array":"on"})
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     print(response.headers.get("ETag"))
@@ -225,22 +225,22 @@ def test_get_etag_not_modified():
     assert response.status_code == 304
     assert len(response.content) == 0
 
-def test_get_not_found():
+def test_rest_get_not_found():
     response = requests.get("http://{}:{}/api/test/settings/invalid".format(host,port))
     assert response.status_code == 404
     assert len(response.content) == 0
 
-def test_get_forbidden():
+def test_rest_get_forbidden():
     response = requests.get("http://{}:{}/api/test/settings/writeonly".format(host,port))
     assert response.status_code == 403
     assert len(response.content) == 0
 
-def test_get_hidden_node():
+def test_rest_get_hidden_node():
     response = requests.get("http://{}:{}/api/test/settings/hidden".format(host,port))
     assert response.status_code == 403
     assert len(response.content) == 0
 
-def test_get_hidden_tree():
+def test_rest_get_hidden_tree():
     apteryx_set("/test/settings/debug", "")
     apteryx_set("/test/settings/enable", "")
     apteryx_set("/test/settings/priority", "")
@@ -250,13 +250,13 @@ def test_get_hidden_tree():
 
 # SET
 
-def test_set_single_node():
+def test_rest_set_single_node():
     response = requests.post("http://{}:{}/api/test/settings".format(host,port), data="""{"priority": "5"}""")
     assert response.status_code == 200
     assert len(response.content) == 0
     assert apteryx_get("/test/settings/priority") == "5"
 
-def test_set_value_name():
+def test_rest_set_value_name():
     response = requests.post("http://{}:{}/api/test/settings".format(host,port), data="""{"debug": "disable"}""")
     assert response.status_code == 200
     assert len(response.content) == 0
@@ -266,7 +266,7 @@ def test_set_value_name():
     assert len(response.content) == 0
     assert apteryx_get("/test/settings/debug") == "1"
 
-def test_set_value_alt():
+def test_rest_set_value_alt():
     response = requests.post("http://{}:{}/api/test/settings".format(host,port), data="""{"debug": "0"}""")
     assert response.status_code == 200
     assert len(response.content) == 0
@@ -276,7 +276,7 @@ def test_set_value_alt():
     assert len(response.content) == 0
     assert apteryx_get("/test/settings/debug") == "1"
 
-def test_set_node_null():
+def test_rest_set_node_null():
     response = requests.post("http://{}:{}/api/test/settings".format(host,port), data="""{"debug": ""}""")
     assert response.status_code == 200
     assert len(response.content) == 0
@@ -284,31 +284,31 @@ def test_set_node_null():
     assert response.status_code == 200
     assert response.json() == json.loads('{}')
 
-def test_set_invalid_path():
+def test_rest_set_invalid_path():
     response = requests.post("http://{}:{}/api/test/cabbage".format(host,port), data="""{"debug": "enable"}""")
     assert response.status_code == 403
     assert len(response.content) == 0
     assert apteryx_get("/test/cabbage/debug") == "Not found"
 
-def test_set_invalid_value():
+def test_rest_set_invalid_value():
     response = requests.post("http://{}:{}/api/test/settings".format(host,port), data="""{"debug": "cabbage"}""")
     assert response.status_code == 400
     assert len(response.content) == 0
     assert apteryx_get("/test/settings/debug") == "1"
 
-def test_set_readonly():
+def test_rest_set_readonly():
     response = requests.post("http://{}:{}/api/test/state".format(host,port), data="""{"counter": "123"}""")
     assert response.status_code == 403
     assert len(response.content) == 0
     assert apteryx_get("/test/state/counter") == "42"
 
-def test_set_hidden():
+def test_rest_set_hidden():
     response = requests.post("http://{}:{}/api/test/settings".format(host,port), data="""{"hidden": "cabbage"}""")
     assert response.status_code == 403
     assert len(response.content) == 0
     assert apteryx_get("/test/settings/hidden") == "friend"
 
-def test_set_out_of_range_integer():
+def test_rest_set_out_of_range_integer():
     response = requests.post("http://{}:{}/api/test/settings".format(host,port), data="""{"priority": 0}""")
     assert response.status_code == 400
     response = requests.post("http://{}:{}/api/test/settings".format(host,port), data="""{"priority": 6}""")
@@ -317,7 +317,7 @@ def test_set_out_of_range_integer():
     assert response.status_code == 400
     assert apteryx_get("/test/settings/priority") == "1"
 
-def test_set_tree_static():
+def test_rest_set_tree_static():
     tree = """
 {
     "settings": {
@@ -335,7 +335,7 @@ def test_set_tree_static():
     assert response.headers["Content-Type"] == "application/yang.data+json"
     assert response.json() == json.loads(tree)
 
-def test_set_tree_null_value():
+def test_rest_set_tree_null_value():
     tree = """
 {
     "settings": {
@@ -360,7 +360,7 @@ def test_set_tree_null_value():
 }
 """)
 
-def test_set_tree_list_full_strings():
+def test_rest_set_tree_list_full_strings():
     tree = """
 {
     "animals": { 
@@ -405,7 +405,7 @@ def test_set_tree_list_full_strings():
 }
 """)
 
-def test_set_tree_list_single_strings():
+def test_rest_set_tree_list_single_strings():
     tree = """
 {
     "name": "frog",
@@ -427,7 +427,7 @@ def test_set_tree_list_single_strings():
 }
 """)
 
-def test_set_tree_list_full_arrays():
+def test_rest_set_tree_list_full_arrays():
     tree = """
 {
     "animals": { 
@@ -472,7 +472,7 @@ def test_set_tree_list_full_arrays():
 }
 """)
 
-def test_set_true_false_string():
+def test_rest_set_true_false_string():
     response = requests.post("http://{}:{}/api/test/settings".format(host,port), data="""{"enable": "false"}""")
     assert response.status_code == 200
     assert apteryx_get("/test/settings/enable") == "false"
@@ -480,7 +480,7 @@ def test_set_true_false_string():
     assert response.status_code == 200
     assert apteryx_get("/test/settings/enable") == "true"
 
-def test_set_true_false_boolean():
+def test_rest_set_true_false_boolean():
     response = requests.post("http://{}:{}/api/test/settings".format(host,port), data="""{"enable": false}""")
     assert response.status_code == 200
     assert apteryx_get("/test/settings/enable") == "false"
@@ -490,7 +490,7 @@ def test_set_true_false_boolean():
 
 # DELETE
 
-def test_delete_single_node():
+def test_rest_delete_single_node():
     response = requests.delete("http://{}:{}/api/test/settings/debug".format(host,port))
     assert response.status_code == 200
     assert len(response.content) == 0
@@ -498,7 +498,7 @@ def test_delete_single_node():
     assert response.status_code == 200
     assert response.json() == json.loads('{}')
 
-def test_delete_trunk():
+def test_rest_delete_trunk():
     response = requests.delete("http://{}:{}/api/test/settings".format(host,port))
     assert response.status_code == 200
     assert len(response.content) == 0
@@ -506,7 +506,7 @@ def test_delete_trunk():
     assert response.status_code == 200
     assert response.json() == json.loads('{}')
 
-def test_delete_list_entry():
+def test_rest_delete_list_entry():
     response = requests.delete("http://{}:{}/api/test/animals/animal/cat".format(host,port))
     assert response.status_code == 200
     assert len(response.content) == 0
@@ -534,7 +534,7 @@ def test_delete_list_entry():
 
 # SEARCH 
 
-def test_search_node():
+def test_rest_search_node():
     response = requests.get("http://{}:{}/api/test/settings/enable/".format(host,port))
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
@@ -545,7 +545,7 @@ def test_search_node():
 }
 """)
 
-def test_search_trunk():
+def test_rest_search_trunk():
     response = requests.get("http://{}:{}/api/test/settings/".format(host,port))
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
@@ -560,7 +560,7 @@ def test_search_trunk():
 }
 """)
 
-def test_search_list():
+def test_rest_search_list():
     response = requests.get("http://{}:{}/api/test/animals/animal/".format(host,port))
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
@@ -575,7 +575,7 @@ def test_search_list():
 }
 """)
 
-def test_search_etag_not_modified():
+def test_rest_search_etag_not_modified():
     response = requests.get("http://{}:{}/api/test/animals/animal/".format(host,port))
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     print(response.headers.get("ETag"))
