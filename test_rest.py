@@ -122,11 +122,13 @@ def test_rest_get_boolean_boolean():
 
 def test_rest_get_enum_value():
     response = requests.get("{}{}/test/settings/debug".format(server_uri,docroot), verify=False, auth=server_auth)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/json"
     assert response.json() == json.loads('{ "debug": "1" }')
     apteryx_set("/test/settings/debug", "0")
     response = requests.get("{}{}/test/settings/debug".format(server_uri,docroot), verify=False, auth=server_auth)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/json"
     assert response.json() == json.loads('{ "debug": "0" }')
@@ -249,7 +251,9 @@ def test_rest_get_list_select_one_array():
     assert response.headers["Content-Type"] == "application/json"
     assert response.json() == json.loads("""
 {
-    [ {"name": "cat", "type": "1"} ]
+    "animal": [
+        { "name": "cat", "type": "1" }
+    ]
 }
 """)
 
@@ -305,12 +309,12 @@ def test_rest_get_not_found():
 
 def test_rest_get_forbidden():
     response = requests.get("{}{}/test/settings/writeonly".format(server_uri,docroot), verify=False, auth=server_auth)
-    assert response.status_code == 403
+    assert response.status_code == 403 or response.status_code == 404
     assert len(response.content) == 0
 
 def test_rest_get_hidden_node():
     response = requests.get("{}{}/test/settings/hidden".format(server_uri,docroot), verify=False, auth=server_auth)
-    assert response.status_code == 403
+    assert response.status_code == 403 or response.status_code == 404
     assert len(response.content) == 0
 
 def test_rest_get_hidden_tree():
@@ -320,6 +324,22 @@ def test_rest_get_hidden_tree():
     response = requests.get("{}{}/test/settings".format(server_uri,docroot), verify=False, auth=server_auth)
     assert response.status_code == 200
     assert response.json() == json.loads('{}')
+
+# FLAGS_JSON_FORMAT_ROOT=off
+def test_rest_get_drop_root():
+    response = requests.get("{}{}/test/settings/priority".format(server_uri,docroot), verify=False, auth=server_auth, headers={"X-JSON-Root": "off"})
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/json"
+    assert response.json() == json.loads('"1"')
+
+# FLAGS_JSON_FORMAT_MULTI=on
+def test_rest_get_multi():
+    response = requests.get("{}{}/test/settings/priority".format(server_uri,docroot), verify=False, auth=server_auth, headers={"X-JSON-Multi": "on"})
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/json"
+    assert response.json() == json.loads('[ { "priority": "1" } ]')
 
 # SET
 
@@ -680,3 +700,67 @@ def test_rest_search_etag_not_modified():
     assert len(response.content) == 0
 
 # STREAMS
+
+def test_rest_stream_event_node():
+    url = "{}{}/test/settings/priority".format(server_uri,docroot)
+    response = requests.get(url, stream=True, verify=False, auth=server_auth, headers={'Accept': 'text/event-stream'}, timeout=5)
+    assert response.status_code == 200
+    apteryx_set("/test/settings/priority", "2")
+    for line in response.iter_lines(decode_unicode=True):
+        print(line)
+        if line == 'data: {"priority": 2}':
+            break
+
+def test_rest_stream_json_node():
+    url = "{}{}/test/settings/priority".format(server_uri,docroot)
+    response = requests.get(url, stream=True, verify=False, auth=server_auth, headers={'Accept': 'application/stream+json'}, timeout=5)
+    assert response.status_code == 200
+    apteryx_set("/test/settings/priority", "2")
+    for line in response.iter_lines(decode_unicode=True):
+        print(line)
+        if line and json.loads(line.decode("utf-8")) == json.loads(b'{"priority": 2}'):
+            break
+
+def test_rest_stream_event_tree():
+    url = "{}{}/test/settings".format(server_uri,docroot)
+    response = requests.get(url, stream=True, verify=False, auth=server_auth, headers={'Accept': 'text/event-stream'}, timeout=5)
+    assert response.status_code == 200
+    tree = """{"priority": "2", "enable": "false"}"""
+    requests.post("{}{}/test/settings".format(server_uri,docroot), verify=False, auth=server_auth, data=tree)
+    for line in response.iter_lines(decode_unicode=True):
+        print(line)
+        if line == 'data: {"settings": {"enable": false, "priority": 2}}':
+            break
+
+def test_rest_stream_json_tree():
+    url = "{}{}/test/settings".format(server_uri,docroot)
+    response = requests.get(url, stream=True, verify=False, auth=server_auth, headers={'Accept': 'application/stream+json'}, timeout=5)
+    assert response.status_code == 200
+    tree = """{"priority": "2", "enable": "false"}"""
+    requests.post("{}{}/test/settings".format(server_uri,docroot), verify=False, auth=server_auth, data=tree)
+    for line in response.iter_lines(decode_unicode=True):
+        print(line)
+        if line and json.loads(line.decode("utf-8")) == json.loads(b'{"settings": {"enable": false, "priority": 2}}'):
+            break
+
+def test_rest_stream_event_list():
+    url = "{}{}/test/animals".format(server_uri,docroot)
+    response = requests.get(url, stream=True, verify=False, auth=server_auth, headers={'Accept': 'text/event-stream'}, timeout=5)
+    assert response.status_code == 200
+    tree = """{"name": "frog","type": "2"}"""
+    requests.post("{}{}/test/animals/animal/frog".format(server_uri,docroot), verify=False, auth=server_auth, data=tree)
+    for line in response.iter_lines(decode_unicode=True):
+        print(line)
+        if line == 'data: {"animals": {"animal": [{"name": "frog", "type": "little"}]}}':
+            break
+
+def test_rest_stream_json_list():
+    url = "{}{}/test/animals".format(server_uri,docroot)
+    response = requests.get(url, stream=True, verify=False, auth=server_auth, headers={'Accept': 'application/stream+json'}, timeout=5)
+    assert response.status_code == 200
+    tree = """{"name": "frog","type": "2"}"""
+    requests.post("{}{}/test/animals/animal/frog".format(server_uri,docroot), verify=False, auth=server_auth, data=tree)
+    for line in response.iter_lines(decode_unicode=True):
+        print(line)
+        if line and json.loads(line.decode("utf-8")) == json.loads(b'{"animals": {"animal": [{"name": "frog", "type": "little"}]}}'):
+            break
