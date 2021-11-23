@@ -2,18 +2,29 @@ import os
 import subprocess
 import pytest
 import requests
+import warnings
 import json
 from lxml import etree
 
 # TEST CONFIGURATION
-
-host='localhost'
-port=8080
-docroot='/api'
-
-APTERYX='LD_LIBRARY_PATH=.build/usr/lib .build/usr/bin/apteryx'
+docroot = '/api'
+search_etag = True
+json_types = True
+APTERYX_URL=''
+server_uri = 'http://localhost:8080'
+server_auth = None
+# apteryx -s /apteryx/sockets/test tcp://0.0.0.0:9999
+# APTERYX_URL='tcp://192.168.6.2:9999:'
+# server_uri = 'https://192.168.6.2:443'
+# server_auth = requests.auth.HTTPBasicAuth('manager', 'friend')
 
 # TEST HELPERS
+if json_types:
+    json_headers = {"X-JSON-Types":"on", "X-JSON-Array":"on"}
+else:
+    json_headers = {"X-JSON-Array":"on"}
+
+APTERYX='LD_LIBRARY_PATH=.build/usr/lib .build/usr/bin/apteryx'
 
 db_default = [
     ('/test/settings/debug', '1'),
@@ -22,125 +33,145 @@ db_default = [
     ('/test/settings/hidden', 'friend'),
     ('/test/state/counter', '42'),
     ('/test/animals/animal/cat/name', 'cat'),
-    ('/test/animals/animal/cat/type', 'big'),
+    ('/test/animals/animal/cat/type', '1'),
     ('/test/animals/animal/dog/name', 'dog'),
     ('/test/animals/animal/dog/colour', 'brown'),
     ('/test/animals/animal/mouse/name', 'mouse'),
-    ('/test/animals/animal/mouse/type', 'little'),
+    ('/test/animals/animal/mouse/type', '2'),
     ('/test/animals/animal/mouse/colour', 'grey'),
 ]
 
 def apteryx_set(path, value):
-    os.system("%s -s %s %s" % (APTERYX, path, value))
+    assert subprocess.check_output("%s -s %s%s %s" % (APTERYX, APTERYX_URL, path, value), shell=True).strip().decode('utf-8') != "Failed"
 
 def apteryx_get(path):
-    return subprocess.check_output("%s -g %s" % (APTERYX, path), shell=True).strip().decode('utf-8')
+    return subprocess.check_output("%s -g %s%s" % (APTERYX, APTERYX_URL, path), shell=True).strip().decode('utf-8')
 
 @pytest.fixture(autouse=True)
 def run_around_tests():
     # Before test
+    warnings.filterwarnings('ignore', message='Unverified HTTPS request')
     os.system("echo Before test")
-    os.system("%s -r /test" % (APTERYX))
+    assert subprocess.check_output("%s -r %s/test" % (APTERYX, APTERYX_URL), shell=True).strip().decode('utf-8') != "Failed"
     for path,value in db_default:
         apteryx_set(path, value)
     yield
     # After test
     os.system("echo After test")
-    os.system("%s -r /test" % (APTERYX))
+    assert subprocess.check_output("%s -r %s/test" % (APTERYX, APTERYX_URL), shell=True).strip().decode('utf-8') != "Failed"
 
 # API
 
 def test_rest_api_xml():
-    response = requests.get("http://{}:{}{}.xml".format(host,port,docroot))
+    response = requests.get("{}{}.xml".format(server_uri,docroot), verify=False, auth=server_auth)
     xml = etree.fromstring(response.content)
     print(etree.tostring(xml, pretty_print=True, encoding="unicode"))
     assert response.status_code == 200
-    assert response.headers["Content-Type"] == "txt/xml"
+    assert response.headers["Content-Type"] == "text/xml"
 
 # GET
 
 def test_rest_get_single_node():
-    response = requests.get("http://{}:{}{}/test/settings/priority".format(host,port,docroot))
+    response = requests.get("{}{}/test/settings/priority".format(server_uri,docroot), verify=False, auth=server_auth)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
-    assert response.headers["Content-Type"] == "application/yang.data+json"
+    assert response.headers["Content-Type"] == "application/json"
     assert response.json() == json.loads('{ "priority": "1" }')
 
 def test_rest_get_integer_string():
-    response = requests.get("http://{}:{}{}/test/settings/priority".format(host,port,docroot))
+    response = requests.get("{}{}/test/settings/priority".format(server_uri,docroot), verify=False, auth=server_auth)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
-    assert response.headers["Content-Type"] == "application/yang.data+json"
+    assert response.headers["Content-Type"] == "application/json"
     assert response.json() == json.loads('{ "priority": "1" }')
 
+@pytest.mark.skipif(not json_types, reason="do not support JSON types")
 def test_rest_get_integer_integer():
-    response = requests.get("http://{}:{}{}/test/settings/priority".format(host,port,docroot), headers={"X-JSON-Types":"on","X-JSON-Array":"on"})
+    response = requests.get("{}{}/test/settings/priority".format(server_uri,docroot), verify=False, auth=server_auth, headers=json_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
-    assert response.headers["Content-Type"] == "application/yang.data+json"
+    assert response.headers["Content-Type"] == "application/json"
     assert response.json() == json.loads('{ "priority": 1 }')
 
 def test_rest_get_boolean_string():
-    response = requests.get("http://{}:{}{}/test/settings/enable".format(host,port,docroot))
+    response = requests.get("{}{}/test/settings/enable".format(server_uri,docroot), verify=False, auth=server_auth)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
-    assert response.headers["Content-Type"] == "application/yang.data+json"
+    assert response.headers["Content-Type"] == "application/json"
     assert response.json() == json.loads('{ "enable": "true" }')
     apteryx_set("/test/settings/enable", "false")
-    response = requests.get("http://{}:{}{}/test/settings/enable".format(host,port,docroot))
+    response = requests.get("{}{}/test/settings/enable".format(server_uri,docroot), verify=False, auth=server_auth)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
-    assert response.headers["Content-Type"] == "application/yang.data+json"
+    assert response.headers["Content-Type"] == "application/json"
     assert response.json() == json.loads('{ "enable": "false" }')
 
+@pytest.mark.skipif(not json_types, reason="do not support JSON types")
 def test_rest_get_boolean_boolean():
-    response = requests.get("http://{}:{}{}/test/settings/enable".format(host,port,docroot), headers={"X-JSON-Types":"on","X-JSON-Array":"on"})
+    response = requests.get("{}{}/test/settings/enable".format(server_uri,docroot), verify=False, auth=server_auth, headers=json_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
-    assert response.headers["Content-Type"] == "application/yang.data+json"
+    assert response.headers["Content-Type"] == "application/json"
     assert response.json() == json.loads('{ "enable": true }')
     apteryx_set("/test/settings/enable", "false")
-    response = requests.get("http://{}:{}{}/test/settings/enable".format(host,port,docroot), headers={"X-JSON-Types":"on","X-JSON-Array":"on"})
+    response = requests.get("{}{}/test/settings/enable".format(server_uri,docroot), verify=False, auth=server_auth, headers=json_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
-    assert response.headers["Content-Type"] == "application/yang.data+json"
+    assert response.headers["Content-Type"] == "application/json"
     assert response.json() == json.loads('{ "enable": false }')
 
-def test_rest_get_value_name():
-    response = requests.get("http://{}:{}{}/test/settings/debug".format(host,port,docroot))
+def test_rest_get_enum_value():
+    response = requests.get("{}{}/test/settings/debug".format(server_uri,docroot), verify=False, auth=server_auth)
     assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/json"
+    assert response.json() == json.loads('{ "debug": "1" }')
+    apteryx_set("/test/settings/debug", "0")
+    response = requests.get("{}{}/test/settings/debug".format(server_uri,docroot), verify=False, auth=server_auth)
     assert response.status_code == 200
-    assert response.headers["Content-Type"] == "application/yang.data+json"
+    assert response.headers["Content-Type"] == "application/json"
+    assert response.json() == json.loads('{ "debug": "0" }')
+
+@pytest.mark.skipif(not json_types, reason="do not support JSON types")
+def test_rest_get_enum_name():
+    response = requests.get("{}{}/test/settings/debug".format(server_uri,docroot), verify=False, auth=server_auth, headers=json_headers)
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/json"
     assert response.json() == json.loads('{ "debug": "enable" }')
+    apteryx_set("/test/settings/debug", "0")
+    response = requests.get("{}{}/test/settings/debug".format(server_uri,docroot), verify=False, auth=server_auth, headers=json_headers)
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/json"
+    assert response.json() == json.loads('{ "debug": "disable" }')
 
 def test_rest_get_node_null():
-    os.system("%s -s %s %s" % (APTERYX, "/test/settings/debug", ""))
-    response = requests.get("http://{}:{}{}/test/settings/debug".format(host,port,docroot), headers={"X-JSON-Types":"on","X-JSON-Array":"on"})
+    apteryx_set("/test/settings/debug", "")
+    response = requests.get("{}{}/test/settings/debug".format(server_uri,docroot), verify=False, auth=server_auth, headers=json_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
-    assert response.headers["Content-Type"] == "application/yang.data+json"
+    assert response.headers["Content-Type"] == "application/json"
     assert response.json() == json.loads('{}')
 
 def test_rest_get_tree_strings():
-    response = requests.get("http://{}:{}{}/test/settings".format(host,port,docroot))
+    response = requests.get("{}{}/test/settings".format(server_uri,docroot), verify=False, auth=server_auth)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
-    assert response.headers["Content-Type"] == "application/yang.data+json"
+    assert response.headers["Content-Type"] == "application/json"
     assert response.json() == json.loads("""
 {
     "settings": {
         "enable": "true",
-        "debug": "enable",
+        "debug": "1",
         "priority": "1"
     }
 }
 """)
 
+@pytest.mark.skipif(not json_types, reason="do not support JSON types")
 def test_rest_get_tree_json_types():
-    response = requests.get("http://{}:{}{}/test/settings".format(host,port,docroot), headers={"X-JSON-Types":"on","X-JSON-Array":"on"})
+    response = requests.get("{}{}/test/settings".format(server_uri,docroot), verify=False, auth=server_auth, headers=json_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
-    assert response.headers["Content-Type"] == "application/yang.data+json"
+    assert response.headers["Content-Type"] == "application/json"
     assert response.json() == json.loads("""
 {
     "settings": {
@@ -151,11 +182,27 @@ def test_rest_get_tree_json_types():
 }
 """)
 
-def test_rest_get_list_object():
-    response = requests.get("http://{}:{}{}/test/animals/animal".format(host,port,docroot), headers={"X-JSON-Types":"on"})
+def test_rest_get_list_object_strings():
+    response = requests.get("{}{}/test/animals/animal".format(server_uri,docroot), verify=False, auth=server_auth)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
-    assert response.headers["Content-Type"] == "application/yang.data+json"
+    assert response.headers["Content-Type"] == "application/json"
+    assert response.json() == json.loads("""
+{
+    "animal": {
+        "cat": {"name": "cat", "type": "1"},
+        "dog": {"name": "dog", "colour": "brown"},
+        "mouse": {"name": "mouse", "colour": "grey", "type": "2"}
+    }
+}
+""")
+
+@pytest.mark.skipif(not json_types, reason="do not support JSON types")
+def test_rest_get_list_object_types():
+    response = requests.get("{}{}/test/animals/animal".format(server_uri,docroot), verify=False, auth=server_auth, headers={"X-JSON-Types":"on"})
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/json"
     assert response.json() == json.loads("""
 {
     "animal": {
@@ -167,77 +214,102 @@ def test_rest_get_list_object():
 """)
 
 def test_rest_get_list_array():
-    response = requests.get("http://{}:{}{}/test/animals/animal".format(host,port,docroot), headers={"X-JSON-Types":"on","X-JSON-Array":"on"})
+    response = requests.get("{}{}/test/animals/animal".format(server_uri,docroot), verify=False, auth=server_auth, headers={"X-JSON-Array":"on"})
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
-    assert response.headers["Content-Type"] == "application/yang.data+json"
+    assert response.headers["Content-Type"] == "application/json"
     assert response.json() == json.loads("""
 {
     "animal": [
-        {"name": "cat", "type": "big"},
+        {"name": "cat", "type": "1"},
         {"name": "dog", "colour": "brown"},
-        {"name": "mouse", "colour": "grey", "type": "little"}
+        {"name": "mouse", "colour": "grey", "type": "2"}
     ]
 }
 """)
 
+def test_rest_get_list_select_one_strings():
+    response = requests.get("{}{}/test/animals/animal/cat".format(server_uri,docroot), verify=False, auth=server_auth)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/json"
+    assert response.json() == json.loads("""
+{
+    "cat": {
+        "name": "cat",
+        "type": "1"
+    }
+}
+""")
+
+def test_rest_get_list_select_one_array():
+    response = requests.get("{}{}/test/animals/animal/cat".format(server_uri,docroot), verify=False, auth=server_auth, headers=json_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/json"
+    assert response.json() == json.loads("""
+{
+    [ {"name": "cat", "type": "1"} ]
+}
+""")
+
 def test_rest_get_etag_exists():
-    response = requests.get("http://{}:{}{}/test/settings/debug".format(host,port,docroot), headers={"X-JSON-Types":"on","X-JSON-Array":"on"})
+    response = requests.get("{}{}/test/settings/enable".format(server_uri,docroot), verify=False, auth=server_auth)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     print(response.headers.get("ETag"))
     assert response.status_code == 200
-    assert response.headers["Content-Type"] == "application/yang.data+json"
+    assert response.headers["Content-Type"] == "application/json"
     assert response.headers.get("ETag") != None
-    assert response.json() == json.loads('{ "debug": "enable" }')
+    assert response.json() == json.loads('{ "enable": "true" }')
 
 def test_rest_get_etag_changes():
-    response = requests.get("http://{}:{}{}/test/settings/debug".format(host,port,docroot), headers={"X-JSON-Types":"on","X-JSON-Array":"on"})
+    response = requests.get("{}{}/test/settings/enable".format(server_uri,docroot), verify=False, auth=server_auth)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     print(response.headers.get("ETag"))
     assert response.status_code == 200
-    assert response.headers["Content-Type"] == "application/yang.data+json"
+    assert response.headers["Content-Type"] == "application/json"
     assert response.headers.get("ETag") != None
-    assert response.json() == json.loads('{ "debug": "enable" }')
+    assert response.json() == json.loads('{ "enable": "true" }')
     tag1 = response.headers.get("ETag")
-    response = requests.get("http://{}:{}{}/test/settings/debug".format(host,port,docroot), headers={"X-JSON-Types":"on","X-JSON-Array":"on"})
+    response = requests.get("{}{}/test/settings/enable".format(server_uri,docroot), verify=False, auth=server_auth)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     print(response.headers.get("ETag"))
     assert response.status_code == 200
     assert tag1 == response.headers.get("ETag")
-    os.system("%s -s %s %s" % (APTERYX, "/test/settings/debug", "disable"))
-    response = requests.get("http://{}:{}{}/test/settings/debug".format(host,port,docroot), headers={"X-JSON-Types":"on","X-JSON-Array":"on"})
+    apteryx_set("/test/settings/enable", "false")
+    response = requests.get("{}{}/test/settings/enable".format(server_uri,docroot), verify=False, auth=server_auth)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     print(response.headers.get("ETag"))
     assert response.status_code == 200
-    assert response.json() == json.loads('{ "debug": "disable" }')
+    assert response.json() == json.loads('{ "enable": "false" }')
     assert tag1 != response.headers.get("ETag")
 
 def test_rest_get_etag_not_modified():
-    response = requests.get("http://{}:{}{}/test/settings/debug".format(host,port,docroot), headers={"X-JSON-Types":"on","X-JSON-Array":"on"})
+    response = requests.get("{}{}/test/settings/enable".format(server_uri,docroot), verify=False, auth=server_auth)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     print(response.headers.get("ETag"))
     assert response.status_code == 200
-    assert response.headers["Content-Type"] == "application/yang.data+json"
+    assert response.headers["Content-Type"] == "application/json"
     assert response.headers.get("ETag") != None
-    assert response.json() == json.loads('{ "debug": "enable" }')
+    assert response.json() == json.loads('{ "enable": "true" }')
     tag1 = response.headers.get("ETag")
-    response = requests.get("http://{}:{}{}/test/settings/debug".format(host,port,docroot), headers={"If-None-Match": str(tag1)})
+    response = requests.get("{}{}/test/settings/enable".format(server_uri,docroot), verify=False, auth=server_auth, headers={"If-None-Match": str(tag1)})
     print(response.headers.get("ETag"))
     assert response.status_code == 304
     assert len(response.content) == 0
 
 def test_rest_get_not_found():
-    response = requests.get("http://{}:{}{}/test/settings/invalid".format(host,port,docroot))
+    response = requests.get("{}{}/test/settings/invalid".format(server_uri,docroot), verify=False, auth=server_auth)
     assert response.status_code == 404
     assert len(response.content) == 0
 
 def test_rest_get_forbidden():
-    response = requests.get("http://{}:{}{}/test/settings/writeonly".format(host,port,docroot))
+    response = requests.get("{}{}/test/settings/writeonly".format(server_uri,docroot), verify=False, auth=server_auth)
     assert response.status_code == 403
     assert len(response.content) == 0
 
 def test_rest_get_hidden_node():
-    response = requests.get("http://{}:{}{}/test/settings/hidden".format(host,port,docroot))
+    response = requests.get("{}{}/test/settings/hidden".format(server_uri,docroot), verify=False, auth=server_auth)
     assert response.status_code == 403
     assert len(response.content) == 0
 
@@ -245,76 +317,91 @@ def test_rest_get_hidden_tree():
     apteryx_set("/test/settings/debug", "")
     apteryx_set("/test/settings/enable", "")
     apteryx_set("/test/settings/priority", "")
-    response = requests.get("http://{}:{}{}/test/settings".format(host,port,docroot))
+    response = requests.get("{}{}/test/settings".format(server_uri,docroot), verify=False, auth=server_auth)
     assert response.status_code == 200
     assert response.json() == json.loads('{}')
 
 # SET
 
 def test_rest_set_single_node():
-    response = requests.post("http://{}:{}{}/test/settings".format(host,port,docroot), data="""{"priority": "5"}""")
+    response = requests.post("{}{}/test/settings".format(server_uri,docroot), verify=False, auth=server_auth, data="""{"priority": "5"}""")
     assert response.status_code == 200
     assert len(response.content) == 0
     assert apteryx_get("/test/settings/priority") == "5"
 
+@pytest.mark.skipif(not json_types, reason="do not support JSON types")
 def test_rest_set_value_name():
-    response = requests.post("http://{}:{}{}/test/settings".format(host,port,docroot), data="""{"debug": "disable"}""")
+    response = requests.post("{}{}/test/settings".format(server_uri,docroot), verify=False, auth=server_auth, data="""{"debug": "disable"}""")
     assert response.status_code == 200
     assert len(response.content) == 0
     assert apteryx_get("/test/settings/debug") == "0"
-    response = requests.post("http://{}:{}{}/test/settings".format(host,port,docroot), data="""{"debug": "enable"}""")
+    response = requests.post("{}{}/test/settings".format(server_uri,docroot), verify=False, auth=server_auth, data="""{"debug": "enable"}""")
     assert response.status_code == 200
     assert len(response.content) == 0
     assert apteryx_get("/test/settings/debug") == "1"
 
-def test_rest_set_value_alt():
-    response = requests.post("http://{}:{}{}/test/settings".format(host,port,docroot), data="""{"debug": "0"}""")
+def test_rest_set_value_value():
+    response = requests.post("{}{}/test/settings".format(server_uri,docroot), verify=False, auth=server_auth, data="""{"debug": "0"}""")
     assert response.status_code == 200
     assert len(response.content) == 0
     assert apteryx_get("/test/settings/debug") == "0"
-    response = requests.post("http://{}:{}{}/test/settings".format(host,port,docroot), data="""{"debug": "1"}""")
+    response = requests.post("{}{}/test/settings".format(server_uri,docroot), verify=False, auth=server_auth, data="""{"debug": "1"}""")
     assert response.status_code == 200
     assert len(response.content) == 0
     assert apteryx_get("/test/settings/debug") == "1"
 
 def test_rest_set_node_null():
-    response = requests.post("http://{}:{}{}/test/settings".format(host,port,docroot), data="""{"debug": ""}""")
+    response = requests.post("{}{}/test/settings".format(server_uri,docroot), verify=False, auth=server_auth, data="""{"debug": ""}""")
     assert response.status_code == 200
     assert len(response.content) == 0
-    response = requests.get("http://{}:{}{}/test/settings/debug".format(host,port,docroot))
+    response = requests.get("{}{}/test/settings/debug".format(server_uri,docroot), verify=False, auth=server_auth)
     assert response.status_code == 200
     assert response.json() == json.loads('{}')
 
 def test_rest_set_invalid_path():
-    response = requests.post("http://{}:{}{}/test/cabbage".format(host,port,docroot), data="""{"debug": "enable"}""")
+    response = requests.post("{}{}/test/cabbage".format(server_uri,docroot), verify=False, auth=server_auth, data="""{"debug": "enable"}""")
     assert response.status_code == 403
     assert len(response.content) == 0
     assert apteryx_get("/test/cabbage/debug") == "Not found"
 
-def test_rest_set_invalid_value():
-    response = requests.post("http://{}:{}{}/test/settings".format(host,port,docroot), data="""{"debug": "cabbage"}""")
+def test_rest_set_invalid_enum_value():
+    response = requests.post("{}{}/test/settings".format(server_uri,docroot), verify=False, auth=server_auth, data="""{"debug": "cabbage"}""")
     assert response.status_code == 400
     assert len(response.content) == 0
     assert apteryx_get("/test/settings/debug") == "1"
 
 def test_rest_set_readonly():
-    response = requests.post("http://{}:{}{}/test/state".format(host,port,docroot), data="""{"counter": "123"}""")
+    response = requests.post("{}{}/test/state".format(server_uri,docroot), verify=False, auth=server_auth, data="""{"counter": "123"}""")
     assert response.status_code == 403
     assert len(response.content) == 0
     assert apteryx_get("/test/state/counter") == "42"
 
 def test_rest_set_hidden():
-    response = requests.post("http://{}:{}{}/test/settings".format(host,port,docroot), data="""{"hidden": "cabbage"}""")
+    response = requests.post("{}{}/test/settings".format(server_uri,docroot), verify=False, auth=server_auth, data="""{"hidden": "cabbage"}""")
     assert response.status_code == 403
     assert len(response.content) == 0
     assert apteryx_get("/test/settings/hidden") == "friend"
 
-def test_rest_set_out_of_range_integer():
-    response = requests.post("http://{}:{}{}/test/settings".format(host,port,docroot), data="""{"priority": 0}""")
+def test_rest_set_out_of_range_integer_string():
+    response = requests.post("{}{}/test/settings".format(server_uri,docroot), verify=False, auth=server_auth, data="""{"priority": "1"}""")
+    assert response.status_code == 200
+    response = requests.post("{}{}/test/settings".format(server_uri,docroot), verify=False, auth=server_auth, data="""{"priority": "0"}""")
     assert response.status_code == 400
-    response = requests.post("http://{}:{}{}/test/settings".format(host,port,docroot), data="""{"priority": 6}""")
+    response = requests.post("{}{}/test/settings".format(server_uri,docroot), verify=False, auth=server_auth, data="""{"priority": "6"}""")
     assert response.status_code == 400
-    response = requests.post("http://{}:{}{}/test/settings".format(host,port,docroot), data="""{"priority": 55}""")
+    response = requests.post("{}{}/test/settings".format(server_uri,docroot), verify=False, auth=server_auth, data="""{"priority": "55"}""")
+    assert response.status_code == 400
+    assert apteryx_get("/test/settings/priority") == "1"
+
+@pytest.mark.skipif(not json_types, reason="do not support JSON types")
+def test_rest_set_out_of_range_integer_integer():
+    response = requests.post("{}{}/test/settings".format(server_uri,docroot), verify=False, auth=server_auth, data="""{"priority": 1}""")
+    assert response.status_code == 200
+    response = requests.post("{}{}/test/settings".format(server_uri,docroot), verify=False, auth=server_auth, data="""{"priority": 0}""")
+    assert response.status_code == 400
+    response = requests.post("{}{}/test/settings".format(server_uri,docroot), verify=False, auth=server_auth, data="""{"priority": 6}""")
+    assert response.status_code == 400
+    response = requests.post("{}{}/test/settings".format(server_uri,docroot), verify=False, auth=server_auth, data="""{"priority": 55}""")
     assert response.status_code == 400
     assert apteryx_get("/test/settings/priority") == "1"
 
@@ -323,40 +410,40 @@ def test_rest_set_tree_static():
 {
     "settings": {
         "enable": "false",
-        "debug": "disable",
+        "debug": "0",
         "priority": "5"
     }
 }
 """
-    response = requests.post("http://{}:{}{}/test".format(host,port,docroot), data=tree)
+    response = requests.post("{}{}/test".format(server_uri,docroot), verify=False, auth=server_auth, data=tree)
     assert response.status_code == 200
-    response = requests.get("http://{}:{}{}/test/settings".format(host,port,docroot))
+    response = requests.get("{}{}/test/settings".format(server_uri,docroot), verify=False, auth=server_auth)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
-    assert response.headers["Content-Type"] == "application/yang.data+json"
+    assert response.headers["Content-Type"] == "application/json"
     assert response.json() == json.loads(tree)
 
 def test_rest_set_tree_null_value():
     tree = """
 {
     "settings": {
-        "enable": false,
+        "enable": "false",
         "debug": "",
-        "priority": 5
+        "priority": "5"
     }
 }
 """
-    response = requests.post("http://{}:{}{}/test".format(host,port,docroot), data=tree)
+    response = requests.post("{}{}/test".format(server_uri,docroot), verify=False, auth=server_auth, data=tree)
     assert response.status_code == 200
-    response = requests.get("http://{}:{}{}/test/settings".format(host,port,docroot), headers={"X-JSON-Types":"on","X-JSON-Array":"on"})
+    response = requests.get("{}{}/test/settings".format(server_uri,docroot), verify=False, auth=server_auth)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
-    assert response.headers["Content-Type"] == "application/yang.data+json"
+    assert response.headers["Content-Type"] == "application/json"
     assert response.json() == json.loads("""
 {
     "settings": {
-        "enable": false,
-        "priority": 5
+        "enable": "false",
+        "priority": "5"
     }
 }
 """)
@@ -368,25 +455,25 @@ def test_rest_set_tree_list_full_strings():
         "animal": {
             "frog": {
                 "name": "frog",
-                "type": "little"
+                "type": "1"
             }
         }
     }
 }
 """
-    response = requests.post("http://{}:{}{}/test".format(host,port,docroot), data=tree)
+    response = requests.post("{}{}/test".format(server_uri,docroot), verify=False, auth=server_auth, data=tree)
     assert response.status_code == 200
-    response = requests.get("http://{}:{}{}/test/animals".format(host,port,docroot))
+    response = requests.get("{}{}/test/animals".format(server_uri,docroot), verify=False, auth=server_auth)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
-    assert response.headers["Content-Type"] == "application/yang.data+json"
+    assert response.headers["Content-Type"] == "application/json"
     assert response.json() == json.loads("""
 {
     "animals": {
         "animal": {
             "cat": {
                 "name": "cat",
-                "type": "big"
+                "type": "1"
             },
             "dog": {
                 "name": "dog",
@@ -394,11 +481,11 @@ def test_rest_set_tree_list_full_strings():
             },
             "frog": {
                 "name": "frog",
-                "type": "little"
+                "type": "1"
             },
             "mouse": {
                 "name": "mouse",
-                "type": "little",
+                "type": "2",
                 "colour": "grey"
             }
         }
@@ -410,20 +497,20 @@ def test_rest_set_tree_list_single_strings():
     tree = """
 {
     "name": "frog",
-    "type": "little"
+    "type": "2"
 }
 """
-    response = requests.post("http://{}:{}{}/test/animals/animal/frog".format(host,port,docroot), data=tree)
+    response = requests.post("{}{}/test/animals/animal/frog".format(server_uri,docroot), verify=False, auth=server_auth, data=tree)
     assert response.status_code == 200
-    response = requests.get("http://{}:{}{}/test/animals/animal/frog".format(host,port,docroot))
+    response = requests.get("{}{}/test/animals/animal/frog".format(server_uri,docroot), verify=False, auth=server_auth)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
-    assert response.headers["Content-Type"] == "application/yang.data+json"
+    assert response.headers["Content-Type"] == "application/json"
     assert response.json() == json.loads("""
 {
     "frog": {
         "name": "frog",
-        "type": "little"
+        "type": "2"
     }
 }
 """)
@@ -435,25 +522,25 @@ def test_rest_set_tree_list_full_arrays():
         "animal": [
             {
                 "name": "frog",
-                "type": "little"
+                "type": "2"
             }
         ]
     }
 }
 """
-    response = requests.post("http://{}:{}{}/test".format(host,port,docroot), headers={"X-JSON-Types":"on","X-JSON-Array":"on"}, data=tree)
+    response = requests.post("{}{}/test".format(server_uri,docroot), verify=False, auth=server_auth, headers=json_headers, data=tree)
     assert response.status_code == 200
-    response = requests.get("http://{}:{}{}/test/animals".format(host,port,docroot), headers={"X-JSON-Types":"on","X-JSON-Array":"on"})
+    response = requests.get("{}{}/test/animals".format(server_uri,docroot), verify=False, auth=server_auth, headers={"X-JSON-Array":"on"})
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
-    assert response.headers["Content-Type"] == "application/yang.data+json"
+    assert response.headers["Content-Type"] == "application/json"
     assert response.json() == json.loads("""
 {
     "animals": {
         "animal": [
             {
                 "name": "cat",
-                "type": "big"
+                "type": "1"
             },
             {
                 "name": "dog",
@@ -461,11 +548,11 @@ def test_rest_set_tree_list_full_arrays():
             },
             {
                 "name": "frog",
-                "type": "little"
+                "type": "2"
             },
             {
                 "name": "mouse",
-                "type": "little",
+                "type": "2",
                 "colour": "grey"
             }
         ]
@@ -474,47 +561,48 @@ def test_rest_set_tree_list_full_arrays():
 """)
 
 def test_rest_set_true_false_string():
-    response = requests.post("http://{}:{}{}/test/settings".format(host,port,docroot), data="""{"enable": "false"}""")
+    response = requests.post("{}{}/test/settings".format(server_uri,docroot), verify=False, auth=server_auth, data="""{"enable": "false"}""")
     assert response.status_code == 200
     assert apteryx_get("/test/settings/enable") == "false"
-    response = requests.post("http://{}:{}{}/test/settings".format(host,port,docroot), data="""{"enable": "true"}""")
+    response = requests.post("{}{}/test/settings".format(server_uri,docroot), verify=False, auth=server_auth, data="""{"enable": "true"}""")
     assert response.status_code == 200
     assert apteryx_get("/test/settings/enable") == "true"
 
+@pytest.mark.skipif(not json_types, reason="do not support JSON types")
 def test_rest_set_true_false_boolean():
-    response = requests.post("http://{}:{}{}/test/settings".format(host,port,docroot), data="""{"enable": false}""")
+    response = requests.post("{}{}/test/settings".format(server_uri,docroot), verify=False, auth=server_auth, data="""{"enable": false}""")
     assert response.status_code == 200
     assert apteryx_get("/test/settings/enable") == "false"
-    response = requests.post("http://{}:{}{}/test/settings".format(host,port,docroot), data="""{"enable": true}""")
+    response = requests.post("{}{}/test/settings".format(server_uri,docroot), verify=False, auth=server_auth, data="""{"enable": true}""")
     assert response.status_code == 200
     assert apteryx_get("/test/settings/enable") == "true"
 
 # DELETE
 
 def test_rest_delete_single_node():
-    response = requests.delete("http://{}:{}{}/test/settings/debug".format(host,port,docroot))
+    response = requests.delete("{}{}/test/settings/debug".format(server_uri,docroot), verify=False, auth=server_auth)
     assert response.status_code == 200
     assert len(response.content) == 0
-    response = requests.get("http://{}:{}{}/test/settings/debug".format(host,port,docroot))
+    response = requests.get("{}{}/test/settings/debug".format(server_uri,docroot), verify=False, auth=server_auth)
     assert response.status_code == 200
     assert response.json() == json.loads('{}')
 
 def test_rest_delete_trunk():
-    response = requests.delete("http://{}:{}{}/test/settings".format(host,port,docroot))
+    response = requests.delete("{}{}/test/settings".format(server_uri,docroot), verify=False, auth=server_auth)
     assert response.status_code == 200
     assert len(response.content) == 0
-    response = requests.get("http://{}:{}{}/test/settings".format(host,port,docroot))
+    response = requests.get("{}{}/test/settings".format(server_uri,docroot), verify=False, auth=server_auth)
     assert response.status_code == 200
     assert response.json() == json.loads('{}')
 
 def test_rest_delete_list_entry():
-    response = requests.delete("http://{}:{}{}/test/animals/animal/cat".format(host,port,docroot))
+    response = requests.delete("{}{}/test/animals/animal/cat".format(server_uri,docroot), verify=False, auth=server_auth)
     assert response.status_code == 200
     assert len(response.content) == 0
-    response = requests.get("http://{}:{}{}/test/animals".format(host,port,docroot), headers={"X-JSON-Types":"on","X-JSON-Array":"on"})
+    response = requests.get("{}{}/test/animals".format(server_uri,docroot), verify=False, auth=server_auth, headers={"X-JSON-Array":"on"})
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
-    assert response.headers["Content-Type"] == "application/yang.data+json"
+    assert response.headers["Content-Type"] == "application/json"
     assert response.json() == json.loads("""
 {
     "animals": {
@@ -525,7 +613,7 @@ def test_rest_delete_list_entry():
             },
             {
                 "name": "mouse",
-                "type": "little",
+                "type": "2",
                 "colour": "grey"
             }
         ]
@@ -536,10 +624,10 @@ def test_rest_delete_list_entry():
 # SEARCH 
 
 def test_rest_search_node():
-    response = requests.get("http://{}:{}{}/test/settings/enable/".format(host,port,docroot))
+    response = requests.get("{}{}/test/settings/enable/".format(server_uri,docroot), verify=False, auth=server_auth)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
-    assert response.headers["Content-Type"] == "application/yang.data+json"
+    assert response.headers["Content-Type"] == "application/json"
     assert response.json() == json.loads("""
 {
     "enable": []
@@ -547,10 +635,10 @@ def test_rest_search_node():
 """)
 
 def test_rest_search_trunk():
-    response = requests.get("http://{}:{}{}/test/settings/".format(host,port,docroot))
+    response = requests.get("{}{}/test/settings/".format(server_uri,docroot), verify=False, auth=server_auth)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
-    assert response.headers["Content-Type"] == "application/yang.data+json"
+    assert response.headers["Content-Type"] == "application/json"
     assert response.json() == json.loads("""
 {
     "settings": [
@@ -562,10 +650,10 @@ def test_rest_search_trunk():
 """)
 
 def test_rest_search_list():
-    response = requests.get("http://{}:{}{}/test/animals/animal/".format(host,port,docroot))
+    response = requests.get("{}{}/test/animals/animal/".format(server_uri,docroot), verify=False, auth=server_auth)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
-    assert response.headers["Content-Type"] == "application/yang.data+json"
+    assert response.headers["Content-Type"] == "application/json"
     assert response.json() == json.loads("""
 {
     "animal": [
@@ -576,16 +664,17 @@ def test_rest_search_list():
 }
 """)
 
+@pytest.mark.skipif(not search_etag, reason="do not support ETAG on search")
 def test_rest_search_etag_not_modified():
-    response = requests.get("http://{}:{}{}/test/animals/animal/".format(host,port,docroot))
+    response = requests.get("{}{}/test/animals/animal/".format(server_uri,docroot), verify=False, auth=server_auth)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     print(response.headers.get("ETag"))
     assert response.status_code == 200
-    assert response.headers["Content-Type"] == "application/yang.data+json"
+    assert response.headers["Content-Type"] == "application/json"
     assert response.headers.get("ETag") != None
     assert response.headers.get("ETag") != "0"
     tag1 = response.headers.get("ETag")
-    response = requests.get("http://{}:{}{}/test/animals/animal/".format(host,port,docroot), headers={"If-None-Match": str(tag1)})
+    response = requests.get("{}{}/test/animals/animal/".format(server_uri,docroot), verify=False, auth=server_auth, headers={"If-None-Match": str(tag1)})
     print(response.headers.get("ETag"))
     assert response.status_code == 304
     assert len(response.content) == 0

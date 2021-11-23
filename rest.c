@@ -40,7 +40,7 @@ rest_api_xml (void)
     if (xmlbuf)
     {
         resp = g_strdup_printf ("Status: 200\r\n"
-                                "Content-Type: txt/xml\r\n" "\r\n" "%s", (char *) xmlbuf);
+                                "Content-Type: text/xml\r\n" "\r\n" "%s", (char *) xmlbuf);
         free (xmlbuf);
     }
     return resp;
@@ -117,7 +117,7 @@ rest_api_search (const char *path, const char *if_none_match)
   exit:
     resp = g_strdup_printf ("Status: %d\r\n"
                             "Etag: %" PRIX64 "\r\n"
-                            "Content-Type: application/yang.data+json\r\n"
+                            "Content-Type: application/json\r\n"
                             "\r\n" "%s", rc, ts, data ? : "");
     free (data);
     return resp;
@@ -159,9 +159,12 @@ _tree_to_json (sch_node * api_root, GNode * data_root, bool use_json_arrays,
             return NULL;
         }
         char *value = strdup (APTERYX_VALUE (data_root));
-        value = sch_translate_to (api_root, value);
+        
         if (use_json_types)
+        {
+            value = sch_translate_to (api_root, value);
             json_value = encode_json_type (value);
+        }
         else
             json_value = json_string (value);
         free (value);
@@ -331,7 +334,7 @@ rest_api_get (int flags, const char *path, const char *if_none_match)
     /* Add header */
     resp = g_strdup_printf ("Status: %d\r\n"
                             "Etag: %" PRIX64 "\r\n"
-                            "Content-Type: application/yang.data+json\r\n"
+                            "Content-Type: application/json\r\n"
                             "\r\n" "%s", rc, ts, json_string ? : "");
     free (json_string);
 
