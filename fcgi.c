@@ -133,6 +133,11 @@ get_flags (FCGX_Request * r)
     if (param && strcmp (param, "off") == 0)
         flags &= ~FLAGS_JSON_FORMAT_TYPES;
 
+    /* Detect restconf */
+    param = FCGX_GetParam ("DOCUMENT_ROOT", r->envp);
+    if (param && strstr (param, "restconf"))
+        flags |= (FLAGS_RESTCONF | FLAGS_JSON_FORMAT_ARRAYS | FLAGS_JSON_FORMAT_TYPES);
+
     return flags;
 }
 

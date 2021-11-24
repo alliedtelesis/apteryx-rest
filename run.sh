@@ -116,8 +116,6 @@ export PKG_CONFIG_PATH=$BUILD/usr/lib/pkgconfig
 if [ ! -f $BUILD/../Makefile ]; then
     cd $BUILD/../
     ./autogen.sh
-    APTERYX_CFLAGS=-I$BUILD/usr/include APTERYX_LIBS=-lapteryx \
-      APTERYX_XML_CFLAGS=-I$BUILD/usr/include APTERYX_XML_LIBS=-lapteryx-schema \
       LIBFCGI_CFLAGS=-I$BUILD/usr/include LIBFCGI_LIBS=-lfcgi \
       ./configure 
     rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
@@ -148,6 +146,19 @@ if [ "$1" == "nginx" ]; then
             listen 8080;
             location /api {
                 root /api;
+                fastcgi_pass unix:'$BUILD'/apteryx-rest.sock;
+                fastcgi_buffering off;
+                fastcgi_read_timeout 1d;
+                fastcgi_param NO_BUFFERING "";
+                fastcgi_param DOCUMENT_ROOT      $document_root;
+                fastcgi_param REQUEST_METHOD     $request_method;
+                fastcgi_param REQUEST_URI        $request_uri;
+                fastcgi_param CONTENT_TYPE       $content_type;
+                fastcgi_param CONTENT_LENGTH     $content_length;
+                fastcgi_param HTTP_IF_NONE_MATCH $http_if_none_match;
+            }
+            location /restconf {
+                root /restconf;
                 fastcgi_pass unix:'$BUILD'/apteryx-rest.sock;
                 fastcgi_buffering off;
                 fastcgi_read_timeout 1d;
@@ -194,6 +205,13 @@ else
       "/api" => (
         "fastcgi.handler" => (
           "docroot" => "/api",
+          "socket" => "'$BUILD'/apteryx-rest.sock",
+          "check-local" => "disable",
+        )
+      ),
+      "/restconf" => (
+        "fastcgi.handler" => (
+          "docroot" => "/restconf",
           "socket" => "'$BUILD'/apteryx-rest.sock",
           "check-local" => "disable",
         )

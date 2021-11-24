@@ -54,6 +54,7 @@ extern bool verbose;
 #define FLAGS_JSON_FORMAT_TYPES  (1 << 7)
 #define FLAGS_EVENT_STREAM       (1 << 8)
 #define FLAGS_APPLICATION_STREAM (1 << 9)
+#define FLAGS_RESTCONF           (1 << 10)
 typedef void *req_handle;
 void send_response (req_handle handle, const char *data, bool flush);
 bool is_connected (req_handle handle, bool block);
