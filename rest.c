@@ -20,7 +20,7 @@
 /* From libapteryx */
 extern bool add_callback (const char *type, const char *path, void *fn, bool value,
                           void *data, uint32_t flags);
-extern bool delete_callback (const char *type, const char *path, void *fn);
+extern bool delete_callback (const char *type, const char *path, void *fn, void *data);
 #include <jansson.h>
 
 #define HTTP_CODE_OK                    200
@@ -124,221 +124,110 @@ rest_api_search (const char *path, const char *if_none_match)
 }
 
 static json_t *
-encode_json_type (char *val)
+get_response_node (const char *path, json_t *root)
 {
-    json_t *json = NULL;
-    json_int_t i;
-    char *p;
+    const char *s = path;
+    int depth;
 
-    if (*val != '\0')
+    for (depth=0; s[depth]; s[depth]=='/' ? depth++ : *s++);
+    while (root && depth > 2)
     {
-        i = strtoll (val, &p, 10);
-        if (*p == '\0')
-            json = json_integer (i);
-        if (g_strcmp0 (val, "true") == 0)
-            json = json_true ();
-        if (g_strcmp0 (val, "false") == 0)
-            json = json_false ();
+        root = json_object_iter_value (json_object_iter (root));
+        depth--;
     }
-    if (!json)
-        json = json_string (val);
-    return json;
-}
-
-static json_t *
-_tree_to_json (sch_node * api_root, GNode * data_root, bool use_json_arrays,
-               bool use_json_types)
-{
-    if (APTERYX_HAS_VALUE (data_root))
-    {
-        json_t *json_value;
-
-        /* Assumption: mode fields will only be present on leaf nodes. */
-        if (!sch_is_readable (api_root))
-        {
-            return NULL;
-        }
-        char *value = strdup (APTERYX_VALUE (data_root));
-        
-        if (use_json_types)
-        {
-            value = sch_translate_to (api_root, value);
-            json_value = encode_json_type (value);
-        }
-        else
-            json_value = json_string (value);
-        free (value);
-        return json_value;
-    }
-    else
-    {
-        GNode *data_child;
-        json_t *json_root;
-        bool child_added = false;
-        bool print_as_array = false;
-
-        if (use_json_arrays)
-        {
-            print_as_array = sch_is_list (api_root);
-        }
-
-        /* Create a JSON node to match the current data node. If it turns out that there
-         * are no readable children then this will be thrown away. */
-        if (print_as_array)
-            json_root = json_array ();
-        else
-            json_root = json_object ();
-        if (use_json_arrays)
-            apteryx_sort_children (data_root, g_strcmp0);
-        for (data_child = g_node_first_child (data_root); data_child;
-             data_child = g_node_next_sibling (data_child))
-        {
-            sch_node *api_child;
-            json_t *json_child;
-
-            api_child = sch_node_child (api_root, APTERYX_NAME (data_child));
-            if (!api_child)
-            {
-                continue;
-            }
-
-            json_child =
-                _tree_to_json (api_child, data_child, use_json_arrays, use_json_types);
-            if (json_child)
-            {
-                if (print_as_array)
-                    json_array_append (json_root, json_child);
-                else
-                    json_object_set (json_root, APTERYX_NAME (data_child), json_child);
-                json_decref (json_child);
-                child_added = true;
-            }
-        }
-        if (!child_added)
-            json_decref (json_root);
-
-        return (child_added) ? json_root : NULL;
-    }
-}
-
-static json_t *
-tree_to_json (sch_node * api_root, GNode * data_root, bool use_json_arrays,
-              bool use_json_types)
-{
-    json_t *json_root = json_object ();
-    if (data_root)
-    {
-        json_t *json_child =
-            _tree_to_json (api_root, data_root, use_json_arrays, use_json_types);
-        if (json_child)
-        {
-            char *slash;
-            char *name;
-
-            /* The root of the data tree may hold multiple path components separated
-             * by slashes. We only want the last component. */
-            slash = strrchr (APTERYX_NAME (data_root), '/');
-            name = (slash) ? slash + 1 : APTERYX_NAME (data_root);
-            json_object_set (json_root, name, json_child);
-            json_decref (json_child);
-        }
-    }
-    return json_root;
+    return root;
 }
 
 static char *
 rest_api_get (int flags, const char *path, const char *if_none_match)
 {
-    sch_node *api_subtree;
-    GNode *data;
-    json_t *json;
-    char *json_string = NULL;
-    int rc = HTTP_CODE_OK;
-    char *resp;
+    json_t *json = NULL;
     uint64_t ts = 0;
-    bool json_arrays = (flags & FLAGS_JSON_FORMAT_ARRAYS);
-    bool json_types = (flags & FLAGS_JSON_FORMAT_TYPES);
+    int rc = HTTP_CODE_OK;
+    GNode *query, *tree;
+    char *json_string = NULL;
+    char *resp;
 
-    api_subtree = sch_lookup (g_schema, path);
-    if (!api_subtree)
+    /* Generate an aperyx query from the path */
+    query = sch_path_to_query (g_schema, NULL, path, 0);
+    if (!query)
     {
+        VERBOSE ("REST: Path \"%s\" not found\n", path);
         rc = HTTP_CODE_NOT_FOUND;
         goto exit;
     }
 
-    if (sch_is_leaf (api_subtree) && !sch_is_readable (api_subtree))
-    {
-        rc = HTTP_CODE_FORBIDDEN;
-        goto exit;
-    }
-
+    /* Get a timestamp for the query */
     ts = apteryx_timestamp (path);
     if (if_none_match && if_none_match[0] != '\0' &&
         ts == strtoull (if_none_match, NULL, 16))
     {
+        VERBOSE ("REST: Path \"%s\" not modified\n", path);
         rc = HTTP_CODE_NOT_MODIFIED;
         goto exit;
     }
 
-    data = apteryx_get_tree (path);
-    json = tree_to_json (api_subtree, data, json_arrays, json_types);
-    apteryx_free_tree (data);
-
-    /* Process requested JSON format options */
-    if (!(flags & FLAGS_JSON_FORMAT_ROOT) && !json_is_string (json))
+    /* Query the database */
+    tree = apteryx_query (query);
+    if (tree)
     {
-        /* Chop off the root node */
-        void *iter = json_object_iter (json);
-        json_t *json_new = json_object_iter_value (iter);
-        json_incref (json_new);
-        json_decref (json);
-        json = json_new;
-    }
-    if (flags & FLAGS_JSON_FORMAT_MULTI)
-    {
-        /* Top level array */
-        json_t *json_new = json_array ();
-        json_array_append_new (json_new, json);
-        json = json_new;
-    }
-
-    /* Dump to the output */
-    if (!(flags & FLAGS_JSON_FORMAT_ROOT) &&
-        (json_is_string (json) || json_is_integer (json) || json_is_boolean (json)))
-    {
-        if (json_types && json_is_integer (json))
+        /* Convert thre result to JSON */
+        int schflags = 0;
+        if (flags & FLAGS_JSON_FORMAT_ARRAYS)
+            schflags |= SCH_F_JSON_ARRAYS;
+        if (flags & FLAGS_JSON_FORMAT_TYPES)
+            schflags |= SCH_F_JSON_TYPES;
+        json = sch_gnode_to_json (g_schema, NULL, tree, schflags);
+        if (json)
         {
-            json_string =
-                g_strdup_printf ("%" JSON_INTEGER_FORMAT, json_integer_value (json));
-        }
-        else if (json_types && json_is_boolean (json))
-        {
-            json_string = g_strdup_printf ("%s", json_is_true (json) ? "true" : "false");
+            json_t *json_new = get_response_node (path, json);
+            if (!(flags & FLAGS_JSON_FORMAT_ROOT) && !json_is_string (json))
+            {
+                /* Chop off the root node */
+                json_new = json_object_iter_value (json_object_iter (json_new));
+            }
+            json_incref (json_new);
+            json_decref (json);
+            json = json_new;
+            if (flags & FLAGS_JSON_FORMAT_MULTI)
+            {
+                /* Top level array */
+                json_new = json_array ();
+                json_array_append_new (json_new, json);
+                json = json_new;
+            }
         }
         else
         {
-            json_string = g_strdup_printf ("\"%s\"", json_string_value (json));
+            json = json_object();
         }
+        apteryx_free_tree (tree);
+    }
+    else
+    {
+        json = json_object();
+    }
+    if (!(flags & FLAGS_JSON_FORMAT_ROOT) &&
+        (json_is_string (json) || json_is_integer (json) || json_is_boolean (json)))
+    {
+        if (flags & FLAGS_JSON_FORMAT_TYPES && json_is_integer (json))
+            json_string = g_strdup_printf ("%" JSON_INTEGER_FORMAT, json_integer_value (json));
+        else if (flags & FLAGS_JSON_FORMAT_TYPES && json_is_boolean (json))
+            json_string = g_strdup_printf ("%s", json_is_true (json) ? "true" : "false");
+        else
+            json_string = g_strdup_printf ("\"%s\"", json_string_value (json));
     }
     else
         json_string = json_dumps (json, 0);
-    if (!json_string)
-    {
-        ERROR ("Failed to format JSON for path %s\n", path);
-        json_decref (json);
-        return NULL;
-    }
-    json_decref (json);
-
-  exit:
-    /* Add header */
+exit:
     resp = g_strdup_printf ("Status: %d\r\n"
                             "Etag: %" PRIX64 "\r\n"
                             "Content-Type: application/json\r\n"
                             "\r\n" "%s", rc, ts, json_string ? : "");
     free (json_string);
-
-    /* Return response */
+    if (json)
+        json_decref (json);
+    apteryx_free_tree (query);
     return resp;
 }
 
@@ -669,34 +558,66 @@ typedef struct WatchRequest
     char *path;
     char *wpath;
 } WatchRequest;
+static GList *g_watch_requests = NULL;
+static pthread_mutex_t g_watch_lock = PTHREAD_MUTEX_INITIALIZER;
 
 static bool
-watch_callback (GNode * root, void *data)
+watch_callback (GNode * root, void *arg)
 {
-    WatchRequest *req = (WatchRequest *) data;
-    GNode *node = apteryx_path_node (root, req->path);
+    WatchRequest *req = (WatchRequest *) arg;
+    GNode *node;
+    json_t *json;
+    char *data;
+    int schflags = 0;
+
+    /* Protect the watch request list */
+    pthread_mutex_lock (&g_watch_lock);
+
+    /* Make sure the request is still valid */
+    if (!g_list_find (g_watch_requests, req))
+    {
+        ERROR ("REST: Watch callback no longer valid\n");
+        goto exit;
+    }
+
+    VERBOSE ("REST(%p): Watch callback for \"%s\"\n", req->handle, req->path);
+
+    /* Find the node representing the requested data */
+    node = apteryx_path_node (root, req->path);
     if (!node)
-        return false;
-    json_t *json = tree_to_json (req->api, node, true, true);
-    apteryx_free_tree (root);
-    void *iter = json_object_iter (json);
-    json_t *json_new = json_object_iter_value (iter);
-    json_incref (json_new);
-    json_decref (json);
-    json = json_new;
-    char *json_string = json_dumps (json, 0);
+    {
+        ERROR ("REST(%p): Watch callback could not find requested node in data\n", req->handle);
+        goto exit;
+    }
+
+    /* Convert the data to json from the expected path offset */
+    if (req->flags & FLAGS_JSON_FORMAT_ARRAYS)
+        schflags |= SCH_F_JSON_ARRAYS;
+    if (req->flags & FLAGS_JSON_FORMAT_TYPES)
+        schflags |= SCH_F_JSON_TYPES;
+    json = sch_gnode_to_json (g_schema, req->api, node, schflags);
+    if (!json || (data = json_dumps (json, JSON_ENCODE_ANY)) == NULL)
+    {
+        ERROR ("REST(%p): Failed to convert watch callback data to json\n", req->handle);
+        if (json)
+            json_decref (json);
+        goto exit;
+    }
 
     /* Send the event */
     if (req->flags & FLAGS_EVENT_STREAM)
-        send_response (req->handle, "data: ", false);
-    send_response (req->handle, json_string, false);
+        send_response (req->handle, "data: ", true);
+    send_response (req->handle, data, true);
     if (req->flags & FLAGS_EVENT_STREAM)
         send_response (req->handle, "\r\n\r\n", true);
     else
         send_response (req->handle, "\r\n", true);
     json_decref (json);
-    free (json_string);
+    free (data);
 
+exit:
+    pthread_mutex_unlock (&g_watch_lock);
+    apteryx_free_tree (root);
     return true;
 }
 
@@ -717,13 +638,17 @@ rest_api_watch (req_handle handle, int flags, const char *path)
 
     WatchRequest *req = g_malloc0 (sizeof (WatchRequest));
     req->handle = handle;
-    req->flags = flags;
+    req->flags = flags | FLAGS_JSON_FORMAT_ARRAYS | FLAGS_JSON_FORMAT_TYPES;
     req->api = api_subtree;
     req->path = g_strdup (path);
     if (sch_is_leaf (api_subtree))
         req->wpath = g_strdup (path);
     else
         req->wpath = g_strdup_printf ("%s/*", path);
+    DEBUG ("REST(%p): Adding watch for \"%s\"\n", req->handle, path);
+    pthread_mutex_lock (&g_watch_lock);
+    g_watch_requests = g_list_append (g_watch_requests, req);
+    pthread_mutex_unlock (&g_watch_lock);
     add_callback (APTERYX_WATCHERS_PATH, req->wpath, (void *) watch_callback, true,
                   (void *) req, 1);
 
@@ -740,8 +665,11 @@ rest_api_watch (req_handle handle, int flags, const char *path)
     {
         usleep (1000000);
     }
-
-    delete_callback (APTERYX_WATCHERS_PATH, req->wpath, (void *) watch_callback);
+    DEBUG ("REST(%p): Removing watch for \"%s\"\n", req->handle, path);
+    pthread_mutex_lock (&g_watch_lock);
+    g_watch_requests = g_list_remove (g_watch_requests, req);
+    pthread_mutex_unlock (&g_watch_lock);
+    delete_callback (APTERYX_WATCHERS_PATH, req->wpath, (void *) watch_callback, (void *) req);
     g_free (req->path);
     g_free (req->wpath);
     g_free (req);

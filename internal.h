@@ -27,6 +27,7 @@
 #include <string.h>
 #include <syslog.h>
 #include <apteryx.h>
+#define APTERYX_XML_JSON
 #include <apteryx-xml.h>
 
 /* Defaults */
