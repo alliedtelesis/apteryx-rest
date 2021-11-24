@@ -173,6 +173,8 @@ rest_api_get (int flags, const char *path, const char *if_none_match)
     {
         /* Convert thre result to JSON */
         int schflags = 0;
+        if (verbose)
+            schflags |= SCH_F_DEBUG;
         if (flags & FLAGS_JSON_FORMAT_ARRAYS)
             schflags |= SCH_F_JSON_ARRAYS;
         if (flags & FLAGS_JSON_FORMAT_TYPES)
@@ -237,6 +239,7 @@ apteryx_json_set (const char *path, json_t * json)
     sch_node *api_subtree;
     GNode *tree = NULL;
     bool set_successful;
+    int schflags;
 
     api_subtree = sch_lookup (g_schema, path);
     if (!api_subtree)
@@ -244,10 +247,22 @@ apteryx_json_set (const char *path, json_t * json)
         return HTTP_CODE_FORBIDDEN;
     }
 
-    tree = sch_json_to_gnode (g_schema, api_subtree, json, SCH_F_JSON_ARRAYS | SCH_F_JSON_TYPES);
+    schflags = SCH_F_JSON_ARRAYS | SCH_F_JSON_TYPES;
+    if (verbose)
+        schflags |= SCH_F_DEBUG;
+    tree = sch_json_to_gnode (g_schema, api_subtree, json, schflags);
     if (!tree)
     {
-        return HTTP_CODE_BAD_REQUEST;
+        switch (sch_last_err ())
+        {
+        case SCH_E_NOSCHEMANODE:
+            return HTTP_CODE_NOT_FOUND;
+        case SCH_E_NOTREADABLE:
+        case SCH_E_NOTWRITABLE:
+            return HTTP_CODE_FORBIDDEN;
+        default:
+            return HTTP_CODE_BAD_REQUEST;
+        }
     }
     free (tree->data);
     tree->data = g_strdup (path);
@@ -409,6 +424,8 @@ watch_callback (GNode * root, void *arg)
     }
 
     /* Convert the data to json from the expected path offset */
+    if (verbose)
+        schflags |= SCH_F_DEBUG;
     if (req->flags & FLAGS_JSON_FORMAT_ARRAYS)
         schflags |= SCH_F_JSON_ARRAYS;
     if (req->flags & FLAGS_JSON_FORMAT_TYPES)
