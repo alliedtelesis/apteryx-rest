@@ -146,6 +146,8 @@ handle_http (void *arg)
     int len = 0;
     int i;
 
+    DEBUG ("FCGI(%p): New connection\n", request);
+
     /* Debug */
     if (verbose)
     {
@@ -168,10 +170,7 @@ handle_http (void *arg)
                         "Invalid server configuration (flags:0x%x, rpath:%s, path:%s, action:%s)\n",
                         flags, rpath, path, action);
         send_response (request, data, false);
-        g_free (data);
-        FCGX_Finish_r (request);
-        g_free (request);
-        return NULL;
+        goto exit;
     }
     if (length != NULL)
     {
@@ -187,10 +186,12 @@ handle_http (void *arg)
         }
     }
     g_cb ((req_handle) request, flags, rpath, path, action, if_none_match, data, len);
+
+exit:
     free (data);
+    DEBUG ("FCGI(%p): Closing connection\n", request);
     FCGX_Finish_r (request);
     g_free (request);
-
     return NULL;
 }
 
@@ -208,7 +209,6 @@ handle_fcgi (void *arg)
             g_free (request);
             break;
         }
-        DEBUG ("New FCGI connection\n");
         g_thread_pool_push (workers, request, NULL);
     }
     DEBUG ("Stopping FCGI handler\n");
@@ -251,6 +251,7 @@ void
 send_response (req_handle handle, const char *data, bool flush)
 {
     FCGX_Request *request = (FCGX_Request *) handle;
+    DEBUG ("FCGI(%p): send %lu bytes\n", request, strlen (data));
     FCGX_PutS (data, request->out);
     if (flush)
         FCGX_FFlush (request->out);
