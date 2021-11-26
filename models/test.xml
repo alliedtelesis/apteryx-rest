@@ -16,6 +16,12 @@
     </NODE>
     <NODE name="state" help="State">
       <NODE name="counter" mode="r" default="0" help="uint32"/>
+      <NODE name="uptime" help="uptime">
+        <NODE name="days" help="days" pattern="^[0-9]+$"/>
+        <NODE name="hours" help="hours" pattern="^[0-9]+$"/>
+        <NODE name="minutes" help="minutes" pattern="^[0-9]+$"/>
+        <NODE name="seconds" help="seconds" pattern="^[0-9]+$"/>
+      </NODE>
     </NODE>
     <NODE name="animals">
       <NODE name="animal" help="This is a list of animals">
@@ -29,7 +35,7 @@
         </NODE>
       </NODE>
       <NODE name="toys">
-        <NODE name="toy" help="This is a simple list of toys">
+        <NODE name="toy" help="This is a leaf list of toys">
           <NODE name="*" mode="rw" help="List of toy"/>
         </NODE>
       </NODE>

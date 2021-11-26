@@ -32,6 +32,10 @@ db_default = [
     ('/test/settings/priority', '1'),
     ('/test/settings/hidden', 'friend'),
     ('/test/state/counter', '42'),
+    ('/test/state/uptime/days', '5'),
+    ('/test/state/uptime/hours', '50'),
+    ('/test/state/uptime/minutes', '30'),
+    ('/test/state/uptime/seconds', '20'),
     ('/test/animals/animal/cat/name', 'cat'),
     ('/test/animals/animal/cat/type', '1'),
     ('/test/animals/animal/dog/name', 'dog'),
@@ -257,13 +261,32 @@ def test_rest_get_list_select_one_array():
 }
 """)
 
+def test_rest_get_list_all_nodes():
+    response = requests.get("{}{}/test/animals/animal/*/name".format(server_uri,docroot), verify=False, auth=server_auth)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/json"
+    assert response.json() == json.loads("""
+{
+    "cat": {
+        "name": "cat"
+    },
+    "dog": {
+        "name": "dog"
+    },
+    "mouse": {
+        "name": "mouse"
+    }
+}
+""")
+
 def test_rest_get_etag_exists():
     response = requests.get("{}{}/test/settings/enable".format(server_uri,docroot), verify=False, auth=server_auth)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     print(response.headers.get("ETag"))
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/json"
-    assert response.headers.get("ETag") != None
+    assert response.headers.get("ETag") != None and response.headers.get("ETag") != "0"
     assert response.json() == json.loads('{ "enable": "true" }')
 
 def test_rest_get_etag_changes():
@@ -301,6 +324,16 @@ def test_rest_get_etag_not_modified():
     print(response.headers.get("ETag"))
     assert response.status_code == 304
     assert len(response.content) == 0
+
+def test_rest_get_etag_zero():
+    apteryx_set("/test/settings/enable", "")
+    response = requests.get("{}{}/test/settings/enable".format(server_uri,docroot), verify=False, auth=server_auth)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    print(response.headers.get("ETag"))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/json"
+    assert response.headers.get("ETag") != None and response.headers.get("ETag") == "0"
+    assert response.json() == json.loads('{}')
 
 def test_rest_get_not_found():
     response = requests.get("{}{}/test/settings/invalid".format(server_uri,docroot), verify=False, auth=server_auth)
@@ -764,3 +797,237 @@ def test_rest_stream_json_list():
         print(line)
         if line and json.loads(line.decode("utf-8")) == json.loads(b'{"animals": {"animal": [{"name": "frog", "type": "little"}]}}'):
             break
+
+# QUERY
+
+def test_rest_query_empty():
+    response = requests.get("{}{}/test/state/uptime?".format(server_uri,docroot), verify=False, auth=server_auth)
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/json"
+    assert response.json() == json.loads("""
+{
+    "uptime": {
+        "days": "5",
+        "hours": "50",
+        "minutes": "30",
+        "seconds": "20"
+    }
+}
+""")
+
+def test_rest_query_invalid_queries():
+    queries = [
+        "die",
+        "die=",
+        "die=now",
+        "die=now&fields=counter",
+        "fields=counter&die=now",
+        # "&",
+        "&&,",
+        "fields=;",
+        "fields=;",
+        "fields=;;",
+        # "fields=/",
+        # "fields=//",
+        "fields=(",
+        "fields=)",
+        "fields=()",
+    ]
+    for query in queries:
+        print("Checking " + query)
+        response = requests.get("{}{}/test/state?{}".format(server_uri,docroot,query), verify=False, auth=server_auth)
+        assert response.status_code == 404
+        assert len(response.content) == 0
+
+def test_rest_query_field_empty():
+    response = requests.get("{}{}/test/state/uptime?fields=".format(server_uri,docroot), verify=False, auth=server_auth)
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/json"
+    assert response.json() == json.loads("""{}""")
+
+def test_rest_query_field_one_node():
+    response = requests.get("{}{}/test/state/uptime?fields=hours".format(server_uri,docroot), verify=False, auth=server_auth)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/json"
+    assert response.json() == json.loads("""
+{
+    "uptime": {
+        "hours": "50"
+    }
+}
+""")
+
+def test_rest_query_field_two_nodes():
+    response = requests.get("{}{}/test/state/uptime?fields=days;minutes".format(server_uri,docroot), verify=False, auth=server_auth)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/json"
+    assert response.json() == json.loads("""
+{
+    "uptime": {
+        "days": "5",
+        "minutes": "30"
+    }
+}
+""")
+
+def test_rest_query_field_three_nodes():
+    response = requests.get("{}{}/test/state/uptime?fields=days;minutes;hours".format(server_uri,docroot), verify=False, auth=server_auth)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.json() == json.loads("""
+{
+    "uptime": {
+        "days": "5",
+        "hours": "50",
+        "minutes": "30"
+    }
+}
+""")
+
+def test_rest_query_field_one_path():
+    response = requests.get("{}{}/test/state?fields=uptime/days".format(server_uri,docroot), verify=False, auth=server_auth)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.json() == json.loads("""
+{
+    "state": {
+        "uptime": {
+            "days": "5"
+        }
+    }
+}
+""")
+
+def test_rest_query_field_two_paths():
+    response = requests.get("{}{}/test/state?fields=uptime/days;uptime/seconds".format(server_uri,docroot), verify=False, auth=server_auth)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/json"
+    assert response.json() == json.loads("""
+{
+    "state": {
+        "uptime": {
+            "days": "5",
+            "seconds": "20"
+        }
+    }
+}
+""")
+
+def test_rest_query_field_three_paths():
+    response = requests.get("{}{}/test/state?fields=uptime/days;uptime/seconds;uptime/hours".format(server_uri,docroot), verify=False, auth=server_auth)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/json"
+    assert response.json() == json.loads("""
+{
+    "state": {
+        "uptime": {
+            "days": "5",
+            "hours": "50",
+            "seconds": "20"
+        }
+    }
+}
+""")
+
+def test_rest_query_field_one_path_two_nodes():
+    response = requests.get("{}{}/test/state?fields=uptime(days;seconds)".format(server_uri,docroot), verify=False, auth=server_auth)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/json"
+    assert response.json() == json.loads("""
+{
+    "state": {
+        "uptime": {
+            "days": "5",
+            "seconds": "20"
+        }
+    }
+}
+""")
+
+def test_rest_query_field_two_paths_two_nodes():
+    response = requests.get("{}{}/test/state?fields=uptime(days;seconds);uptime(hours;minutes)".format(server_uri,docroot), verify=False, auth=server_auth)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/json"
+    assert response.json() == json.loads("""
+{
+    "state": {
+        "uptime": {
+            "days": "5",
+            "hours": "50",
+            "minutes": "30",
+            "seconds": "20"
+        }
+    }
+}
+""")
+
+def test_rest_query_field_list_one_specific_node():
+    response = requests.get("{}{}/test/animals/animal/mouse?fields=type".format(server_uri,docroot), verify=False, auth=server_auth)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/json"
+    assert response.json() == json.loads("""
+{
+    "mouse": {
+        "type": "2"
+    }
+}
+""")
+
+def test_rest_query_field_list_two_specific_nodes():
+    response = requests.get("{}{}/test/animals/animal/mouse?fields=name;type".format(server_uri,docroot), verify=False, auth=server_auth)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/json"
+    assert response.json() == json.loads("""
+{
+    "mouse": {
+        "name": "mouse",
+        "type": "2"
+    }
+}
+""")
+
+def test_rest_query_field_list_all_nodes():
+    response = requests.get("{}{}/test/animals/animal/*?fields=name".format(server_uri,docroot), verify=False, auth=server_auth)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/json"
+    assert response.json() == json.loads("""
+{
+    "cat": {
+        "name": "cat"
+    },
+    "dog": {
+        "name": "dog"
+    },
+    "mouse": {
+        "name": "mouse"
+    }
+}
+""")
+
+def test_rest_query_field_etag_not_modified():
+    response = requests.get("{}{}/test/settings?fields=priority".format(server_uri,docroot), verify=False, auth=server_auth)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    print(response.headers.get("ETag"))
+    assert response.status_code == 200
+    assert response.headers.get("ETag") != None and response.headers.get("ETag") != "0"
+    assert response.json() == json.loads("""
+{
+    "settings": {
+        "priority": "1"
+    }
+}
+""")
+    tag1 = response.headers.get("ETag")
+    response = requests.get("{}{}/test/settings?fields=priority".format(server_uri,docroot), verify=False, auth=server_auth, headers={"If-None-Match": str(tag1)})
+    print(response.headers.get("ETag"))
+    assert response.status_code == 304
+    assert len(response.content) == 0

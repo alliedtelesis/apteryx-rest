@@ -46,6 +46,7 @@ http {
             fastcgi_param DOCUMENT_ROOT      $document_root;
             fastcgi_param REQUEST_METHOD     $request_method;
             fastcgi_param REQUEST_URI        $request_uri;
+            fastcgi_param QUERY_STRING       $query_string;
             fastcgi_param CONTENT_TYPE       $content_type;
             fastcgi_param CONTENT_LENGTH     $content_length;
             fastcgi_param HTTP_IF_NONE_MATCH $http_if_none_match;
@@ -267,6 +268,52 @@ curl -s -u manager:friend -k https://<HOST>/api/system/ram/free | python -m json
 ```
 curl -s -u manager:friend -H "X-JSON-Types: on" -k https://<HOST>/api/system/ram/free  | python -m json.tool
 { "free": 1884040 }
+```
+
+## GET Queries
+Field queries as per [RFC8040:4.8.3](https://datatracker.ietf.org/doc/html/rfc8040#section-4.8.3)
+
+```
+curl -s -u manager:friend -k https://<HOST>/api/system/state/uptime?fields=hours
+{
+    "uptime": {
+        "hours": "50"
+    }
+}
+```
+
+```
+curl -s -u manager:friend -k https://<HOST>/api/system/state/uptime?fields=days;minutes
+{
+    "uptime": {
+        "days": "5",
+        "minutes": "30"
+    }
+}
+```
+
+```
+curl -s -u manager:friend -k https://<HOST>/api/system/state?fields=uptime/days;uptime/seconds
+{
+    "state": {
+        "uptime": {
+            "days": "5",
+            "seconds": "20"
+        }
+    }
+}
+```
+
+```
+curl -s -u manager:friend -k https://<HOST>/api/system/state?fields=uptime(days;seconds)
+{
+    "state": {
+        "uptime": {
+            "days": "5",
+            "seconds": "20"
+        }
+    }
+}
 ```
 
 ## POST

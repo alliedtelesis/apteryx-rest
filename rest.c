@@ -132,7 +132,11 @@ get_response_node (const char *path, json_t *root)
     for (depth=0; s[depth]; s[depth]=='/' ? depth++ : *s++);
     while (root && depth > 2)
     {
-        root = json_object_iter_value (json_object_iter (root));
+        void *iter = json_object_iter (root);
+        /* May have asked for a wildcard list in the path */
+        if (json_object_iter_next (root, iter))
+            break;
+        root = json_object_iter_value (iter);
         depth--;
     }
     return root;
@@ -141,15 +145,32 @@ get_response_node (const char *path, json_t *root)
 static char *
 rest_api_get (int flags, const char *path, const char *if_none_match)
 {
+    char *rpath = NULL;
     json_t *json = NULL;
     uint64_t ts = 0;
     int rc = HTTP_CODE_OK;
     GNode *query, *tree;
     char *json_string = NULL;
     char *resp;
+    int schflags = 0;
+
+    /* Get the path without any query string */
+    rpath = strchr (path, '?');
+    if (rpath)
+        rpath = strndup (path, rpath - path);
+    else
+        rpath = strdup (path);
+
+    /* Parsing options */
+    if (verbose)
+        schflags |= SCH_F_DEBUG;
+    if (flags & FLAGS_JSON_FORMAT_ARRAYS)
+        schflags |= SCH_F_JSON_ARRAYS;
+    if (flags & FLAGS_JSON_FORMAT_TYPES)
+        schflags |= SCH_F_JSON_TYPES;
 
     /* Generate an aperyx query from the path */
-    query = sch_path_to_query (g_schema, NULL, path, 0);
+    query = sch_path_to_query (g_schema, NULL, path, schflags);
     if (!query)
     {
         VERBOSE ("REST: Path \"%s\" not found\n", path);
@@ -157,12 +178,12 @@ rest_api_get (int flags, const char *path, const char *if_none_match)
         goto exit;
     }
 
-    /* Get a timestamp for the query */
-    ts = apteryx_timestamp (path);
+    /* Get a timestamp for the path */
+    ts = apteryx_timestamp (rpath);
     if (if_none_match && if_none_match[0] != '\0' &&
         ts == strtoull (if_none_match, NULL, 16))
     {
-        VERBOSE ("REST: Path \"%s\" not modified\n", path);
+        VERBOSE ("REST: Path \"%s\" not modified\n", rpath);
         rc = HTTP_CODE_NOT_MODIFIED;
         goto exit;
     }
@@ -172,17 +193,10 @@ rest_api_get (int flags, const char *path, const char *if_none_match)
     if (tree)
     {
         /* Convert thre result to JSON */
-        int schflags = 0;
-        if (verbose)
-            schflags |= SCH_F_DEBUG;
-        if (flags & FLAGS_JSON_FORMAT_ARRAYS)
-            schflags |= SCH_F_JSON_ARRAYS;
-        if (flags & FLAGS_JSON_FORMAT_TYPES)
-            schflags |= SCH_F_JSON_TYPES;
         json = sch_gnode_to_json (g_schema, NULL, tree, schflags);
         if (json)
         {
-            json_t *json_new = get_response_node (path, json);
+            json_t *json_new = get_response_node (rpath, json);
             if (!(flags & FLAGS_JSON_FORMAT_ROOT) && !json_is_string (json))
             {
                 /* Chop off the root node */
@@ -230,6 +244,7 @@ exit:
     if (json)
         json_decref (json);
     apteryx_free_tree (query);
+    free (rpath);
     return resp;
 }
 
