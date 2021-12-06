@@ -43,6 +43,9 @@ db_default = [
     ('/test/animals/animal/mouse/name', 'mouse'),
     ('/test/animals/animal/mouse/type', '2'),
     ('/test/animals/animal/mouse/colour', 'grey'),
+    ('/test2/settings/verbosity', '2'),
+    ('/other:test/settings/speed', '3'),
+    ('/other:test/settings/volume', '4'),
 ]
 
 def apteryx_set(path, value):
@@ -1031,3 +1034,70 @@ def test_rest_query_field_etag_not_modified():
     print(response.headers.get("ETag"))
     assert response.status_code == 304
     assert len(response.content) == 0
+
+# Namespaces
+
+def test_rest_ns_api_xml():
+    response = requests.get("{}{}.xml".format(server_uri,docroot), verify=False, auth=server_auth)
+    xml = etree.fromstring(response.content)
+    print(etree.tostring(xml, pretty_print=True, encoding="unicode"))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "text/xml"
+    print(xml.findall('.//{*}NODE'))
+    ns_other = [e.attrib['name'] for e in xml.findall('.//{http://www.other-namespace.com}NODE')]
+    assert ns_other == ['test', 'settings', 'speed']
+    ns_aug = [e.attrib['name'] for e in xml.findall('.//{http://www.aug-namespace.com}NODE')]
+    assert ns_aug == ['volume']
+    ns_default = [e.attrib['name'] for e in xml.findall('.//{https://github.com/alliedtelesis/apteryx}NODE')]
+    for node in ['test', 'settings', 'priority', 'test2', 'verbosity',]:
+        assert node in ns_default
+    for node in ['speed', 'volume']:
+        assert node not in ns_default
+
+def test_rest_ns_get_invalid_ns_trunk():
+    response = requests.get("{}{}/invalid:test/settings/priority".format(server_uri,docroot), verify=False, auth=server_auth)
+    assert response.status_code == 404
+    assert len(response.content) == 0
+
+def test_rest_ns_get_invalid_ns_branch():
+    response = requests.get("{}{}/test/invalid:settings/priority".format(server_uri,docroot), verify=False, auth=server_auth)
+    assert response.status_code == 404
+    assert len(response.content) == 0
+
+def test_rest_ns_get_invalid_ns_leaf():
+    response = requests.get("{}{}/test/settings/invalid:priority".format(server_uri,docroot), verify=False, auth=server_auth)
+    assert response.status_code == 404
+    assert len(response.content) == 0
+
+def test_rest_ns_default_namespace():
+    response = requests.get("{}{}/test2/settings/verbosity".format(server_uri,docroot), verify=False, auth=server_auth)
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/json"
+    assert response.json() == json.loads('{ "verbosity": "2" }')
+
+def test_rest_ns_specific_namespace():
+    response = requests.get("{}{}/test2:test2/settings/verbosity".format(server_uri,docroot), verify=False, auth=server_auth)
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/json"
+    assert response.json() == json.loads('{ "verbosity": "2" }')
+
+def test_rest_ns_other_no_namespace():
+    response = requests.get("{}{}/test/settings/speed".format(server_uri,docroot), verify=False, auth=server_auth)
+    assert response.status_code == 404
+    assert len(response.content) == 0
+
+@pytest.mark.skip(reason="does not work yet")
+def test_rest_ns_other_get_simple_node():
+    response = requests.get("{}{}/other:test/settings/speed".format(server_uri,docroot), verify=False, auth=server_auth)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/json"
+    assert response.json() == json.loads('{ "speed": "3" }')
+
+@pytest.mark.skip(reason="does not work yet")
+def test_rest_ns_aug_get_simple_node():
+    response = requests.get("{}{}/other:test/config/aug:volume".format(server_uri,docroot), verify=False, auth=server_auth)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/json"
+    assert response.json() == json.loads('{ "volume": "4" }')
