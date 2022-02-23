@@ -191,6 +191,21 @@ def test_rest_get_tree_json_types():
 }
 """)
 
+def test_rest_get_tree_root():
+    response = requests.get("{}{}/test2".format(server_uri,docroot), verify=False, auth=server_auth)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/json"
+    assert response.json() == json.loads("""
+{
+    "test2": {
+        "settings": {
+            "verbosity": "2"
+        }
+    }
+}
+""")
+
 def test_rest_get_list_object_strings():
     response = requests.get("{}{}/test/animals/animal".format(server_uri,docroot), verify=False, auth=server_auth)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -251,18 +266,18 @@ def test_rest_get_list_select_one_strings():
 }
 """)
 
-@pytest.mark.skipif(not json_types, reason="do not support JSON types")
 def test_rest_get_list_select_one_array():
-    response = requests.get("{}{}/test/animals/animal/cat".format(server_uri,docroot), verify=False, auth=server_auth, headers=json_headers)
+    response = requests.get("{}{}/test/animals/animal/cat".format(server_uri,docroot), verify=False, auth=server_auth, headers={"X-JSON-Array":"on"})
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/json"
     assert response.json() == json.loads("""
-{
-    "animal": [
-        { "name": "cat", "type": "big" }
-    ]
-}
+[
+    {
+        "name": "cat",
+        "type": "1"
+    }
+]
 """)
 
 def test_rest_get_list_all_nodes():

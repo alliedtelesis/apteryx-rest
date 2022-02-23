@@ -130,7 +130,7 @@ get_response_node (const char *path, json_t *root)
     int depth;
 
     for (depth=0; s[depth]; s[depth]=='/' ? depth++ : *s++);
-    while (root && depth > 2)
+    while (root && depth > 1)
     {
         void *iter = json_object_iter (root);
         /* May have asked for a wildcard list in the path */
