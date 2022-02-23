@@ -251,6 +251,7 @@ def test_rest_get_list_select_one_strings():
 }
 """)
 
+@pytest.mark.skipif(not json_types, reason="do not support JSON types")
 def test_rest_get_list_select_one_array():
     response = requests.get("{}{}/test/animals/animal/cat".format(server_uri,docroot), verify=False, auth=server_auth, headers=json_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -259,7 +260,7 @@ def test_rest_get_list_select_one_array():
     assert response.json() == json.loads("""
 {
     "animal": [
-        { "name": "cat", "type": "1" }
+        { "name": "cat", "type": "big" }
     ]
 }
 """)

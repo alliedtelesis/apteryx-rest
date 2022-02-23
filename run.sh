@@ -51,7 +51,7 @@ if [ ! -f $BUILD/usr/lib/libapteryx-schema.so ]; then
         cd apteryx-xml
         rm -f $BUILD/usr/lib/libapteryx-xml.so
         rm -f $BUILD/usr/lib/libapteryx-schema.so
-        make install DESTDIR=$BUILD
+        make install DESTDIR=$BUILD APTERYX_PATH=$BUILD/apteryx
         rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
         cd $BUILD
 fi
