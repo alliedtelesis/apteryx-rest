@@ -66,6 +66,7 @@ fi
 if [ ! -f $BUILD/usr/lib/libfcgi.so ]; then
         cd fcgi-2.4.0
         ./configure --prefix=/usr
+        sed -i 's/SUBDIRS = libfcgi cgi-fcgi examples include/SUBDIRS = libfcgi cgi-fcgi include/g' Makefile
         make install DESTDIR=$BUILD
         rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
         cd $BUILD
