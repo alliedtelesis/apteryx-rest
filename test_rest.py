@@ -43,6 +43,12 @@ db_default = [
     ('/test/animals/animal/mouse/name', 'mouse'),
     ('/test/animals/animal/mouse/type', '2'),
     ('/test/animals/animal/mouse/colour', 'grey'),
+    ('/test/animals/animal/hamster/name', 'hamster'),
+    ('/test/animals/animal/hamster/type', '2'),
+    ('/test/animals/animal/hamster/food/banana/name', 'banana'),
+    ('/test/animals/animal/hamster/food/banana/type', 'fruit'),
+    ('/test/animals/animal/hamster/food/nuts/name', 'nuts'),
+    ('/test/animals/animal/hamster/food/nuts/type', 'kibble'),
     ('/test2/settings/verbosity', '2'),
     ('/other:test/settings/speed', '3'),
     ('/other:test/settings/volume', '4'),
@@ -216,6 +222,11 @@ def test_rest_get_list_object_strings():
     "animal": {
         "cat": {"name": "cat", "type": "1"},
         "dog": {"name": "dog", "colour": "brown"},
+        "hamster": {"name": "hamster", "type": "2", "food": {
+            "nuts": {"name": "nuts", "type": "kibble"},
+            "banana": {"name": "banana", "type": "fruit"}
+            }
+        },
         "mouse": {"name": "mouse", "colour": "grey", "type": "2"}
     }
 }
@@ -232,6 +243,11 @@ def test_rest_get_list_object_types():
     "animal": {
         "cat": {"name": "cat", "type": "big"},
         "dog": {"name": "dog", "colour": "brown"},
+        "hamster": {"name": "hamster", "type": "little", "food": {
+            "banana": {"name": "banana", "type": "fruit"},
+            "nuts": {"name": "nuts", "type": "kibble"}
+            }
+        },
         "mouse": {"name": "mouse", "colour": "grey", "type": "little"}
     }
 }
@@ -247,6 +263,11 @@ def test_rest_get_list_array():
     "animal": [
         {"name": "cat", "type": "1"},
         {"name": "dog", "colour": "brown"},
+        {"name": "hamster", "type": "2", "food": [
+                {"name": "banana", "type": "fruit"},
+                {"name": "nuts", "type": "kibble"}
+            ]
+        },
         {"name": "mouse", "colour": "grey", "type": "2"}
     ]
 }
@@ -292,6 +313,9 @@ def test_rest_get_list_all_nodes():
     },
     "dog": {
         "name": "dog"
+    },
+    "hamster": {
+        "name": "hamster"
     },
     "mouse": {
         "name": "mouse"
@@ -523,7 +547,7 @@ def test_rest_set_tree_null_value():
 def test_rest_set_tree_list_full_strings():
     tree = """
 {
-    "animals": { 
+    "animals": {
         "animal": {
             "frog": {
                 "name": "frog",
@@ -550,6 +574,20 @@ def test_rest_set_tree_list_full_strings():
             "dog": {
                 "name": "dog",
                 "colour": "brown"
+            },
+            "hamster": {
+                "name": "hamster",
+                "food" : {
+                    "nuts": {
+                        "name": "nuts",
+                        "type": "kibble"
+                    },
+                    "banana" : {
+                        "name": "banana",
+                        "type": "fruit"
+                    }
+                },
+                "type": "2"
             },
             "frog": {
                 "name": "frog",
@@ -590,7 +628,7 @@ def test_rest_set_tree_list_single_strings():
 def test_rest_set_tree_list_full_arrays():
     tree = """
 {
-    "animals": { 
+    "animals": {
         "animal": [
             {
                 "name": "frog",
@@ -620,6 +658,20 @@ def test_rest_set_tree_list_full_arrays():
             },
             {
                 "name": "frog",
+                "type": "2"
+            },
+            {
+                "name": "hamster",
+                "food" : [
+                    {
+                        "name": "banana",
+                        "type": "fruit"
+                    },
+                    {
+                        "name": "nuts",
+                        "type": "kibble"
+                    }
+                ],
                 "type": "2"
             },
             {
@@ -684,6 +736,20 @@ def test_rest_delete_list_entry():
                 "colour": "brown"
             },
             {
+                "name": "hamster",
+                "food" : [
+                   {
+                        "name": "banana",
+                        "type": "fruit"
+                    },
+                    {
+                        "name": "nuts",
+                        "type": "kibble"
+                    }
+                 ],
+                "type": "2"
+            },
+            {
                 "name": "mouse",
                 "type": "2",
                 "colour": "grey"
@@ -693,7 +759,7 @@ def test_rest_delete_list_entry():
 }
 """)
 
-# SEARCH 
+# SEARCH
 
 def test_rest_search_node():
     response = requests.get("{}{}/test/settings/enable/".format(server_uri,docroot), verify=False, auth=server_auth)
@@ -731,6 +797,7 @@ def test_rest_search_list():
     "animal": [
         "cat",
         "dog",
+        "hamster",
         "mouse"
     ]
 }
@@ -1025,6 +1092,9 @@ def test_rest_query_field_list_all_nodes():
     },
     "dog": {
         "name": "dog"
+    },
+    "hamster": {
+        "name": "hamster"
     },
     "mouse": {
         "name": "mouse"

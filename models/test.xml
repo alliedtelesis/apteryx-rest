@@ -32,11 +32,19 @@
             <VALUE name="little" value="2"/>
           </NODE>
           <NODE name="colour" mode="rw" help="This is the colour of the animal"/>
-        </NODE>
-      </NODE>
-      <NODE name="toys">
-        <NODE name="toy" help="This is a leaf list of toys">
-          <NODE name="*" mode="rw" help="List of toy"/>
+          <NODE name="food">
+              <NODE name="*" help="This is a list of food">
+                  <NODE name="name" mode="rw" help="Food name"/>
+                  <NODE name="type" mode="rw" help="Food type"/>
+              </NODE>
+              <REFRESH>Sample REFRESH node</REFRESH>
+          </NODE>
+          <NODE name="toys">
+            <NODE name="toy" help="This is a leaf list of toys">
+              <NODE name="*" mode="rw" help="List of toys"/>
+              <WATCH>Sample WATCH node</WATCH>
+            </NODE>
+          </NODE>
         </NODE>
       </NODE>
     </NODE>
