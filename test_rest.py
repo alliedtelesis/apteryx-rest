@@ -49,6 +49,11 @@ db_default = [
     ('/test/animals/animal/hamster/food/banana/type', 'fruit'),
     ('/test/animals/animal/hamster/food/nuts/name', 'nuts'),
     ('/test/animals/animal/hamster/food/nuts/type', 'kibble'),
+    ('/test/animals/animal/parrot/name', 'parrot'),
+    ('/test/animals/animal/parrot/type', '1'),
+    ('/test/animals/animal/parrot/colour', 'blue'),
+    ('/test/animals/animal/parrot/toys/toy/rings', 'rings'),
+    ('/test/animals/animal/parrot/toys/toy/puzzles', 'puzzles'),
     ('/test2/settings/verbosity', '2'),
     ('/other:test/settings/speed', '3'),
     ('/other:test/settings/volume', '4'),
@@ -227,7 +232,11 @@ def test_rest_get_list_object_strings():
             "banana": {"name": "banana", "type": "fruit"}
             }
         },
-        "mouse": {"name": "mouse", "colour": "grey", "type": "2"}
+        "mouse": {"name": "mouse", "colour": "grey", "type": "2"},
+        "parrot": {"name": "parrot", "type": "1", "colour": "blue", "toys": {
+            "toy": {"rings": "rings", "puzzles": "puzzles"}
+            }
+        }
     }
 }
 """)
@@ -248,7 +257,11 @@ def test_rest_get_list_object_types():
             "nuts": {"name": "nuts", "type": "kibble"}
             }
         },
-        "mouse": {"name": "mouse", "colour": "grey", "type": "little"}
+        "mouse": {"name": "mouse", "colour": "grey", "type": "little"},
+        "parrot": {"name": "parrot", "type": "big", "colour": "blue", "toys": {
+            "toy": {"rings": "rings", "puzzles": "puzzles"}
+            }
+        }
     }
 }
 """)
@@ -268,7 +281,11 @@ def test_rest_get_list_array():
                 {"name": "nuts", "type": "kibble"}
             ]
         },
-        {"name": "mouse", "colour": "grey", "type": "2"}
+        {"name": "mouse", "colour": "grey", "type": "2"},
+        {"name": "parrot", "type": "1", "colour": "blue", "toys": {
+            "toy": ["puzzles", "rings"]
+            }
+        }
     ]
 }
 """)
@@ -319,6 +336,9 @@ def test_rest_get_list_all_nodes():
     },
     "mouse": {
         "name": "mouse"
+    },
+    "parrot": {
+        "name": "parrot"
     }
 }
 """)
@@ -551,7 +571,27 @@ def test_rest_set_tree_list_full_strings():
         "animal": {
             "frog": {
                 "name": "frog",
-                "type": "1"
+                "type": "1",
+                "food": {
+                    "cricket": {
+                        "name": "cricket",
+                        "type": "insect"
+                    },
+                    "snail": {
+                        "name": "snail",
+                        "type": "insect"
+                    }
+                }
+            },
+            "turtle": {
+                "name": "turtle",
+                "type": "2",
+                "toys": {
+                    "toy": {
+                        "basketball": "basketball",
+                        "stones": "stones"
+                    }
+                }
             }
         }
     }
@@ -591,12 +631,43 @@ def test_rest_set_tree_list_full_strings():
             },
             "frog": {
                 "name": "frog",
-                "type": "1"
+                "type": "1",
+                "food": {
+                    "cricket": {
+                        "name": "cricket",
+                        "type": "insect"
+                    },
+                    "snail": {
+                        "name": "snail",
+                        "type": "insect"
+                    }
+                }
             },
             "mouse": {
                 "name": "mouse",
                 "type": "2",
                 "colour": "grey"
+            },
+            "parrot": {
+                "name": "parrot",
+                "type": "1",
+                "colour": "blue",
+                "toys": {
+                    "toy": {
+                        "rings": "rings",
+                        "puzzles": "puzzles"
+                    }
+                }
+            },
+            "turtle": {
+                "name": "turtle",
+                "type": "2",
+                "toys": {
+                    "toy": {
+                        "basketball": "basketball",
+                        "stones": "stones"
+                    }
+                }
             }
         }
     }
@@ -632,8 +703,29 @@ def test_rest_set_tree_list_full_arrays():
         "animal": [
             {
                 "name": "frog",
-                "type": "2"
+                "type": "2",
+                "food": [
+                    {
+                        "name": "cricket",
+                        "type": "insect"
+                    },
+                    {
+                        "name": "snail",
+                        "type": "insect"
+                    }
+                ]
+            },
+            {
+                "name": "turtle",
+                "type": "2",
+                "toys": {
+                    "toy": [
+                        "basketball",
+                        "stones"
+                    ]
+                }
             }
+
         ]
     }
 }
@@ -658,11 +750,21 @@ def test_rest_set_tree_list_full_arrays():
             },
             {
                 "name": "frog",
-                "type": "2"
+                "type": "2",
+                "food": [
+                    {
+                        "name": "cricket",
+                        "type": "insect"
+                    },
+                    {
+                        "name": "snail",
+                        "type": "insect"
+                    }
+                ]
             },
             {
                 "name": "hamster",
-                "food" : [
+                "food": [
                     {
                         "name": "banana",
                         "type": "fruit"
@@ -678,6 +780,27 @@ def test_rest_set_tree_list_full_arrays():
                 "name": "mouse",
                 "type": "2",
                 "colour": "grey"
+            },
+            {
+                "name": "parrot",
+                "type": "1",
+                "colour": "blue",
+                "toys": {
+                    "toy": [
+                        "puzzles",
+                        "rings"
+                    ]
+                }
+            },
+            {
+                "name": "turtle",
+                "type": "2",
+                "toys": {
+                    "toy": [
+                        "basketball",
+                        "stones"
+                    ]
+                }
             }
         ]
     }
@@ -753,6 +876,17 @@ def test_rest_delete_list_entry():
                 "name": "mouse",
                 "type": "2",
                 "colour": "grey"
+            },
+            {
+                "name": "parrot",
+                "type": "1",
+                "colour": "blue",
+                "toys": {
+                    "toy": [
+                        "puzzles",
+                        "rings"
+                    ]
+                }
             }
         ]
     }
@@ -798,7 +932,8 @@ def test_rest_search_list():
         "cat",
         "dog",
         "hamster",
-        "mouse"
+        "mouse",
+        "parrot"
     ]
 }
 """)
@@ -1098,6 +1233,9 @@ def test_rest_query_field_list_all_nodes():
     },
     "mouse": {
         "name": "mouse"
+    },
+    "parrot": {
+        "name": "parrot"
     }
 }
 """)
