@@ -238,8 +238,10 @@ rest_api_get (int flags, const char *path, const char *if_none_match)
 exit:
     resp = g_strdup_printf ("Status: %d\r\n"
                             "Etag: %" PRIX64 "\r\n"
-                            "Content-Type: application/json\r\n"
-                            "\r\n" "%s", rc, ts, json_string ? : "");
+                            "Content-Type: %s\r\n"
+                            "\r\n" "%s", rc, ts,
+                            flags & FLAGS_RESTCONF ? "application/yang-data+json" : "application/json",
+                            json_string ? : "");
     free (json_string);
     if (json)
         json_decref (json);

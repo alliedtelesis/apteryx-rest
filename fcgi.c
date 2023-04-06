@@ -80,7 +80,7 @@ get_flags (FCGX_Request * r)
     {
         if (g_strcmp0 (param, "application/json") == 0)
             flags |= FLAGS_CONTENT_JSON;
-        if (g_strcmp0 (param, "application/yang.data+json") == 0)
+        if (g_strcmp0 (param, "application/yang-data+json") == 0)
             flags |= FLAGS_CONTENT_JSON | FLAGS_RESTCONF;
         if (g_strcmp0 (param, "application/xml") == 0)
             flags |= FLAGS_CONTENT_XML;
@@ -94,12 +94,12 @@ get_flags (FCGX_Request * r)
     {
         if (g_strrstr (param, "application/json") != 0)
             flags |= FLAGS_ACCEPT_JSON;
-        if (g_strrstr (param, "application/yang.data+json") != 0)
-            flags |= FLAGS_ACCEPT_JSON | FLAGS_RESTCONF;
+        if (g_strrstr (param, "application/yang-data+json") != 0)
+            flags |= FLAGS_ACCEPT_JSON | FLAGS_RESTCONF | FLAGS_JSON_FORMAT_TYPES;
         if (g_strrstr (param, "application/xml") != 0)
             flags |= FLAGS_ACCEPT_XML;
-        if (g_strrstr (param, "application/yang.data+xml") != 0)
-            flags |= FLAGS_ACCEPT_XML | FLAGS_RESTCONF;
+        if (g_strrstr (param, "application/yang-data+xml") != 0)
+            flags |= FLAGS_ACCEPT_XML | FLAGS_RESTCONF | FLAGS_JSON_FORMAT_TYPES;
         if (g_strrstr (param, "text/event-stream") != 0)
             flags |= FLAGS_EVENT_STREAM | FLAGS_ACCEPT_JSON;
         if (g_strrstr (param, "application/stream+json") != 0)
