@@ -23,14 +23,31 @@ db_default = [
     ('/test/settings/priority', '1'),
     ('/test/settings/hidden', 'friend'),
     ('/test/state/counter', '42'),
+    ('/test/state/uptime/days', '5'),
+    ('/test/state/uptime/hours', '50'),
+    ('/test/state/uptime/minutes', '30'),
+    ('/test/state/uptime/seconds', '20'),
     ('/test/animals/animal/cat/name', 'cat'),
-    ('/test/animals/animal/cat/type', 'big'),
+    ('/test/animals/animal/cat/type', '1'),
     ('/test/animals/animal/dog/name', 'dog'),
     ('/test/animals/animal/dog/colour', 'brown'),
     ('/test/animals/animal/mouse/name', 'mouse'),
-    ('/test/animals/animal/mouse/type', 'little'),
+    ('/test/animals/animal/mouse/type', '2'),
     ('/test/animals/animal/mouse/colour', 'grey'),
+    ('/test/animals/animal/hamster/name', 'hamster'),
+    ('/test/animals/animal/hamster/type', '2'),
+    ('/test/animals/animal/hamster/food/banana/name', 'banana'),
+    ('/test/animals/animal/hamster/food/banana/type', 'fruit'),
+    ('/test/animals/animal/hamster/food/nuts/name', 'nuts'),
+    ('/test/animals/animal/hamster/food/nuts/type', 'kibble'),
+    ('/test/animals/animal/parrot/name', 'parrot'),
+    ('/test/animals/animal/parrot/type', '1'),
+    ('/test/animals/animal/parrot/colour', 'blue'),
+    ('/test/animals/animal/parrot/toys/toy/rings', 'rings'),
+    ('/test/animals/animal/parrot/toys/toy/puzzles', 'puzzles'),
     ('/test2/settings/verbosity', '2'),
+    ('/other:test/settings/speed', '3'),
+    ('/other:test/settings/volume', '4'),
 ]
 
 def apteryx_set(path, value):
@@ -197,18 +214,17 @@ def test_restconf_get_list_trunk():
 {
     "animals": {
         "animal": [
-            {
-                "name": "cat",
-                "type": "big"
+            {"name": "cat", "type": "big"},
+            {"name": "dog", "colour": "brown"},
+            {"name": "hamster", "type": "little", "food": [
+                    {"name": "banana", "type": "fruit"},
+                    {"name": "nuts", "type": "kibble"}
+                ]
             },
-            {
-                "name": "dog",
-                "colour": "brown"
-            },
-            {
-                "name": "mouse",
-                "type": "little",
-                "colour": "grey"
+            {"name": "mouse", "colour": "grey", "type": "little"},
+            {"name": "parrot", "type": "big", "colour": "blue", "toys": {
+                "toy": ["puzzles", "rings"]
+                }
             }
         ]
     }
@@ -224,18 +240,17 @@ def test_restconf_get_list_trunk_no_namespace():
 {
     "animals": {
         "animal": [
-            {
-                "name": "cat",
-                "type": "big"
+            {"name": "cat", "type": "big"},
+            {"name": "dog", "colour": "brown"},
+            {"name": "hamster", "type": "little", "food": [
+                    {"name": "banana", "type": "fruit"},
+                    {"name": "nuts", "type": "kibble"}
+                ]
             },
-            {
-                "name": "dog",
-                "colour": "brown"
-            },
-            {
-                "name": "mouse",
-                "type": "little",
-                "colour": "grey"
+            {"name": "mouse", "colour": "grey", "type": "little"},
+            {"name": "parrot", "type": "big", "colour": "blue", "toys": {
+                "toy": ["puzzles", "rings"]
+                }
             }
         ]
     }
