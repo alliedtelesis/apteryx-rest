@@ -552,6 +552,36 @@ rest_api (req_handle handle, int flags, const char *rpath, const char *path, con
     path = path + strlen (rpath);
     if (strcmp (action, "GET") == 0)
     {
+        if (flags & FLAGS_RESTCONF)
+        {
+            if (strstr (path, "/data") == path)
+                path += strlen ("/data");
+            else
+            {
+                json_t *json = json_object();
+                json_t *obj = json;
+                if (path[0] == 0)
+                {
+                    obj = json_object();
+                    json_object_set_new (json, "ietf-restconf:restconf", obj);
+                    json_object_set_new (obj, "data", json_object ());
+                }
+                if (path[0] == 0 || g_strcmp0 (path, "/operations") == 0)
+                    json_object_set_new (obj, "operations", json_object ());
+                if (path[0] == 0 || g_strcmp0 (path, "/yang-library-version") == 0)
+                    json_object_set_new (obj, "yang-library-version", json_string ("2016-06-21"));
+                char *json_string = json_dumps (json, 0);
+                resp = g_strdup_printf ("Status: 200\r\n"
+                        "Content-Type: application/yang-data+json\r\n"
+                        "\r\n" "%s",
+                        json_string ? : "");
+                free (json_string);
+                json_decref (json);
+                send_response (handle, resp, false);
+                g_free (resp);
+                return;
+            }
+        }
         if (strcmp (path, ".xml") == 0)
             resp = rest_api_xml ();
         else if (flags & (FLAGS_EVENT_STREAM | FLAGS_APPLICATION_STREAM))
