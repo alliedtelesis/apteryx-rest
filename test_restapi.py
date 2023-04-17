@@ -1302,7 +1302,13 @@ def test_restapi_ns_default_namespace():
     assert response.json() == json.loads('{ "verbosity": "2" }')
 
 def test_restapi_ns_specific_namespace():
-    response = requests.get("{}{}/test2:test2/settings/verbosity".format(server_uri,docroot), verify=False, auth=server_auth)
+    response = requests.get("{}{}/t2:test2/settings/verbosity".format(server_uri,docroot), verify=False, auth=server_auth)
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/json"
+    assert response.json() == json.loads('{ "verbosity": "2" }')
+
+def test_restapi_ns_specific_namespace_model():
+    response = requests.get("{}{}/testing-2:test2/settings/verbosity".format(server_uri,docroot), verify=False, auth=server_auth)
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/json"
     assert response.json() == json.loads('{ "verbosity": "2" }')
