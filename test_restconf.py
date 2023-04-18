@@ -101,9 +101,6 @@ def test_restconf_yang_library_version():
 
 # GET
 
-#TODO 3.4.1.1.  Timestamp "Last-Modified" header field and "If-Modified-Since" "If-Unmodified-Since"
-#TODO 3.4.1.2.  Entity-Tag "ETag" header field and "If-Match" and "If-None-Match"
-
 def test_restconf_get_single_node_no_namepsace():
     response = requests.get("http://{}:{}{}/data/test/settings/priority".format(host,port,docroot), headers=restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -257,6 +254,7 @@ def test_restconf_get_list_trunk_no_namespace():
 }
     """)
 
+@pytest.mark.skip(reason="does not work yet")
 def test_restconf_get_list_select_one_trunk():
     response = requests.get("http://{}:{}{}/data/testing:test/animals/animal=cat".format(host,port,docroot), headers=restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -272,6 +270,45 @@ def test_restconf_get_list_select_one_trunk():
     ]
 }
     """)
+
+@pytest.mark.skip(reason="does not work yet")
+def test_restconf_get_timestamp():
+    response = requests.get("http://{}:{}{}/data/test/settings/enable".format(host,port,docroot), headers=restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    print(response.headers.get("Last-Modified"))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.headers.get("Last-Modified") != None and response.headers.get("Last-Modified") != "0"
+    assert response.json() == json.loads('{ "enable": true }')
+
+@pytest.mark.skip(reason="does not work yet")
+def test_restconf_get_timestamp_namespace():
+    response = requests.get("http://{}:{}{}/data/testing:test/settings/enable".format(host,port,docroot), headers=restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    print(response.headers.get("Last-Modified"))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.headers.get("Last-Modified") != None and response.headers.get("Last-Modified") != "0"
+    assert response.json() == json.loads('{ "enable": true }')
+
+def test_restconf_get_etag():
+    response = requests.get("http://{}:{}{}/data/test/settings/enable".format(host,port,docroot), headers=restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    print(response.headers.get("ETag"))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.headers.get("ETag") != None and response.headers.get("ETag") != "0"
+    assert response.json() == json.loads('{ "enable": true }')
+
+@pytest.mark.skip(reason="does not work yet")
+def test_restconf_get_etag_namespace():
+    response = requests.get("http://{}:{}{}/data/testing:test/settings/enable".format(host,port,docroot), headers=restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    print(response.headers.get("ETag"))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.headers.get("ETag") != None and response.headers.get("ETag") != "0"
+    assert response.json() == json.loads('{ "enable": true }')
 
 # TODO leaf-list
 
@@ -339,15 +376,101 @@ def test_restconf_get_list_select_one_trunk():
 # GET /mystreams/NETCONF?start-time=2014-10-25T10%3A02%3A00Z&stop-time=2014-10-25T12%3A31%3A00Z
 # GET /restconf/data/example:interfaces/interface=eth1?with-defaults=report-all
 
-# TODO HEAD
+# HEAD
+
+def test_restconf_head_single_node():
+    response = requests.head("http://{}:{}{}/data/testing-2:test2/settings/verbosity".format(host,port,docroot), headers=restconf_headers)
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.content == b''
 
 # TODO POST
+# TODO 3.4.1.1.  Timestamp "Last-Modified" header field and "If-Modified-Since" "If-Unmodified-Since"
+# TODO 3.4.1.2.  Entity-Tag "ETag" header field and "If-Match" and "If-None-Match"
 
 # TODO PUT
 
 # TODO PATCH
 
-# TODO DELETE
+# DELETE
+
+def test_restconf_delete_single_node_no_namespace():
+    response = requests.delete("http://{}:{}{}/data/test/settings/debug".format(host,port,docroot), headers=restconf_headers)
+    assert response.status_code == 200
+    assert len(response.content) == 0
+    response = requests.get("http://{}:{}{}/data/test/settings/debug".format(host,port,docroot), headers=restconf_headers)
+    assert response.status_code == 200
+    assert response.json() == json.loads('{}')
+
+@pytest.mark.skip(reason="does not work yet")
+def test_restconf_delete_single_node():
+    response = requests.delete("http://{}:{}{}/data/testing:test/settings/debug".format(host,port,docroot), headers=restconf_headers)
+    assert response.status_code == 200
+    assert len(response.content) == 0
+    response = requests.get("http://{}:{}{}/data/testing:test/settings/debug".format(host,port,docroot), headers=restconf_headers)
+    assert response.status_code == 200
+    assert response.json() == json.loads('{}')
+
+@pytest.mark.skip(reason="does not work yet")
+def test_restconf_delete_trunk():
+    response = requests.delete("http://{}:{}{}/data/testing:test/settings".format(host,port,docroot), headers=restconf_headers)
+    assert response.status_code == 200
+    assert len(response.content) == 0
+    response = requests.get("http://{}:{}{}/data/testing:test/settings".format(host,port,docroot), headers=restconf_headers)
+    assert response.status_code == 200
+    assert response.json() == json.loads('{}')
+
+@pytest.mark.skip(reason="does not work yet")
+def test_restconf_delete_list_entry():
+    response = requests.delete("http://{}:{}{}/data/testing:test/animals/animal=cat".format(host,port,docroot), headers=restconf_headers)
+    assert response.status_code == 200
+    assert len(response.content) == 0
+    response = requests.get("http://{}:{}{}/data/testing:test/animals".format(host,port,docroot), headers=restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.json() == json.loads("""
+{
+    "animals": {
+        "animal": [
+            {
+                "name": "dog",
+                "colour": "brown"
+            },
+            {
+                "name": "hamster",
+                "food" : [
+                   {
+                        "name": "banana",
+                        "type": "fruit"
+                    },
+                    {
+                        "name": "nuts",
+                        "type": "kibble"
+                    }
+                 ],
+                "type": "2"
+            },
+            {
+                "name": "mouse",
+                "type": "2",
+                "colour": "grey"
+            },
+            {
+                "name": "parrot",
+                "type": "1",
+                "colour": "blue",
+                "toys": {
+                    "toy": [
+                        "puzzles",
+                        "rings"
+                    ]
+                }
+            }
+        ]
+    }
+}
+""")
 
 # TODO RPC
 

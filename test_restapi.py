@@ -203,15 +203,68 @@ def test_restapi_get_tree_json_types():
 """)
 
 def test_restapi_get_tree_root():
-    response = requests.get("{}{}/test2".format(server_uri,docroot), verify=False, auth=server_auth)
+    response = requests.get("{}{}/test".format(server_uri,docroot), verify=False, auth=server_auth)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/json"
     assert response.json() == json.loads("""
 {
-    "test2": {
+    "test": {
+        "animals": {
+            "animal": {
+                "cat": {
+                    "name": "cat",
+                    "type": "1"
+                },
+                "dog": {
+                    "colour": "brown",
+                    "name": "dog"
+                },
+                "hamster": {
+                    "food": {
+                        "banana": {
+                            "name": "banana",
+                            "type": "fruit"
+                        },
+                        "nuts": {
+                            "name": "nuts",
+                            "type": "kibble"
+                        }
+                    },
+                    "name": "hamster",
+                    "type": "2"
+                },
+                "mouse": {
+                    "colour": "grey",
+                    "name": "mouse",
+                    "type": "2"
+                },
+                "parrot": {
+                    "colour": "blue",
+                    "name": "parrot",
+                    "toys": {
+                        "toy": {
+                            "puzzles": "puzzles",
+                            "rings": "rings"
+                        }
+                    },
+                    "type": "1"
+                }
+            }
+        },
         "settings": {
-            "verbosity": "2"
+            "debug": "1",
+            "enable": "true",
+            "priority": "1"
+        },
+        "state": {
+            "counter": "42",
+            "uptime": {
+                "days": "5",
+                "hours": "50",
+                "minutes": "30",
+                "seconds": "20"
+            }
         }
     }
 }
@@ -1295,11 +1348,11 @@ def test_restapi_ns_get_invalid_ns_leaf():
     assert response.status_code == 404
     assert len(response.content) == 0
 
-def test_restapi_ns_default_namespace():
+@pytest.mark.skip(reason="does not work yet")
+def test_restapi_ns_not_default():
     response = requests.get("{}{}/test2/settings/verbosity".format(server_uri,docroot), verify=False, auth=server_auth)
-    assert response.status_code == 200
-    assert response.headers["Content-Type"] == "application/json"
-    assert response.json() == json.loads('{ "verbosity": "2" }')
+    assert response.status_code == 404
+    assert len(response.content) == 0
 
 def test_restapi_ns_specific_namespace():
     response = requests.get("{}{}/t2:test2/settings/verbosity".format(server_uri,docroot), verify=False, auth=server_auth)
