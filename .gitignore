@@ -3,14 +3,11 @@
 apteryx-rest
 .gcov/
 .build/
-.cache/
 __pycache__/
-*.gcda
-*.gcno
 sse
 
 # Autotools
-m4/*
+m4/
 aclocal.m4
 ar-lib
 autom4te.cache/
