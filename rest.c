@@ -168,6 +168,8 @@ rest_api_get (int flags, const char *path, const char *if_none_match)
         schflags |= SCH_F_JSON_ARRAYS;
     if (flags & FLAGS_JSON_FORMAT_TYPES)
         schflags |= SCH_F_JSON_TYPES;
+    if (flags & FLAGS_RESTCONF)
+        schflags |= SCH_F_NS_MODEL_NAME;
 
     /* Generate an aperyx query from the path */
     query = sch_path_to_query (g_schema, NULL, path, schflags);
@@ -192,7 +194,7 @@ rest_api_get (int flags, const char *path, const char *if_none_match)
     tree = apteryx_query (query);
     if (tree)
     {
-        /* Convert thre result to JSON */
+        /* Convert the result to JSON */
         json = sch_gnode_to_json (g_schema, NULL, tree, schflags);
         if (json)
         {

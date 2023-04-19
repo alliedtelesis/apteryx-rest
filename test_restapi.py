@@ -27,6 +27,7 @@ else:
 APTERYX='LD_LIBRARY_PATH=.build/usr/lib .build/usr/bin/apteryx'
 
 db_default = [
+    # Default namespace
     ('/test/settings/debug', '1'),
     ('/test/settings/enable', 'true'),
     ('/test/settings/priority', '1'),
@@ -54,9 +55,12 @@ db_default = [
     ('/test/animals/animal/parrot/colour', 'blue'),
     ('/test/animals/animal/parrot/toys/toy/rings', 'rings'),
     ('/test/animals/animal/parrot/toys/toy/puzzles', 'puzzles'),
-    ('/test2/settings/verbosity', '2'),
-    ('/other:test/settings/speed', '3'),
-    ('/other:test/settings/volume', '4'),
+    # Default namespace augmented path
+    ('/test/settings/volume', '1'),
+    # Non-default namespace same path as default
+    ('/t2:test/settings/priority', '2'),
+    # Non-default namespace augmented path
+    ('/t2:test/settings/volume', '2'),
 ]
 
 def apteryx_set(path, value):
@@ -86,6 +90,23 @@ def test_restapi_api_xml():
     print(etree.tostring(xml, pretty_print=True, encoding="unicode"))
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "text/xml"
+
+def test_restapi_ns_api_xml():
+    response = requests.get("{}{}.xml".format(server_uri,docroot), verify=False, auth=server_auth)
+    xml = etree.fromstring(response.content)
+    print(etree.tostring(xml, pretty_print=True, encoding="unicode"))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "text/xml"
+    print(xml.findall('.//{*}NODE'))
+    ns_t2 = [e.attrib['name'] for e in xml.findall('.//{http://test.com/ns/yang/testing-2}NODE')]
+    assert ns_t2 == ['test', 'settings', 'priority', 'state', 'priority']
+    ns_aug = [e.attrib['name'] for e in xml.findall('.//{http://test.com/ns/yang/testing2-augmented}NODE')]
+    assert ns_aug == ['speed', 'speed']
+    ns_default = [e.attrib['name'] for e in xml.findall('.//{https://github.com/alliedtelesis/apteryx}NODE')]
+    for node in ['test', 'settings', 'debug', 'enable', 'priority', 'writeonly']:
+        assert node in ns_default
+    for node in ['hidden', 'speed']:
+        assert node not in ns_default
 
 # GET
 
@@ -179,9 +200,10 @@ def test_restapi_get_tree_strings():
     assert response.json() == json.loads("""
 {
     "settings": {
-        "enable": "true",
         "debug": "1",
-        "priority": "1"
+        "enable": "true",
+        "priority": "1",
+        "volume": "1"
     }
 }
 """)
@@ -197,7 +219,8 @@ def test_restapi_get_tree_json_types():
     "settings": {
         "enable": true,
         "debug": "enable",
-        "priority": 1
+        "priority": 1,
+        "volume": 1
     }
 }
 """)
@@ -255,7 +278,8 @@ def test_restapi_get_tree_root():
         "settings": {
             "debug": "1",
             "enable": "true",
-            "priority": "1"
+            "priority": "1",
+            "volume": "1"
         },
         "state": {
             "counter": "42",
@@ -470,6 +494,7 @@ def test_restapi_get_hidden_tree():
     apteryx_set("/test/settings/debug", "")
     apteryx_set("/test/settings/enable", "")
     apteryx_set("/test/settings/priority", "")
+    apteryx_set("/test/settings/volume", "")
     response = requests.get("{}{}/test/settings".format(server_uri,docroot), verify=False, auth=server_auth)
     assert response.status_code == 200
     assert response.json() == json.loads('{}')
@@ -580,7 +605,8 @@ def test_restapi_set_tree_static():
     "settings": {
         "enable": "false",
         "debug": "0",
-        "priority": "5"
+        "priority": "5",
+        "volume": "1"
     }
 }
 """
@@ -612,7 +638,8 @@ def test_restapi_set_tree_null_value():
 {
     "settings": {
         "enable": "false",
-        "priority": "5"
+        "priority": "5",
+        "volume": "1"
     }
 }
 """)
@@ -969,7 +996,8 @@ def test_restapi_search_trunk():
     "settings": [
         "debug",
         "enable",
-        "priority"
+        "priority",
+        "volume"
     ]
 }
 """)
@@ -1311,78 +1339,3 @@ def test_restapi_query_field_etag_not_modified():
     print(response.headers.get("ETag"))
     assert response.status_code == 304
     assert len(response.content) == 0
-
-# Namespaces
-
-def test_restapi_ns_api_xml():
-    response = requests.get("{}{}.xml".format(server_uri,docroot), verify=False, auth=server_auth)
-    xml = etree.fromstring(response.content)
-    print(etree.tostring(xml, pretty_print=True, encoding="unicode"))
-    assert response.status_code == 200
-    assert response.headers["Content-Type"] == "text/xml"
-    print(xml.findall('.//{*}NODE'))
-    ns_other = [e.attrib['name'] for e in xml.findall('.//{http://test.com/ns/yang/testing-other}NODE')]
-    assert ns_other == ['test', 'settings', 'speed']
-    ns_t2 = [e.attrib['name'] for e in xml.findall('.//{http://test.com/ns/yang/testing-2}NODE')]
-    assert ns_t2 == ['test2', 'settings', 'verbosity', 'state', 'verbosity']
-    ns_aug = [e.attrib['name'] for e in xml.findall('.//{http://test.com/ns/yang/testing-augmented}NODE')]
-    assert ns_aug == ['volume', 'volume']
-    ns_default = [e.attrib['name'] for e in xml.findall('.//{https://github.com/alliedtelesis/apteryx}NODE')]
-    for node in ['test', 'settings', 'debug', 'enable', 'priority', 'writeonly']:
-        assert node in ns_default
-    for node in ['hidden', 'speed', 'volume']:
-        assert node not in ns_default
-
-def test_restapi_ns_get_invalid_ns_trunk():
-    response = requests.get("{}{}/invalid:test/settings/priority".format(server_uri,docroot), verify=False, auth=server_auth)
-    assert response.status_code == 404
-    assert len(response.content) == 0
-
-def test_restapi_ns_get_invalid_ns_branch():
-    response = requests.get("{}{}/test/invalid:settings/priority".format(server_uri,docroot), verify=False, auth=server_auth)
-    assert response.status_code == 404
-    assert len(response.content) == 0
-
-def test_restapi_ns_get_invalid_ns_leaf():
-    response = requests.get("{}{}/test/settings/invalid:priority".format(server_uri,docroot), verify=False, auth=server_auth)
-    assert response.status_code == 404
-    assert len(response.content) == 0
-
-@pytest.mark.skip(reason="does not work yet")
-def test_restapi_ns_not_default():
-    response = requests.get("{}{}/test2/settings/verbosity".format(server_uri,docroot), verify=False, auth=server_auth)
-    assert response.status_code == 404
-    assert len(response.content) == 0
-
-def test_restapi_ns_specific_namespace():
-    response = requests.get("{}{}/t2:test2/settings/verbosity".format(server_uri,docroot), verify=False, auth=server_auth)
-    assert response.status_code == 200
-    assert response.headers["Content-Type"] == "application/json"
-    assert response.json() == json.loads('{ "verbosity": "2" }')
-
-def test_restapi_ns_specific_namespace_model():
-    response = requests.get("{}{}/testing-2:test2/settings/verbosity".format(server_uri,docroot), verify=False, auth=server_auth)
-    assert response.status_code == 200
-    assert response.headers["Content-Type"] == "application/json"
-    assert response.json() == json.loads('{ "verbosity": "2" }')
-
-def test_restapi_ns_other_no_namespace():
-    response = requests.get("{}{}/test/settings/speed".format(server_uri,docroot), verify=False, auth=server_auth)
-    assert response.status_code == 404
-    assert len(response.content) == 0
-
-@pytest.mark.skip(reason="does not work yet")
-def test_restapi_ns_other_get_simple_node():
-    response = requests.get("{}{}/other:test/settings/speed".format(server_uri,docroot), verify=False, auth=server_auth)
-    print(json.dumps(response.json(), indent=4, sort_keys=True))
-    assert response.status_code == 200
-    assert response.headers["Content-Type"] == "application/json"
-    assert response.json() == json.loads('{ "speed": "3" }')
-
-@pytest.mark.skip(reason="does not work yet")
-def test_restapi_ns_aug_get_simple_node():
-    response = requests.get("{}{}/other:test/config/aug:volume".format(server_uri,docroot), verify=False, auth=server_auth)
-    print(json.dumps(response.json(), indent=4, sort_keys=True))
-    assert response.status_code == 200
-    assert response.headers["Content-Type"] == "application/json"
-    assert response.json() == json.loads('{ "volume": "4" }')

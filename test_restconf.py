@@ -18,6 +18,7 @@ APTERYX='LD_LIBRARY_PATH=.build/usr/lib .build/usr/bin/apteryx'
 # TEST HELPERS
 
 db_default = [
+    # Default namespace
     ('/test/settings/debug', '1'),
     ('/test/settings/enable', 'true'),
     ('/test/settings/priority', '1'),
@@ -45,9 +46,12 @@ db_default = [
     ('/test/animals/animal/parrot/colour', 'blue'),
     ('/test/animals/animal/parrot/toys/toy/rings', 'rings'),
     ('/test/animals/animal/parrot/toys/toy/puzzles', 'puzzles'),
-    ('/test2/settings/verbosity', '2'),
-    ('/other:test/settings/speed', '3'),
-    ('/other:test/settings/volume', '4'),
+    # Default namespace augmented path
+    ('/test/settings/volume', '1'),
+    # Non-default namespace same path as default
+    ('/t2:test/settings/priority', '2'),
+    # Non-default namespace augmented path
+    ('/t2:test/settings/volume', '2'),
 ]
 
 def apteryx_set(path, value):
@@ -101,30 +105,51 @@ def test_restconf_yang_library_version():
 
 # GET
 
-def test_restconf_get_single_node_no_namepsace():
+def test_restconf_get_single_node_ns_none():
     response = requests.get("http://{}:{}{}/data/test/settings/priority".format(host,port,docroot), headers=restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/yang-data+json"
     assert response.json() == json.loads('{ "priority": 1 }')
 
-def test_restconf_get_single_node_default_namespace():
+def test_restconf_get_single_node_ns_aug_none():
+    response = requests.get("http://{}:{}{}/data/test/settings/volume".format(host,port,docroot), headers=restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.json() == json.loads('{ "volume": 1 }')
+
+def test_restconf_get_single_node_ns_default():
     response = requests.get("http://{}:{}{}/data/testing:test/settings/priority".format(host,port,docroot), headers=restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/yang-data+json"
     assert response.json() == json.loads('{ "priority": 1 }')
 
-def test_restconf_get_single_node_namespace():
-    response = requests.get("http://{}:{}{}/data/testing-2:test2/settings/verbosity".format(host,port,docroot), headers=restconf_headers)
+def test_restconf_get_single_node_ns_aug_default():
+    response = requests.get("http://{}:{}{}/data/testing:test/settings/volume".format(host,port,docroot), headers=restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/yang-data+json"
-    assert response.json() == json.loads('{ "verbosity": 2 }')
+    assert response.json() == json.loads('{ "volume": 1 }')
 
-def test_restconf_get_invalid_namespace():
+def test_restconf_get_single_node_ns_other():
+    response = requests.get("http://{}:{}{}/data/testing-2:test/settings/priority".format(host,port,docroot), headers=restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.json() == json.loads('{ "priority": 2 }')
+
+@pytest.mark.skip(reason="does not work yet")
+def test_restconf_get_single_node_ns_aug_other():
+    response = requests.get("http://{}:{}{}/data/testing-2:test/settings/testing2-augmented:speed".format(host,port,docroot), headers=restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.json() == json.loads('{ "speed": 2 }')
+
+def test_restconf_get_namespace_invalid():
     response = requests.get("http://{}:{}{}/data/cabbage:test/settings/priority".format(host,port,docroot), headers=restconf_headers)
-    # print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 404
     assert len(response.content) == 0
 
@@ -182,7 +207,8 @@ def test_restconf_get_trunk_no_namespace():
     "settings": {
         "debug": "enable",
         "enable": true,
-        "priority": 1
+        "priority": 1,
+        "volume": 1
     }
 }
     """)
@@ -197,7 +223,8 @@ def test_restconf_get_trunk_namespace():
     "settings": {
         "debug": "enable",
         "enable": true,
-        "priority": 1
+        "priority": 1,
+        "volume": 1
     }
 }
     """)
@@ -379,7 +406,7 @@ def test_restconf_get_etag_namespace():
 # HEAD
 
 def test_restconf_head_single_node():
-    response = requests.head("http://{}:{}{}/data/testing-2:test2/settings/verbosity".format(host,port,docroot), headers=restconf_headers)
+    response = requests.head("http://{}:{}{}/data/testing-2:test/settings/priority".format(host,port,docroot), headers=restconf_headers)
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/yang-data+json"
     assert response.content == b''
@@ -394,20 +421,60 @@ def test_restconf_head_single_node():
 
 # DELETE
 
-def test_restconf_delete_single_node_no_namespace():
-    response = requests.delete("http://{}:{}{}/data/test/settings/debug".format(host,port,docroot), headers=restconf_headers)
+def test_restconf_delete_single_node_ns_none():
+    response = requests.delete("http://{}:{}{}/data/test/settings/priority".format(host,port,docroot), headers=restconf_headers)
     assert response.status_code == 200
     assert len(response.content) == 0
-    response = requests.get("http://{}:{}{}/data/test/settings/debug".format(host,port,docroot), headers=restconf_headers)
+    response = requests.get("http://{}:{}{}/data/test/settings/priority".format(host,port,docroot), headers=restconf_headers)
+    assert response.status_code == 200
+    assert response.json() == json.loads('{}')
+
+def test_restconf_delete_single_node_ns_aug_none():
+    response = requests.delete("http://{}:{}{}/data/test/settings/volume".format(host,port,docroot), headers=restconf_headers)
+    assert response.status_code == 200
+    assert len(response.content) == 0
+    response = requests.get("http://{}:{}{}/data/test/settings/volume".format(host,port,docroot), headers=restconf_headers)
     assert response.status_code == 200
     assert response.json() == json.loads('{}')
 
 @pytest.mark.skip(reason="does not work yet")
-def test_restconf_delete_single_node():
-    response = requests.delete("http://{}:{}{}/data/testing:test/settings/debug".format(host,port,docroot), headers=restconf_headers)
+def test_restconf_delete_single_node_ns_default():
+    response = requests.delete("http://{}:{}{}/data/testing:test/settings/priority".format(host,port,docroot), headers=restconf_headers)
     assert response.status_code == 200
     assert len(response.content) == 0
-    response = requests.get("http://{}:{}{}/data/testing:test/settings/debug".format(host,port,docroot), headers=restconf_headers)
+    response = requests.get("http://{}:{}{}/data/test/settings/priority".format(host,port,docroot), headers=restconf_headers)
+    assert response.status_code == 200
+    assert response.json() == json.loads('{}')
+
+@pytest.mark.skip(reason="does not work yet")
+def test_restconf_delete_single_node_ns_aug_default():
+    response = requests.delete("http://{}:{}{}/data/testing:test/settings/volume".format(host,port,docroot), headers=restconf_headers)
+    assert response.status_code == 200
+    assert len(response.content) == 0
+    response = requests.get("http://{}:{}{}/data/test/settings/volume".format(host,port,docroot), headers=restconf_headers)
+    assert response.status_code == 200
+    assert response.json() == json.loads('{}')
+
+@pytest.mark.skip(reason="does not work yet")
+def test_restconf_delete_single_node_ns_other():
+    response = requests.delete("http://{}:{}{}/data/testing-2:test/settings/priority".format(host,port,docroot), headers=restconf_headers)
+    assert response.status_code == 200
+    assert len(response.content) == 0
+    response = requests.get("http://{}:{}{}/data/testing-2:test/settings/priority".format(host,port,docroot), headers=restconf_headers)
+    assert response.status_code == 200
+    assert response.json() == json.loads('{}')
+    response = requests.get("http://{}:{}{}/data/test/settings/priority".format(host,port,docroot), headers=restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.json() == json.loads('{ "priority": 1 }')
+
+@pytest.mark.skip(reason="does not work yet")
+def test_restconf_delete_single_node_ns_aug_other():
+    response = requests.delete("http://{}:{}{}/data/testing-2:test/settings/speed".format(host,port,docroot), headers=restconf_headers)
+    assert response.status_code == 200
+    assert len(response.content) == 0
+    response = requests.get("http://{}:{}{}/data/testing-2:test/settings/speed".format(host,port,docroot), headers=restconf_headers)
     assert response.status_code == 200
     assert response.json() == json.loads('{}')
 

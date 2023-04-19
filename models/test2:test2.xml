@@ -3,13 +3,13 @@
         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:schemaLocation="https://github.com/alliedtelesis/apteryx-xml https://github.com/alliedtelesis/apteryx-xml/releases/download/v1.2/apteryx.xsd"
         xmlns:t2="http://test.com/ns/yang/testing-2" 
-        model="testing-2" organization="Test 2 Ltd" version="2023-04-01">
-  <NODE name="test2" help="This is a test node">
+        model="testing-2" organization="Test 2 Ltd" version="2023-02-01">
+  <NODE name="test" help="This is a test node">
     <NODE name="settings" help="Settings">
-      <NODE name="verbosity" mode="rw" help="integer" pattern="^[1-5]$"/>
+      <NODE name="priority" mode="rw" help="integer" pattern="^[1-5]$"/>
     </NODE>
     <NODE name="state" help="State">
-      <NODE name="verbosity" mode="r" help="integer"/>
+      <NODE name="priority" mode="r" help="integer"/>
     </NODE>
   </NODE>
 </MODULE>
