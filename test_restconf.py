@@ -313,7 +313,10 @@ def test_restconf_get_list_select_two_trunk():
 }
     """)
 
-# TODO support multiple keys in list select
+# TODO leaf-list
+
+# TODO multiple keys
+#  /restconf/data/example-top:top/list1=key1,key2,key3
 
 @pytest.mark.skip(reason="does not work yet")
 def test_restconf_get_timestamp():
@@ -353,11 +356,6 @@ def test_restconf_get_etag_namespace():
     assert response.headers["Content-Type"] == "application/yang-data+json"
     assert response.headers.get("ETag") != None and response.headers.get("ETag") != "0"
     assert response.json() == json.loads('{ "enable": true }')
-
-# TODO leaf-list
-
-# TODO multiple keys
-#  /restconf/data/example-top:top/list1=key1,key2,key3
 
 # TODO query parameters
 #    | content       | GET,    | Select config and/or non-config data    |
@@ -454,7 +452,6 @@ def test_restconf_delete_single_node_ns_aug_none():
     assert response.status_code == 200
     assert response.json() == json.loads('{}')
 
-@pytest.mark.skip(reason="does not work yet")
 def test_restconf_delete_single_node_ns_default():
     response = requests.delete("http://{}:{}{}/data/testing:test/settings/priority".format(host,port,docroot), headers=restconf_headers)
     assert response.status_code == 200
@@ -463,7 +460,6 @@ def test_restconf_delete_single_node_ns_default():
     assert response.status_code == 200
     assert response.json() == json.loads('{}')
 
-@pytest.mark.skip(reason="does not work yet")
 def test_restconf_delete_single_node_ns_aug_default():
     response = requests.delete("http://{}:{}{}/data/testing:test/settings/volume".format(host,port,docroot), headers=restconf_headers)
     assert response.status_code == 200
@@ -488,14 +484,13 @@ def test_restconf_delete_single_node_ns_other():
 
 @pytest.mark.skip(reason="does not work yet")
 def test_restconf_delete_single_node_ns_aug_other():
-    response = requests.delete("http://{}:{}{}/data/testing-2:test/settings/speed".format(host,port,docroot), headers=restconf_headers)
+    response = requests.delete("http://{}:{}{}/data/testing-2:test/settings/testing2-augmented:speed".format(host,port,docroot), headers=restconf_headers)
     assert response.status_code == 200
     assert len(response.content) == 0
-    response = requests.get("http://{}:{}{}/data/testing-2:test/settings/speed".format(host,port,docroot), headers=restconf_headers)
+    response = requests.get("http://{}:{}{}/data/testing-2:test/settings/testing2-augmented:speed".format(host,port,docroot), headers=restconf_headers)
     assert response.status_code == 200
     assert response.json() == json.loads('{}')
 
-@pytest.mark.skip(reason="does not work yet")
 def test_restconf_delete_trunk():
     response = requests.delete("http://{}:{}{}/data/testing:test/settings".format(host,port,docroot), headers=restconf_headers)
     assert response.status_code == 200
@@ -504,7 +499,6 @@ def test_restconf_delete_trunk():
     assert response.status_code == 200
     assert response.json() == json.loads('{}')
 
-@pytest.mark.skip(reason="does not work yet")
 def test_restconf_delete_list_entry():
     response = requests.delete("http://{}:{}{}/data/testing:test/animals/animal=cat".format(host,port,docroot), headers=restconf_headers)
     assert response.status_code == 200
@@ -533,16 +527,16 @@ def test_restconf_delete_list_entry():
                         "type": "kibble"
                     }
                  ],
-                "type": "2"
+                "type": "little"
             },
             {
                 "name": "mouse",
-                "type": "2",
+                "type": "little",
                 "colour": "grey"
             },
             {
                 "name": "parrot",
-                "type": "1",
+                "type": "big",
                 "colour": "blue",
                 "toys": {
                     "toy": [

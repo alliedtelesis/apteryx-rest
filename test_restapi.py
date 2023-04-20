@@ -906,6 +906,26 @@ def test_restapi_set_true_false_boolean():
 
 # DELETE
 
+def test_restapi_delete_not_found():
+    response = requests.delete("{}{}/test/settings/invalid".format(server_uri,docroot), verify=False, auth=server_auth)
+    assert response.status_code == 403 or response.status_code == 404
+    assert len(response.content) == 0
+
+def test_restapi_delete_read_only():
+    response = requests.delete("{}{}/test/state/counter".format(server_uri,docroot), verify=False, auth=server_auth)
+    assert response.status_code == 403 or response.status_code == 404
+    assert len(response.content) == 0
+
+def test_restapi_delete_read_only_trunk():
+    response = requests.delete("{}{}/test/state".format(server_uri,docroot), verify=False, auth=server_auth)
+    assert response.status_code == 403 or response.status_code == 404
+    assert len(response.content) == 0
+
+def test_restapi_delete_hidden_node():
+    response = requests.delete("{}{}/test/settings/hidden".format(server_uri,docroot), verify=False, auth=server_auth)
+    assert response.status_code == 403 or response.status_code == 404
+    assert len(response.content) == 0
+
 def test_restapi_delete_single_node():
     response = requests.delete("{}{}/test/settings/debug".format(server_uri,docroot), verify=False, auth=server_auth)
     assert response.status_code == 200
@@ -914,6 +934,7 @@ def test_restapi_delete_single_node():
     assert response.status_code == 200
     assert response.json() == json.loads('{}')
 
+# Should silently ignore hidden nodes
 def test_restapi_delete_trunk():
     response = requests.delete("{}{}/test/settings".format(server_uri,docroot), verify=False, auth=server_auth)
     assert response.status_code == 200
@@ -921,6 +942,7 @@ def test_restapi_delete_trunk():
     response = requests.get("{}{}/test/settings".format(server_uri,docroot), verify=False, auth=server_auth)
     assert response.status_code == 200
     assert response.json() == json.loads('{}')
+    assert apteryx_get("/test/settings/hidden") == "friend"
 
 def test_restapi_delete_list_entry():
     response = requests.delete("{}{}/test/animals/animal/cat".format(server_uri,docroot), verify=False, auth=server_auth)

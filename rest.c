@@ -360,54 +360,70 @@ rest_api_post (int flags, const char *path, const char *data, int length)
     return g_strdup_printf ("Status: %d\r\n" "\r\n", rc);
 }
 
-static int
-apteryx_json_delete (const char *path)
+static gboolean
+set_data_null (GNode *node, gpointer data)
 {
-    GList *children, *iter;
-    char *_path;
-    int rc = HTTP_CODE_OK;
-    sch_node *node;
+    int *rc = (int *) data;
+    char *path = apteryx_node_path (node->parent);
+    sch_node *schema = sch_lookup (g_schema, path);
+    free (path);
 
-    /* Search the path */
-    _path = g_strdup_printf ("%s/", path);
-    children = apteryx_search (_path);
-    free (_path);
-
-    /* Check for leaf */
-    if (!children)
+    if (schema && sch_is_hidden (schema))
     {
-        /* Validate path */
-        if ((node = sch_lookup (g_schema, path)) == NULL || !sch_is_writable (node))
-        {
-            /* Pretend success for invalid or hidden paths */
-            rc = HTTP_CODE_OK;
-        }
-        /* Set to NULL */
-        else if (!apteryx_set (path, NULL))
-        {
-            // TODO path error
-            rc = 400;
-        }
+        // TODO Pretend it is not here rather than letting it be set again
+        return false;
     }
-    else
+    else if (schema == NULL || !sch_is_writable (schema))
     {
-        /* Delete all children */
-        for (iter = children; iter; iter = g_list_next (iter))
-        {
-            rc = apteryx_json_delete ((char *) iter->data);
-            if (rc != HTTP_CODE_OK)
-                break;
-        }
-        g_list_free_full (children, free);
+        *rc = HTTP_CODE_FORBIDDEN;
+        return true;
     }
 
-    return rc;
+    /* Otherwise we can set this to null */
+    free (node->data);
+    node->data = strdup ("");
+    return false;
 }
 
+/* Implemented by doing a query and setting all data to NULL */
 static char *
-rest_api_delete (const char *path)
+rest_api_delete (int flags, const char *path)
 {
-    int rc = apteryx_json_delete (path);
+    int rc = HTTP_CODE_OK;
+    int schflags = 0;
+
+    /* Parsing options */
+    if (verbose)
+        schflags |= SCH_F_DEBUG;
+    if (flags & FLAGS_JSON_FORMAT_ARRAYS)
+        schflags |= SCH_F_JSON_ARRAYS;
+    if (flags & FLAGS_JSON_FORMAT_TYPES)
+        schflags |= SCH_F_JSON_TYPES;
+    if (flags & FLAGS_RESTCONF)
+        schflags |= SCH_F_NS_MODEL_NAME;
+
+    /* Generate an aperyx query from the path */
+    GNode *query = sch_path_to_query (g_schema, NULL, path, schflags);
+    if (!query)
+    {
+        VERBOSE ("REST: Path \"%s\" not found\n", path);
+        rc = HTTP_CODE_FORBIDDEN;
+        goto exit;
+    }
+
+    /* Query the database */
+    GNode *tree = apteryx_query (query);
+    apteryx_free_tree (query);
+    if (tree)
+    {
+        /* Set all leaves to NULL if we are allowed */
+        g_node_traverse (tree, G_IN_ORDER, G_TRAVERSE_LEAVES, -1, set_data_null, &rc);
+        if (rc == HTTP_CODE_OK)
+            rc = apteryx_set_tree (tree) ? HTTP_CODE_OK : 400;
+        apteryx_free_tree (tree);
+    }
+
+exit:
     return g_strdup_printf ("Status: %d\r\n" "\r\n", rc);
 }
 
@@ -608,7 +624,7 @@ rest_api (req_handle handle, int flags, const char *rpath, const char *path, con
     else if (strcmp (action, "POST") == 0 || strcmp (action, "PUT") == 0)
         resp = rest_api_post (flags, path, data, length);
     else if (strcmp (action, "DELETE") == 0)
-        resp = rest_api_delete (path);
+        resp = rest_api_delete (flags, path);
     if (!resp)
     {
         resp = g_strdup_printf ("Status: 404\r\n"
