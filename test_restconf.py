@@ -281,7 +281,6 @@ def test_restconf_get_list_trunk_no_namespace():
 }
     """)
 
-@pytest.mark.skip(reason="does not work yet")
 def test_restconf_get_list_select_one_trunk():
     response = requests.get("http://{}:{}{}/data/testing:test/animals/animal=cat".format(host,port,docroot), headers=restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -297,6 +296,24 @@ def test_restconf_get_list_select_one_trunk():
     ]
 }
     """)
+
+def test_restconf_get_list_select_two_trunk():
+    response = requests.get("http://{}:{}{}/data/testing:test/animals/animal=hamster/food=banana".format(host,port,docroot), headers=restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.json() == json.loads("""
+{
+    "food": [
+        {
+            "name": "banana",
+            "type": "fruit"
+        }
+    ]
+}
+    """)
+
+# TODO support multiple keys in list select
 
 @pytest.mark.skip(reason="does not work yet")
 def test_restconf_get_timestamp():

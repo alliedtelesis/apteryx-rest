@@ -126,17 +126,26 @@ rest_api_search (const char *path, const char *if_none_match)
 static json_t *
 get_response_node (const char *path, json_t *root)
 {
-    const char *s = path;
+    const char *s;
+    int slashes;
+    int equals;
     int depth;
 
-    for (depth=0; s[depth]; s[depth]=='/' ? depth++ : *s++);
-    while (root && depth > 1)
+    for (s=path, slashes=0; s[slashes]; s[slashes]=='/' ? slashes++ : *s++);
+    for (s=path, equals=0; s[equals]; s[equals]=='=' ? equals++ : *s++);
+    depth = slashes + (equals > 0 ? equals - 1 : 0) - 1;
+    while (root && depth > 0)
     {
-        void *iter = json_object_iter (root);
-        /* May have asked for a wildcard list in the path */
-        if (json_object_iter_next (root, iter))
-            break;
-        root = json_object_iter_value (iter);
+        if (json_is_array (root))
+            root = json_array_get(root, 0);
+        else
+        {
+            void *iter = json_object_iter (root);
+            /* May have asked for a wildcard list in the path */
+            if (json_object_iter_next (root, iter))
+                break;
+            root = json_object_iter_value (iter);
+        }
         depth--;
     }
     return root;
