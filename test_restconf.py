@@ -313,7 +313,19 @@ def test_restconf_get_list_select_two_trunk():
 }
     """)
 
-# TODO leaf-list
+def test_restconf_get_leaf_list_node():
+    response = requests.get("http://{}:{}{}/data/testing:test/animals/animal=parrot/toys/toy".format(host,port,docroot), headers=restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.json() == json.loads("""
+{
+    "toy": [
+        "puzzles",
+        "rings"
+    ]
+}
+    """)
 
 # TODO multiple keys
 #  /restconf/data/example-top:top/list1=key1,key2,key3

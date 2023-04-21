@@ -134,6 +134,10 @@ get_response_node (const char *path, json_t *root)
     for (s=path, slashes=0; s[slashes]; s[slashes]=='/' ? slashes++ : *s++);
     for (s=path, equals=0; s[equals]; s[equals]=='=' ? equals++ : *s++);
     depth = slashes + (equals > 0 ? equals - 1 : 0) - 1;
+    depth = slashes + equals - 1;
+    /* Special case of list-identifier at end */
+    if (strrchr (path, '=') > strrchr (path, '/'))
+        depth--;
     while (root && depth > 0)
     {
         if (json_is_array (root))
