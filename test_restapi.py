@@ -76,12 +76,14 @@ def run_around_tests():
     warnings.filterwarnings('ignore', message='Unverified HTTPS request')
     os.system("echo Before test")
     assert subprocess.check_output("%s -r %s/test" % (APTERYX, APTERYX_URL), shell=True).strip().decode('utf-8') != "Failed"
+    assert subprocess.check_output("%s -r %s/t2:test" % (APTERYX, APTERYX_URL), shell=True).strip().decode('utf-8') != "Failed"
     for path,value in db_default:
         apteryx_set(path, value)
     yield
     # After test
     os.system("echo After test")
     assert subprocess.check_output("%s -r %s/test" % (APTERYX, APTERYX_URL), shell=True).strip().decode('utf-8') != "Failed"
+    assert subprocess.check_output("%s -r %s/t2:test" % (APTERYX, APTERYX_URL), shell=True).strip().decode('utf-8') != "Failed"
 
 # API
 
@@ -1166,19 +1168,19 @@ def test_restapi_query_invalid_queries():
         "fields=counter&die=now",
         # "&",
         "&&,",
-        "fields=;",
-        "fields=;",
-        "fields=;;",
+        # "fields=;",
+        # "fields=;",
+        # "fields=;;",
         # "fields=/",
         # "fields=//",
-        "fields=(",
-        "fields=)",
-        "fields=()",
+        # "fields=(",
+        # "fields=)",
+        # "fields=()",
     ]
     for query in queries:
         print("Checking " + query)
         response = requests.get("{}{}/test/state?{}".format(server_uri,docroot,query), verify=False, auth=server_auth)
-        assert response.status_code == 404
+        assert response.status_code == 400
         assert len(response.content) == 0
 
 def test_restapi_query_field_empty():

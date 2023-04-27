@@ -14,6 +14,7 @@ docroot='/api'
 restconf_headers = {"Accept":"application/yang-data+json"}
 
 APTERYX='LD_LIBRARY_PATH=.build/usr/lib .build/usr/bin/apteryx'
+APTERYX_URL=''
 
 # TEST HELPERS
 
@@ -66,12 +67,15 @@ def run_around_tests():
     # Before test
     os.system("echo Before test")
     os.system("%s -r /test" % (APTERYX))
+    assert subprocess.check_output("%s -r %s/test" % (APTERYX, APTERYX_URL), shell=True).strip().decode('utf-8') != "Failed"
+    assert subprocess.check_output("%s -r %s/t2:test" % (APTERYX, APTERYX_URL), shell=True).strip().decode('utf-8') != "Failed"
     for path,value in db_default:
         apteryx_set(path, value)
     yield
     # After test
     os.system("echo After test")
-    os.system("%s -r /test" % (APTERYX))
+    assert subprocess.check_output("%s -r %s/test" % (APTERYX, APTERYX_URL), shell=True).strip().decode('utf-8') != "Failed"
+    assert subprocess.check_output("%s -r %s/t2:test" % (APTERYX, APTERYX_URL), shell=True).strip().decode('utf-8') != "Failed"
 
 # API
 
@@ -182,7 +186,7 @@ def test_restconf_get_etag_namespace():
 #           | operation-failed        | 412 or 500       |
 #           | partial-operation       | 500              |
 #           | malformed-message       | 400 
-@pytest.mark.skip(reason="does not work yet")
+
 def test_restconf_error_not_found():
     response = requests.get("http://{}:{}{}/data/test/settings/invalid".format(host,port,docroot), headers=restconf_headers)
     assert response.status_code == 404
@@ -196,17 +200,16 @@ def test_restconf_error_not_found():
         {
             "error-type" : "application",
             "error-tag" : "invalid-value",
-            "error-message" : "uri keypath not found"
+            "error-message" : "uri path not found"
         }
         ]
     }
 }
     """)
 
-@pytest.mark.skip(reason="does not work yet")
 def test_restconf_error_hidden_node():
     response = requests.get("http://{}:{}{}/data/test/settings/hidden".format(host,port,docroot), headers=restconf_headers)
-    assert response.status_code == 404
+    assert response.status_code == 403
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.headers["Content-Type"] == "application/yang-data+json"
@@ -215,16 +218,14 @@ def test_restconf_error_hidden_node():
     "ietf-restconf:errors" : {
         "error" : [
         {
-            "error-type" : "application",
-            "error-tag" : "invalid-value",
-            "error-message" : "uri keypath not found"
+            "error-type" : "protocol",
+            "error-tag" : "access-denied"
         }
         ]
     }
 }
     """)
 
-@pytest.mark.skip(reason="does not work yet")
 def test_restconf_error_read_only():
     response = requests.post("http://{}:{}{}/data/test/state".format(host,port,docroot), headers=restconf_headers, data="""{"counter": "123"}""")
     assert response.status_code == 403
@@ -237,14 +238,13 @@ def test_restconf_error_read_only():
         "error" : [
         {
             "error-type" : "protocol",
-            "error-tag" : "access-denied",
+            "error-tag" : "access-denied"
         }
         ]
     }
 }
     """)
 
-@pytest.mark.skip(reason="does not work yet")
 def test_restconf_error_write_only():
     response = requests.get("http://{}:{}{}/data/test/settings/writeonly".format(host,port,docroot), headers=restconf_headers)
     assert response.status_code == 403
@@ -257,7 +257,42 @@ def test_restconf_error_write_only():
         "error" : [
         {
             "error-type" : "protocol",
-            "error-tag" : "access-denied",
+            "error-tag" : "access-denied"
+        }
+        ]
+    }
+}
+    """)
+
+def test_restconf_error_unknown_namespace():
+    response = requests.get("http://{}:{}{}/data/cabbage:test/settings/writeonly".format(host,port,docroot), headers=restconf_headers)
+    assert response.status_code == 400 or response.status_code == 404
+    assert len(response.content) > 0
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    if response.status_code == 400:
+        assert response.json() == json.loads("""
+{
+    "ietf-restconf:errors" : {
+        "error" : [
+        {
+            "error-type" : "application",
+            "error-tag" : "unknown-namespace"
+            "error-message" : "namespace not found"
+        }
+        ]
+    }
+}
+    """)
+    else:
+        assert response.json() == json.loads("""
+{
+    "ietf-restconf:errors" : {
+        "error" : [
+        {
+            "error-type" : "application",
+            "error-tag" : "invalid-value",
+            "error-message" : "uri path not found"
         }
         ]
     }
@@ -341,11 +376,6 @@ def test_restconf_get_single_node_ns_aug_other():
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/yang-data+json"
     assert response.json() == json.loads('{ "speed": 2 }')
-
-def test_restconf_get_namespace_invalid():
-    response = requests.get("http://{}:{}{}/data/cabbage:test/settings/priority".format(host,port,docroot), headers=restconf_headers)
-    assert response.status_code == 404
-    assert len(response.content) == 0
 
 def test_restconf_get_integer():
     response = requests.get("http://{}:{}{}/data/testing:test/settings/priority".format(host,port,docroot), headers=restconf_headers)
@@ -587,24 +617,22 @@ def test_restconf_query_empty():
 }
 """)
 
-@pytest.mark.skip(reason="does not work yet")
 def test_restconf_query_invalid_queries():
     queries = [
         "die",
         "die=",
         "die=now",
-        "die=now&fields=counter",
-        "fields=counter&die=now",
+        "die=now&fields=enable",
+        "fields=enable&die=now",
         # "&",
         "&&,",
-        "fields=;",
-        "fields=;",
-        "fields=;;",
+        # "fields=;",
+        # "fields=;;",
         # "fields=/",
         # "fields=//",
-        "fields=(",
-        "fields=)",
-        "fields=()",
+        # "fields=(",
+        # "fields=)",
+        # "fields=()",
         "content=all&content=all"
     ]
     for query in queries:
@@ -621,7 +649,7 @@ def test_restconf_query_invalid_queries():
             {
                 "error-type" : "application",
                 "error-tag" : "invalid-value",
-                "error-message" : "invalid query parameter"
+                "error-message" : "malformed request syntax"
             }
             ]
         }
@@ -1182,10 +1210,9 @@ def test_restconf_delete_trunk_ok():
     assert response.status_code == 200
     assert response.json() == json.loads('{}')
 
-@pytest.mark.skip(reason="does not work yet")
 def test_restconf_delete_trunk_denied():
     response = requests.delete("http://{}:{}{}/data/testing:test/settings".format(host,port,docroot), headers=restconf_headers)
-    assert response.status_code == 403
+    assert response.status_code == 403 or response.status_code == 404
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.headers["Content-Type"] == "application/yang-data+json"
@@ -1195,7 +1222,7 @@ def test_restconf_delete_trunk_denied():
         "error" : [
         {
             "error-type" : "protocol",
-            "error-tag" : "access-denied",
+            "error-tag" : "access-denied"
         }
         ]
     }

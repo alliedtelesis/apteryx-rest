@@ -33,6 +33,38 @@ extern bool delete_callback (const char *type, const char *path, void *fn, void 
 static sch_instance *g_schema = NULL;
 
 static char *
+restconf_error (int status)
+{
+    json_t *json = json_object();
+    json_t *errors = json_object();
+    json_t *array = json_array ();
+    json_t *error = json_object();
+    char *output;
+
+    if (status == HTTP_CODE_FORBIDDEN)
+    {
+        json_object_set_new (error, "error-type", json_string ("protocol"));
+        json_object_set_new (error, "error-tag", json_string ("access-denied"));
+    }
+    else
+    {
+        json_object_set_new (error, "error-type", json_string ("application"));
+        json_object_set_new (error, "error-tag", json_string ("invalid-value"));
+        if (status == HTTP_CODE_NOT_FOUND)
+            json_object_set_new (error, "error-message", json_string ("uri path not found"));
+        else
+            json_object_set_new (error, "error-message", json_string ("malformed request syntax"));
+    }
+    json_array_append_new (array, error);
+    json_object_set_new (errors, "error", array);
+    json_object_set_new (json, "ietf-restconf:errors", errors);
+
+    output = json_dumps (json, 0);
+    json_decref (json);
+    return output;
+}
+
+static char *
 rest_api_xml (void)
 {
     char *resp = NULL;
@@ -188,8 +220,20 @@ rest_api_get (int flags, const char *path, const char *if_none_match)
     query = sch_path_to_query (g_schema, NULL, path, schflags);
     if (!query)
     {
-        VERBOSE ("REST: Path \"%s\" not found\n", path);
-        rc = HTTP_CODE_NOT_FOUND;
+        VERBOSE ("REST: Path \"%s\" invalid\n", path);
+        switch (sch_last_err ())
+        {
+        case SCH_E_INVALIDQUERY:
+            rc = HTTP_CODE_BAD_REQUEST;
+            break;
+        case SCH_E_NOTREADABLE:
+        case SCH_E_NOTWRITABLE:
+            rc = HTTP_CODE_FORBIDDEN;
+            break;
+        case SCH_E_NOSCHEMANODE:
+        default:
+            rc = HTTP_CODE_NOT_FOUND;
+        }
         goto exit;
     }
 
@@ -251,6 +295,10 @@ rest_api_get (int flags, const char *path, const char *if_none_match)
     else
         json_string = json_dumps (json, 0);
 exit:
+    if (flags & FLAGS_RESTCONF && rc >= 400 && rc <= 499 && !json_string)
+    {
+        json_string = restconf_error (rc);
+    }
     resp = g_strdup_printf ("Status: %d\r\n"
                             "Etag: %" PRIX64 "\r\n"
                             "Content-Type: %s\r\n"
@@ -316,6 +364,8 @@ rest_api_post (int flags, const char *path, const char *data, int length)
 {
     json_error_t error;
     json_t *json;
+    char *error_string = NULL;
+    char *resp = NULL;
     int rc;
 
     json = json_loads (data, 0, &error);
@@ -361,7 +411,17 @@ rest_api_post (int flags, const char *path, const char *data, int length)
         ERROR ("error: on line %d: %s\n", error.line, error.text);
         rc = HTTP_CODE_BAD_REQUEST;
     }
-    return g_strdup_printf ("Status: %d\r\n" "\r\n", rc);
+    if (flags & FLAGS_RESTCONF && rc >= 400 && rc <= 499)
+    {
+        error_string = restconf_error (rc);
+    }
+    resp = g_strdup_printf ("Status: %d\r\n"
+                            "Content-Type: %s\r\n"
+                            "\r\n" "%s", rc,
+                            flags & FLAGS_RESTCONF ? "application/yang-data+json" : "application/json",
+                            error_string ? : "");
+    free (error_string);
+    return resp;
 }
 
 static gboolean
@@ -393,6 +453,8 @@ set_data_null (GNode *node, gpointer data)
 static char *
 rest_api_delete (int flags, const char *path)
 {
+    char *error_string = NULL;
+    char *resp = NULL;
     int rc = HTTP_CODE_OK;
     int schflags = 0;
 
@@ -428,7 +490,17 @@ rest_api_delete (int flags, const char *path)
     }
 
 exit:
-    return g_strdup_printf ("Status: %d\r\n" "\r\n", rc);
+    if (flags & FLAGS_RESTCONF && rc >= 400 && rc <= 499)
+    {
+        error_string = restconf_error (rc);
+    }
+    resp = g_strdup_printf ("Status: %d\r\n"
+                            "Content-Type: %s\r\n"
+                            "\r\n" "%s", rc,
+                            flags & FLAGS_RESTCONF ? "application/yang-data+json" : "application/json",
+                            error_string ? : "");
+    free (error_string);
+    return resp;
 }
 
 typedef struct WatchRequest
