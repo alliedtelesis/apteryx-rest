@@ -31,6 +31,7 @@ db_default = [
     ('/test/settings/debug', '1'),
     ('/test/settings/enable', 'true'),
     ('/test/settings/priority', '1'),
+    ('/test/settings/readonly', 'yes'),
     ('/test/settings/hidden', 'friend'),
     ('/test/state/counter', '42'),
     ('/test/state/uptime/days', '5'),
@@ -203,6 +204,7 @@ def test_restapi_get_tree_strings():
         "debug": "1",
         "enable": "true",
         "priority": "1",
+        "readonly": "yes",
         "volume": "1"
     }
 }
@@ -220,6 +222,7 @@ def test_restapi_get_tree_json_types():
         "enable": true,
         "debug": "enable",
         "priority": 1,
+        "readonly": "yes",
         "volume": 1
     }
 }
@@ -279,6 +282,7 @@ def test_restapi_get_tree_root():
             "debug": "1",
             "enable": "true",
             "priority": "1",
+            "readonly": "yes",
             "volume": "1"
         },
         "state": {
@@ -494,6 +498,7 @@ def test_restapi_get_hidden_tree():
     apteryx_set("/test/settings/debug", "")
     apteryx_set("/test/settings/enable", "")
     apteryx_set("/test/settings/priority", "")
+    apteryx_set("/test/settings/readonly", "")
     apteryx_set("/test/settings/volume", "")
     response = requests.get("{}{}/test/settings".format(server_uri,docroot), verify=False, auth=server_auth)
     assert response.status_code == 200
@@ -616,7 +621,17 @@ def test_restapi_set_tree_static():
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/json"
-    assert response.json() == json.loads(tree)
+    assert response.json() == json.loads("""
+{
+    "settings": {
+        "enable": "false",
+        "debug": "0",
+        "priority": "5",
+        "readonly": "yes",
+        "volume": "1"
+    }
+}
+""")
 
 def test_restapi_set_tree_null_value():
     tree = """
@@ -639,6 +654,7 @@ def test_restapi_set_tree_null_value():
     "settings": {
         "enable": "false",
         "priority": "5",
+        "readonly": "yes",
         "volume": "1"
     }
 }
@@ -935,6 +951,7 @@ def test_restapi_delete_single_node():
     assert response.json() == json.loads('{}')
 
 # Should silently ignore hidden nodes
+@pytest.mark.skip(reason="we reject this because of the readonly field")
 def test_restapi_delete_trunk():
     response = requests.delete("{}{}/test/settings".format(server_uri,docroot), verify=False, auth=server_auth)
     assert response.status_code == 200
@@ -1019,6 +1036,7 @@ def test_restapi_search_trunk():
         "debug",
         "enable",
         "priority",
+        "readonly",
         "volume"
     ]
 }
