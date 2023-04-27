@@ -701,6 +701,14 @@ rest_api (req_handle handle, int flags, const char *rpath, const char *path, con
         resp = rest_api_post (flags, path, data, length);
     else if (strcmp (action, "DELETE") == 0)
         resp = rest_api_delete (flags, path);
+    else if (strcmp (action, "OPTIONS") == 0)
+    {
+        resp = g_strdup_printf ("Status: 200\r\n"
+                        "Allow: GET,POST,PUT,PATCH,DELETE,HEAD,OPTIONS\r\n"
+                        "Accept-Patch: %s\r\n"
+                        "Content-Type: text/html\r\n\r\n",
+                        flags & FLAGS_RESTCONF ? "application/yang-data+json" : "application/json");
+    }
     if (!resp)
     {
         resp = g_strdup_printf ("Status: 404\r\n"

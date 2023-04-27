@@ -314,12 +314,10 @@ def test_restconf_error_unknown_namespace():
 
 # OPTIONS
 
-@pytest.mark.skip(reason="does not work yet")
 def test_restconf_options():
     response = requests.options("http://{}:{}{}/data/".format(host,port,docroot), headers=restconf_headers)
     assert response.status_code == 200
-    print(json.dumps(response.json(), indent=4, sort_keys=True))
-    assert len(response.content) > 0
+    assert len(response.content) == 0
     assert response.headers["allow"] == "GET,POST,PUT,PATCH,DELETE,HEAD,OPTIONS"
     # assert response.headers["accept-patch"] == "application/yang-data+xml, application/yang-data+json"
     assert response.headers["accept-patch"] == "application/yang-data+json"
