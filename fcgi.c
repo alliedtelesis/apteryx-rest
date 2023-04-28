@@ -30,41 +30,15 @@ static const char *g_socket = NULL;
 static int g_sock = -1;
 static GThread *g_thread = NULL;
 
-static inline void
-dump_param (FCGX_Request * r, char *e)
-{
-    char *p = FCGX_GetParam (e, r->envp);
-    if (p)
-        VERBOSE ("%s = '%s'\n", e, p);
-}
-
 static void
 dump_request (FCGX_Request * r)
 {
-    VERBOSE ("Status: 200\r\n");
-    VERBOSE ("Content-Type: text/html\r\n\r\n");
-    dump_param (r, "QUERY_STRING");
-    dump_param (r, "REQUEST_METHOD");
-    dump_param (r, "CONTENT_TYPE");
-    dump_param (r, "CONTENT_LENGTH");
-    dump_param (r, "SCRIPT_FILENAME");
-    dump_param (r, "SCRIPT_NAME");
-    dump_param (r, "REQUEST_URI");
-    dump_param (r, "DOCUMENT_URI");
-    dump_param (r, "DOCUMENT_ROOT");
-    dump_param (r, "SERVER_PROTOCOL");
-    dump_param (r, "GATEWAY_INTERFACE");
-    dump_param (r, "SERVER_SOFTWARE");
-    dump_param (r, "REMOTE_ADDR");
-    dump_param (r, "REMOTE_PORT");
-    dump_param (r, "SERVER_ADDR");
-    dump_param (r, "SERVER_PORT");
-    dump_param (r, "SERVER_NAME");
-    dump_param (r, "HTTP_COOKIE");
-    dump_param (r, "HTTPS");
-    dump_param (r, "HTTP_ACCEPT");
-    dump_param (r, "HTTP_CONTENT_TYPE");
-    dump_param (r, "HTTP_AUTHORIZATION");
+    char **envp = r->envp;
+    VERBOSE ("FCGI_PARAMS:\n");
+    while (envp && *envp) {
+        VERBOSE ("%s\n", *envp);
+        envp++;
+    }
     return;
 }
 
@@ -140,7 +114,7 @@ static void *
 handle_http (void *arg)
 {
     FCGX_Request *request = (FCGX_Request *) arg;
-    char *rpath, *path, *action, *length, *if_none_match;
+    char *rpath, *path, *action, *length, *if_none_match, *if_modified_since;
     int flags;
     char *data = NULL;
     int len = 0;
@@ -159,6 +133,7 @@ handle_http (void *arg)
     path = FCGX_GetParam ("REQUEST_URI", request->envp);
     flags = get_flags (request);
     if_none_match = FCGX_GetParam ("HTTP_IF_NONE_MATCH", request->envp);
+    if_modified_since = FCGX_GetParam ("HTTP_IF_MODIFIED_SINCE", request->envp);
     action = FCGX_GetParam ("REQUEST_METHOD", request->envp);
     length = FCGX_GetParam ("CONTENT_LENGTH", request->envp);
     if (!rpath || !path || !action)
@@ -185,7 +160,7 @@ handle_http (void *arg)
             }
         }
     }
-    g_cb ((req_handle) request, flags, rpath, path, action, if_none_match, data, len);
+    g_cb ((req_handle) request, flags, rpath, path, action, if_none_match, if_modified_since, data, len);
 
 exit:
     free (data);

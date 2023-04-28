@@ -1,8 +1,10 @@
+import json
 import os
-import subprocess
 import pytest
 import requests
-import json
+import subprocess
+import time
+
 from lxml import etree
 
 # TEST CONFIGURATION
@@ -117,7 +119,7 @@ def test_restconf_yang_library_version():
     assert response.headers["Content-Type"] == "application/yang-data+json"
     assert response.json() == json.loads('{ "yang-library-version" : "2016-06-21" }')
 
-@pytest.mark.skip(reason="not implemented")
+# This is actually useless as it is only second granularity - you should use ETag
 def test_restconf_get_timestamp():
     response = requests.get("http://{}:{}{}/data/test/settings/enable".format(host,port,docroot), headers=restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -125,9 +127,10 @@ def test_restconf_get_timestamp():
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/yang-data+json"
     assert response.headers.get("Last-Modified") != None and response.headers.get("Last-Modified") != "0"
+    # assert response.headers.get("Last-Modified") == time.strftime("%a, %d %b %Y %H:%M:%S GMT", time.gmtime())
     assert response.json() == json.loads('{ "enable": true }')
 
-@pytest.mark.skip(reason="not implemented")
+@pytest.mark.skip(reason="timestamps calculated on the wrong path")
 def test_restconf_get_timestamp_namespace():
     response = requests.get("http://{}:{}{}/data/testing:test/settings/enable".format(host,port,docroot), headers=restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -137,7 +140,6 @@ def test_restconf_get_timestamp_namespace():
     assert response.headers.get("Last-Modified") != None and response.headers.get("Last-Modified") != "0"
     assert response.json() == json.loads('{ "enable": true }')
 
-@pytest.mark.skip(reason="not implemented")
 def test_restconf_get_if_modified_since():
     response = requests.get("http://{}:{}{}/data/test/settings/enable".format(host,port,docroot), headers=restconf_headers)
     assert response.status_code == 200
@@ -148,15 +150,16 @@ def test_restconf_get_if_modified_since():
     response = requests.get("http://{}:{}{}/data/test/settings/enable".format(host,port,docroot), headers={**restconf_headers, 'If-Modified-Since': last_modified})
     assert response.status_code == 304
     assert len(response.content) == 0
+    time.sleep(1)
     apteryx_set("/test/settings/enable", "false")
     response = requests.get("http://{}:{}{}/data/test/settings/enable".format(host,port,docroot), headers={**restconf_headers, 'If-Modified-Since': last_modified})
     assert response.status_code == 200
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.headers.get("Last-Modified") != None and response.headers.get("Last-Modified") != last_modified
-    assert response.json() == json.loads('{ "enable": true }')
+    assert response.json() == json.loads('{ "enable": false }')
 
-@pytest.mark.skip(reason="not implemented")
+@pytest.mark.skip(reason="timestamps calculated on the wrong path")
 def test_restconf_get_if_modified_since_namespace():
     response = requests.get("http://{}:{}{}/data/testing:test/settings/enable".format(host,port,docroot), headers=restconf_headers)
     assert response.status_code == 200
@@ -212,7 +215,7 @@ def test_restconf_get_if_none_match():
     assert response.headers.get("Etag") != None and response.headers.get("Etag") != etag
     assert response.json() == json.loads('{ "enable": false }')
 
-@pytest.mark.skip(reason="not implemented")
+@pytest.mark.skip(reason="timestamps calculated on the wrong path")
 def test_restconf_get_if_none_match_namespace():
     response = requests.get("http://{}:{}{}/data/testing:test/settings/enable".format(host,port,docroot), headers=restconf_headers)
     assert response.status_code == 200
@@ -728,7 +731,7 @@ def test_restconf_query_invalid_queries():
 
 # Query Content
 
-@pytest.mark.skip(reason="does not work yet")
+@pytest.mark.skip(reason="not implemented")
 def test_restconf_query_content_all():
     response = requests.get("http://{}:{}{}/data/test/settings?content=all".format(host,port,docroot), headers=restconf_headers)
     assert response.status_code == 200
@@ -746,7 +749,7 @@ def test_restconf_query_content_all():
 }
     """)
 
-@pytest.mark.skip(reason="does not work yet")
+@pytest.mark.skip(reason="not implemented")
 def test_restconf_query_content_config():
     response = requests.get("http://{}:{}{}/data/test/settings?content=config".format(host,port,docroot), headers=restconf_headers)
     assert response.status_code == 200
@@ -763,7 +766,7 @@ def test_restconf_query_content_config():
 }
     """)
 
-@pytest.mark.skip(reason="does not work yet")
+@pytest.mark.skip(reason="not implemented")
 def test_restconf_query_content_nonconfig():
     response = requests.get("http://{}:{}{}/data/test/settings?content=nonconfig".format(host,port,docroot), headers=restconf_headers)
     assert response.status_code == 200
@@ -779,7 +782,7 @@ def test_restconf_query_content_nonconfig():
 
 # Query Depth
 
-@pytest.mark.skip(reason="does not work yet")
+@pytest.mark.skip(reason="not implemented")
 def test_restconf_query_depth_unbounded():
     response = requests.get("http://{}:{}{}/data/test/animals?depth=unbounded".format(host,port,docroot), headers=restconf_headers)
     assert response.status_code == 200
@@ -806,7 +809,7 @@ def test_restconf_query_depth_unbounded():
 }
     """)
 
-@pytest.mark.skip(reason="does not work yet")
+@pytest.mark.skip(reason="not implemented")
 def test_restconf_query_depth_1():
     response = requests.get("http://{}:{}{}/data/test/animals?depth=1".format(host,port,docroot), headers=restconf_headers)
     assert response.status_code == 200
@@ -819,7 +822,7 @@ def test_restconf_query_depth_1():
 }
     """)
 
-@pytest.mark.skip(reason="does not work yet")
+@pytest.mark.skip(reason="not implemented")
 def test_restconf_query_depth_2():
     response = requests.get("http://{}:{}{}/data/test/animals?depth=2".format(host,port,docroot), headers=restconf_headers)
     assert response.status_code == 200
@@ -834,7 +837,7 @@ def test_restconf_query_depth_2():
 }
     """)
 
-@pytest.mark.skip(reason="does not work yet")
+@pytest.mark.skip(reason="not implemented")
 def test_restconf_query_depth_3():
     response = requests.get("http://{}:{}{}/data/test/animals?depth=3".format(host,port,docroot), headers=restconf_headers)
     assert response.status_code == 200
@@ -858,7 +861,7 @@ def test_restconf_query_depth_3():
 }
     """)
 
-@pytest.mark.skip(reason="does not work yet")
+@pytest.mark.skip(reason="not implemented")
 def test_restconf_query_depth_4():
     response = requests.get("http://{}:{}{}/data/test/animals?depth=4".format(host,port,docroot), headers=restconf_headers)
     assert response.status_code == 200
@@ -885,7 +888,7 @@ def test_restconf_query_depth_4():
 }
     """)
 
-@pytest.mark.skip(reason="does not work yet")
+@pytest.mark.skip(reason="not implemented")
 def test_restconf_query_depth_5():
     response = requests.get("http://{}:{}{}/data/test/animals?depth=5".format(host,port,docroot), headers=restconf_headers)
     assert response.status_code == 200

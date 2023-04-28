@@ -34,6 +34,7 @@ extern bool delete_callback (const char *type, const char *path, void *fn, void 
 #define HTTP_CODE_INTERNAL_SERVER_ERROR 500
 
 static sch_instance *g_schema = NULL;
+static time_t g_boottime = 0;
 
 static char *
 restconf_error (int status)
@@ -143,7 +144,7 @@ apteryx_json_search (const char *path, char **data)
 }
 
 static char *
-rest_api_search (const char *path, const char *if_none_match)
+rest_api_search (const char *path, const char *if_none_match, const char *if_modified_since)
 {
     char *_path;
     char *data = NULL;
@@ -206,7 +207,7 @@ get_response_node (const char *path, json_t *root)
 }
 
 static char *
-rest_api_get (int flags, const char *path, const char *if_none_match)
+rest_api_get (int flags, const char *path, const char *if_none_match, const char *if_modified_since)
 {
     char *rpath = NULL;
     json_t *json = NULL;
@@ -214,7 +215,7 @@ rest_api_get (int flags, const char *path, const char *if_none_match)
     int rc = HTTP_CODE_OK;
     GNode *query, *tree;
     char *json_string = NULL;
-    char *resp;
+    char *resp = NULL;
     int schflags = 0;
 
     /* Get the path without any query string */
@@ -260,9 +261,27 @@ rest_api_get (int flags, const char *path, const char *if_none_match)
     if (if_none_match && if_none_match[0] != '\0' &&
         ts == strtoull (if_none_match, NULL, 16))
     {
-        VERBOSE ("REST: Path \"%s\" not modified\n", rpath);
-        rc = HTTP_CODE_NOT_MODIFIED;
+        VERBOSE ("REST: Path \"%s\" not modified since ETag:%s\n", rpath, if_none_match);
+        resp = g_strdup_printf ("Status: %d\r\n"
+                                "Content-Type: application/json\r\n\r\n",
+                                HTTP_CODE_NOT_MODIFIED);
         goto exit;
+    }
+    if (if_modified_since && if_modified_since[0] != '\0')
+    {
+        struct tm last_modified;
+        time_t realtime;
+        strptime (if_modified_since, "%a, %d %b %Y %H:%M:%S GMT", &last_modified);
+        realtime = timegm (&last_modified);
+        if ((ts / 1000000) <= (realtime - g_boottime))
+        {
+            VERBOSE ("REST: Path \"%s\" not modified since Time:%s\n", rpath, if_modified_since);
+            rc = HTTP_CODE_NOT_MODIFIED;
+            resp = g_strdup_printf ("Status: %d\r\n"
+                                    "Content-Type: application/json\r\n\r\n",
+                                    HTTP_CODE_NOT_MODIFIED);
+            goto exit;
+        }
     }
 
     /* Query the database */
@@ -313,16 +332,24 @@ rest_api_get (int flags, const char *path, const char *if_none_match)
     else
         json_string = json_dumps (json, 0);
 exit:
-    if (flags & FLAGS_RESTCONF && rc >= 400 && rc <= 499 && !json_string)
+    if (!resp)
     {
-        json_string = restconf_error (rc);
+        if (flags & FLAGS_RESTCONF && rc >= 400 && rc <= 499 && !json_string)
+        {
+            json_string = restconf_error (rc);
+        }
+        char last_modified[128];
+        time_t realtime = (time_t) (g_boottime + (ts / 1000000));
+        struct tm *my_tm = gmtime (&realtime);
+        strftime (last_modified, 128, "%a, %d %b %Y %H:%M:%S GMT", my_tm);
+        resp = g_strdup_printf ("Status: %d\r\n"
+                                "Last-Modified: %s\r\n"
+                                "ETag: %" PRIX64 "\r\n"
+                                "Content-Type: %s\r\n"
+                                "\r\n" "%s", rc, last_modified, ts,
+                                flags & FLAGS_RESTCONF ? "application/yang-data+json" : "application/json",
+                                json_string ? : "");
     }
-    resp = g_strdup_printf ("Status: %d\r\n"
-                            "Etag: %" PRIX64 "\r\n"
-                            "Content-Type: %s\r\n"
-                            "\r\n" "%s", rc, ts,
-                            flags & FLAGS_RESTCONF ? "application/yang-data+json" : "application/json",
-                            json_string ? : "");
     free (json_string);
     if (json)
         json_decref (json);
@@ -650,7 +677,7 @@ rest_api_watch (req_handle handle, int flags, const char *path)
 
 void
 rest_api (req_handle handle, int flags, const char *rpath, const char *path, const char *action,
-          const char *if_none_match, const char *data, int length)
+          const char *if_none_match, const char *if_modified_since, const char *data, int length)
 {
     char *resp = NULL;
 
@@ -711,9 +738,9 @@ rest_api (req_handle handle, int flags, const char *rpath, const char *path, con
             return;
         }
         else if (path[strlen (path) - 1] == '/')
-            resp = rest_api_search (path, if_none_match);
+            resp = rest_api_search (path, if_none_match, if_modified_since);
         else
-            resp = rest_api_get (flags, path, if_none_match);
+            resp = rest_api_get (flags, path, if_none_match, if_modified_since);
     }
     else if (strcmp (action, "POST") == 0 || strcmp (action, "PUT") == 0 || strcmp (action, "PATCH") == 0)
         resp = rest_api_post (flags, path, data, length);
@@ -744,6 +771,18 @@ rest_api (req_handle handle, int flags, const char *rpath, const char *path, con
 gboolean
 rest_init (const char *path)
 {
+    struct sysinfo info;
+    struct timespec monotime;
+    struct timespec monotime_raw;
+
+    /* Calculate boot time in seconds since the Epoch */
+    sysinfo (&info);
+    g_boottime = time (NULL) - info.uptime;
+    /* Allow for adjusted time */
+    clock_gettime(CLOCK_MONOTONIC, &monotime);
+    clock_gettime(CLOCK_MONOTONIC_RAW, &monotime_raw);
+    g_boottime += (monotime.tv_sec - monotime_raw.tv_sec);
+
     /* Load Data Models */
     g_schema = sch_load (path);
     if (!g_schema)
