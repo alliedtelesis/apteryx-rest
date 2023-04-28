@@ -130,7 +130,6 @@ def test_restconf_get_timestamp():
     # assert response.headers.get("Last-Modified") == time.strftime("%a, %d %b %Y %H:%M:%S GMT", time.gmtime())
     assert response.json() == json.loads('{ "enable": true }')
 
-@pytest.mark.skip(reason="timestamps calculated on the wrong path")
 def test_restconf_get_timestamp_namespace():
     response = requests.get("http://{}:{}{}/data/testing:test/settings/enable".format(host,port,docroot), headers=restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -159,7 +158,6 @@ def test_restconf_get_if_modified_since():
     assert response.headers.get("Last-Modified") != None and response.headers.get("Last-Modified") != last_modified
     assert response.json() == json.loads('{ "enable": false }')
 
-@pytest.mark.skip(reason="timestamps calculated on the wrong path")
 def test_restconf_get_if_modified_since_namespace():
     response = requests.get("http://{}:{}{}/data/testing:test/settings/enable".format(host,port,docroot), headers=restconf_headers)
     assert response.status_code == 200
@@ -170,13 +168,14 @@ def test_restconf_get_if_modified_since_namespace():
     response = requests.get("http://{}:{}{}/data/testing:test/settings/enable".format(host,port,docroot), headers={**restconf_headers, 'If-Modified-Since': last_modified})
     assert response.status_code == 304
     assert len(response.content) == 0
+    time.sleep(1)
     apteryx_set("/test/settings/enable", "false")
     response = requests.get("http://{}:{}{}/data/testing:test/settings/enable".format(host,port,docroot), headers={**restconf_headers, 'If-Modified-Since': last_modified})
     assert response.status_code == 200
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.headers.get("Last-Modified") != None and response.headers.get("Last-Modified") != last_modified
-    assert response.json() == json.loads('{ "enable": true }')
+    assert response.json() == json.loads('{ "enable": false }')
 
 def test_restconf_get_etag():
     response = requests.get("http://{}:{}{}/data/test/settings/enable".format(host,port,docroot), headers=restconf_headers)
@@ -187,7 +186,6 @@ def test_restconf_get_etag():
     assert response.headers.get("ETag") != None and response.headers.get("ETag") != "0"
     assert response.json() == json.loads('{ "enable": true }')
 
-@pytest.mark.skip(reason="timestamps calculated on the wrong path")
 def test_restconf_get_etag_namespace():
     response = requests.get("http://{}:{}{}/data/testing:test/settings/enable".format(host,port,docroot), headers=restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -215,7 +213,6 @@ def test_restconf_get_if_none_match():
     assert response.headers.get("Etag") != None and response.headers.get("Etag") != etag
     assert response.json() == json.loads('{ "enable": false }')
 
-@pytest.mark.skip(reason="timestamps calculated on the wrong path")
 def test_restconf_get_if_none_match_namespace():
     response = requests.get("http://{}:{}{}/data/testing:test/settings/enable".format(host,port,docroot), headers=restconf_headers)
     assert response.status_code == 200
@@ -1498,7 +1495,7 @@ def test_restconf_delete_single_node_ns_aug_default():
     assert response.status_code == 200
     assert response.json() == json.loads('{}')
 
-@pytest.mark.skip(reason="does not work yet")
+@pytest.mark.skip(reason="sch_lookup does not support namespaces")
 def test_restconf_delete_single_node_ns_other():
     response = requests.delete("http://{}:{}{}/data/testing-2:test/settings/priority".format(host,port,docroot), headers=restconf_headers)
     assert response.status_code == 200
@@ -1512,7 +1509,7 @@ def test_restconf_delete_single_node_ns_other():
     assert response.headers["Content-Type"] == "application/yang-data+json"
     assert response.json() == json.loads('{ "priority": 1 }')
 
-@pytest.mark.skip(reason="does not work yet")
+@pytest.mark.skip(reason="augmented paths not working")
 def test_restconf_delete_single_node_ns_aug_other():
     response = requests.delete("http://{}:{}{}/data/testing-2:test/settings/testing2-augmented:speed".format(host,port,docroot), headers=restconf_headers)
     assert response.status_code == 200

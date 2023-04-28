@@ -213,9 +213,27 @@ get_response_node (const char *path, json_t *root)
 }
 
 static char *
+get_collapsed_root (GNode *root)
+{
+    gchar *compressed_path = root ? g_strdup (APTERYX_NAME(root)) : NULL;
+    while (root &&
+           g_node_n_children (root) == 1 &&
+           g_strcmp0 (APTERYX_NAME(root), "*") != 0)
+    {
+        GNode *child = g_node_first_child (root);
+        gchar *cpath = g_strdup_printf ("%s/%s", compressed_path ?: "", APTERYX_NAME (child));
+        g_free (compressed_path);
+        compressed_path = cpath;
+        root = child;
+    }
+    return compressed_path;
+}
+
+static char *
 rest_api_get (int flags, const char *path, const char *if_none_match, const char *if_modified_since)
 {
     char *rpath = NULL;
+    char *apath = NULL;
     json_t *json = NULL;
     uint64_t ts = 0;
     int rc = HTTP_CODE_OK;
@@ -262,8 +280,10 @@ rest_api_get (int flags, const char *path, const char *if_none_match, const char
         goto exit;
     }
 
-    /* Get a timestamp for the path */
-    ts = apteryx_timestamp (rpath);
+    /* Get a timestamp for the apteryx path */
+    apath = get_collapsed_root (query);
+    ts = apteryx_timestamp (apath);
+    free (apath);
     if (if_none_match && if_none_match[0] != '\0' &&
         ts == strtoull (if_none_match, NULL, 16))
     {
