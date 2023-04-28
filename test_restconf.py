@@ -1128,6 +1128,52 @@ def test_restconf_query_field_list_all_nodes():
 
 # POST - Create the data resource - fail if it already exists
 
+def test_restconf_create_single_node_ns_none():
+    apteryx_set("/test/settings/priority", "")
+    response = requests.post("http://{}:{}{}/data/test/settings".format(host,port,docroot), headers=restconf_headers, data="""{"priority": "2"}""")
+    assert response.status_code == 201
+    assert len(response.content) == 0
+    assert apteryx_get("/test/settings/priority") == "2"
+
+def test_restconf_create_single_node_ns_aug_none():
+    apteryx_set("/test/settings/volume", "")
+    response = requests.post("http://{}:{}{}/data/test/settings".format(host,port,docroot), headers=restconf_headers, data="""{"volume": "2"}""")
+    assert response.status_code == 201
+    assert len(response.content) == 0
+    assert apteryx_get("/test/settings/volume") == "2"
+
+@pytest.mark.skip(reason="sch_lookup does not support namespaces")
+def test_restconf_create_single_node_ns_default():
+    apteryx_set("/test/settings/priority", "")
+    response = requests.post("http://{}:{}{}/data/testing:test/settings".format(host,port,docroot), headers=restconf_headers, data="""{"priority": "2"}""")
+    assert response.status_code == 201
+    assert len(response.content) == 0
+    assert apteryx_get("/test/settings/priority") == "2"
+
+@pytest.mark.skip(reason="sch_lookup does not support namespaces")
+def test_restconf_create_single_node_ns_aug_default():
+    apteryx_set("/test/settings/volume", "")
+    response = requests.post("http://{}:{}{}/data/testing:test/settings".format(host,port,docroot), headers=restconf_headers, data="""{"volume": "2"}""")
+    assert response.status_code == 201
+    assert len(response.content) == 0
+    assert apteryx_get("/test/settings/volume") == "2"
+
+@pytest.mark.skip(reason="sch_lookup does not support namespaces")
+def test_restconf_create_single_node_ns_other():
+    apteryx_set("/t2:test/settings/priority", "")
+    response = requests.post("http://{}:{}{}/data/testing-2:test/settings".format(host,port,docroot), headers=restconf_headers, data="""{"priority": "3"}""")
+    assert response.status_code == 201
+    assert len(response.content) == 0
+    assert apteryx_get("/t2:test/settings/priority") == "3"
+
+@pytest.mark.skip(reason="sch_lookup does not support namespaces")
+def test_restconf_create_single_node_ns_aug_other():
+    apteryx_set("/t2:test/settings/speed", "")
+    response = requests.post("http://{}:{}{}/data/testing-2:test/settings".format(host,port,docroot), headers=restconf_headers, data="""{"testing2-augmented:speed": "3"}""")
+    assert response.status_code == 201
+    assert len(response.content) == 0
+    assert apteryx_get("/t2:test/settings/priority") == "3"
+
 def test_restconf_create_string():
     apteryx_set("/test/settings/description", "")
     response = requests.post("http://{}:{}{}/data/test/settings".format(host,port,docroot), headers=restconf_headers, data="""{"description": "this is a description"}""")
