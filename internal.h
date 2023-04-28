@@ -69,7 +69,8 @@ typedef void *req_handle;
 void send_response (req_handle handle, const char *data, bool flush);
 bool is_connected (req_handle handle, bool block);
 typedef void (*req_callback) (req_handle handle, int flags, const char *rpath, const char *path,
-                              const char *if_none_match, const char *if_modified_since,
+                              const char *if_match, const char *if_none_match,
+                              const char *if_modified_since, const char *if_unmodified_since,
                               const char *data, int length);
 
 /* FastCGI */
@@ -81,7 +82,9 @@ extern bool rest_use_arrays;
 extern bool rest_use_types;
 gboolean rest_init (const char *path);
 void rest_api (req_handle handle, int flags, const char *rpath, const char *path,
-               const char *if_none_match, const char *if_modified_since, const char *data, int length);
+               const char *if_match, const char *if_none_match,
+               const char *if_modified_since, const char *if_unmodified_since,
+               const char *data, int length);
 void rest_shutdown (void);
 
 #endif /* _REST_H_ */

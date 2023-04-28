@@ -1355,45 +1355,111 @@ def test_restconf_replace_list_entry_exists():
     assert apteryx_get("/test/animals/animal/cat/colour") == "purple"
     assert apteryx_get("/test/animals/animal/cat/type") == "Not found"
 
-@pytest.mark.skip(reason="not implemented")
 def test_restconf_replace_if_not_modified_since():
     response = requests.get("http://{}:{}{}/data/test/settings/priority".format(host,port,docroot), headers=restconf_headers)
     assert response.status_code == 200 and len(response.content) > 0 and response.json() == json.loads('{ "priority": 1 }')
     last_modified = response.headers.get("Last-Modified")
-    response = requests.put("http://{}:{}{}/data/test/settings".format(host,port,docroot), headers={**restconf_headers, 'If-Unmodified-Since': last_modified}, data="""{"priority": "2"}""")
+    time.sleep(1)
+    apteryx_set("/test/settings/priority", "2")
+    response = requests.put("http://{}:{}{}/data/test/settings".format(host,port,docroot), headers={**restconf_headers, 'If-Unmodified-Since': last_modified}, data="""{"priority": "3"}""")
     assert response.status_code == 412
-    assert len(response.content) == 0
-    assert apteryx_get("/test/settings/enable") == "1"
+    assert len(response.content) > 0
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.json() == json.loads("""
+{
+    "ietf-restconf:errors" : {
+        "error" : [
+        {
+            "error-type" : "application",
+            "error-tag" : "operation-failed",
+            "error-message" : "object modified"
+        }
+        ]
+    }
+}
+    """)
+    assert apteryx_get("/test/settings/priority") == "2"
 
-@pytest.mark.skip(reason="not implemented")
+@pytest.mark.skip(reason="sch_lookup does not support namespaces")
 def test_restconf_replace_if_not_modified_since_namespace():
     response = requests.get("http://{}:{}{}/data/testing:test/settings/priority".format(host,port,docroot), headers=restconf_headers)
     assert response.status_code == 200 and len(response.content) > 0 and response.json() == json.loads('{ "priority": 1 }')
     last_modified = response.headers.get("Last-Modified")
-    response = requests.put("http://{}:{}{}/data/testing:test/settings".format(host,port,docroot), headers={**restconf_headers, 'If-Unmodified-Since': last_modified}, data="""{"priority": "2"}""")
+    time.sleep(1)
+    apteryx_set("/test/settings/priority", "2")
+    response = requests.put("http://{}:{}{}/data/testing:test/settings".format(host,port,docroot), headers={**restconf_headers, 'If-Unmodified-Since': last_modified}, data="""{"priority": "3"}""")
     assert response.status_code == 412
-    assert len(response.content) == 0
-    assert apteryx_get("/test/settings/enable") == "1"
+    assert len(response.content) > 0
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.json() == json.loads("""
+{
+    "ietf-restconf:errors" : {
+        "error" : [
+        {
+            "error-type" : "application",
+            "error-tag" : "operation-failed",
+            "error-message" : "object modified"
+        }
+        ]
+    }
+}
+    """)
+    assert apteryx_get("/test/settings/priority") == "2"
 
-@pytest.mark.skip(reason="not implemented")
-def test_restconf_replace_if_none_match():
+def test_restconf_replace_if_match():
     response = requests.get("http://{}:{}{}/data/test/settings/priority".format(host,port,docroot), headers=restconf_headers)
     assert response.status_code == 200 and len(response.content) > 0 and response.json() == json.loads('{ "priority": 1 }')
     etag = response.headers.get("Etag")
-    response = requests.put("http://{}:{}{}/data/test/settings".format(host,port,docroot), headers={**restconf_headers, 'If-None-Match': etag}, data="""{"priority": "2"}""")
+    time.sleep(1)
+    apteryx_set("/test/settings/priority", "2")
+    response = requests.put("http://{}:{}{}/data/test/settings".format(host,port,docroot), headers={**restconf_headers, 'If-Match': etag}, data="""{"priority": "3"}""")
     assert response.status_code == 412
-    assert len(response.content) == 0
-    assert apteryx_get("/test/settings/enable") == "1"
+    assert len(response.content) > 0
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.json() == json.loads("""
+{
+    "ietf-restconf:errors" : {
+        "error" : [
+        {
+            "error-type" : "application",
+            "error-tag" : "operation-failed",
+            "error-message" : "object modified"
+        }
+        ]
+    }
+}
+    """)
+    assert apteryx_get("/test/settings/priority") == "2"
 
-@pytest.mark.skip(reason="not implemented")
-def test_restconf_replace_if_none_match_namespace():
+@pytest.mark.skip(reason="sch_lookup does not support namespaces")
+def test_restconf_replace_if_match_namespace():
     response = requests.get("http://{}:{}{}/data/testing:test/settings/priority".format(host,port,docroot), headers=restconf_headers)
     assert response.status_code == 200 and len(response.content) > 0 and response.json() == json.loads('{ "priority": 1 }')
     etag = response.headers.get("Etag")
-    response = requests.put("http://{}:{}{}/data/testing:test/settings".format(host,port,docroot), headers={**restconf_headers, 'If-None-Match': etag}, data="""{"priority": "2"}""")
+    time.sleep(1)
+    apteryx_set("/test/settings/priority", "2")
+    response = requests.put("http://{}:{}{}/data/testing:test/settings".format(host,port,docroot), headers={**restconf_headers, 'If-Match': etag}, data="""{"priority": "3"}""")
     assert response.status_code == 412
-    assert len(response.content) == 0
-    assert apteryx_get("/test/settings/enable") == "1"
+    assert len(response.content) > 0
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.json() == json.loads("""
+{
+    "ietf-restconf:errors" : {
+        "error" : [
+        {
+            "error-type" : "application",
+            "error-tag" : "operation-failed",
+            "error-message" : "object modified"
+        }
+        ]
+    }
+}
+    """)
+    assert apteryx_get("/test/settings/priority") == "2"
 
 # PATCH - Create or update a data resource but not create resource instance
 

@@ -136,7 +136,7 @@ static void *
 handle_http (void *arg)
 {
     FCGX_Request *request = (FCGX_Request *) arg;
-    char *rpath, *path, *length, *if_none_match, *if_modified_since;
+    char *rpath, *path, *length, *if_match, *if_none_match, *if_modified_since, *if_unmodified_since;
     int flags;
     char *data = NULL;
     int len = 0;
@@ -154,8 +154,10 @@ handle_http (void *arg)
     rpath = FCGX_GetParam ("DOCUMENT_ROOT", request->envp);
     path = FCGX_GetParam ("REQUEST_URI", request->envp);
     flags = get_flags (request);
+    if_match = FCGX_GetParam ("HTTP_IF_MATCH", request->envp);
     if_none_match = FCGX_GetParam ("HTTP_IF_NONE_MATCH", request->envp);
     if_modified_since = FCGX_GetParam ("HTTP_IF_MODIFIED_SINCE", request->envp);
+    if_unmodified_since = FCGX_GetParam ("HTTP_IF_UNMODIFIED_SINCE", request->envp);
     length = FCGX_GetParam ("CONTENT_LENGTH", request->envp);
     if (!rpath || !path)
     {
@@ -181,7 +183,7 @@ handle_http (void *arg)
             }
         }
     }
-    g_cb ((req_handle) request, flags, rpath, path, if_none_match, if_modified_since, data, len);
+    g_cb ((req_handle) request, flags, rpath, path, if_match, if_none_match, if_modified_since, if_unmodified_since, data, len);
 
 exit:
     free (data);

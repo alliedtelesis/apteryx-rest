@@ -32,6 +32,7 @@ extern bool delete_callback (const char *type, const char *path, void *fn, void 
 #define HTTP_CODE_NOT_FOUND             404
 #define HTTP_CODE_NOT_SUPPORTED         405
 #define HTTP_CODE_CONFLICT              409
+#define HTTP_CODE_PRECONDITION_FAILED   412
 #define HTTP_CODE_INTERNAL_SERVER_ERROR 500
 
 static sch_instance *g_schema = NULL;
@@ -68,6 +69,12 @@ restconf_error (int status)
         json_object_set_new (error, "error-type", json_string ("application"));
         json_object_set_new (error, "error-tag", json_string ("data-exists"));
         json_object_set_new (error, "error-message", json_string ("object already exists"));
+    }
+    else if (status == HTTP_CODE_PRECONDITION_FAILED)
+    {
+        json_object_set_new (error, "error-type", json_string ("application"));
+        json_object_set_new (error, "error-tag", json_string ("operation-failed"));
+        json_object_set_new (error, "error-message", json_string ("object modified"));
     }
     else
     {
@@ -213,10 +220,11 @@ get_response_node (const char *path, json_t *root)
 }
 
 static char *
-get_collapsed_root (GNode *root)
+get_collapsed_root (GNode *root, gboolean values)
 {
     gchar *compressed_path = root ? g_strdup (APTERYX_NAME(root)) : NULL;
     while (root &&
+           (values || !APTERYX_HAS_VALUE (root)) &&
            g_node_n_children (root) == 1 &&
            g_strcmp0 (APTERYX_NAME(root), "*") != 0)
     {
@@ -281,7 +289,7 @@ rest_api_get (int flags, const char *path, const char *if_none_match, const char
     }
 
     /* Get a timestamp for the apteryx path */
-    apath = get_collapsed_root (query);
+    apath = get_collapsed_root (query, true);
     ts = apteryx_timestamp (apath);
     free (apath);
     if (if_none_match && if_none_match[0] != '\0' &&
@@ -385,16 +393,19 @@ exit:
 }
 
 static int
-apteryx_json_set (int flags, const char *path, json_t * json)
+apteryx_json_set (int flags, const char *path, json_t * json, const char *if_match, const char *if_unmodified_since)
 {
     sch_node *api_subtree;
     GNode *tree = NULL;
+    uint64_t ts = 0;
+    char *apath;
     bool set_successful;
     int schflags;
 
     api_subtree = sch_lookup (g_schema, path);
     if (!api_subtree)
     {
+        VERBOSE ("REST: %s not found\n", path);
         return HTTP_CODE_NOT_FOUND;
     }
 
@@ -418,6 +429,31 @@ apteryx_json_set (int flags, const char *path, json_t * json)
     free (tree->data);
     tree->data = g_strdup (path);
 
+    /* Get a timestamp for the apteryx path */
+    apath = get_collapsed_root (tree, false);
+    ts = apteryx_timestamp (apath);
+    free (apath);
+    if (if_match && if_match[0] != '\0' &&
+        ts != strtoull (if_match, NULL, 16))
+    {
+        VERBOSE ("REST: Path \"%s\" modified since ETag:%s\n", path, if_match);
+        apteryx_free_tree (tree);
+        return HTTP_CODE_PRECONDITION_FAILED;
+    }
+    if (if_unmodified_since && if_unmodified_since[0] != '\0')
+    {
+        struct tm last_modified;
+        time_t realtime;
+        strptime (if_unmodified_since, "%a, %d %b %Y %H:%M:%S GMT", &last_modified);
+        realtime = timegm (&last_modified);
+        if ((ts / 1000000) != (realtime - g_boottime))
+        {
+            VERBOSE ("REST: Path \"%s\" modified since Time:%s\n", path, if_unmodified_since);
+            apteryx_free_tree (tree);
+            return HTTP_CODE_PRECONDITION_FAILED;
+        }
+    }
+
     set_successful = apteryx_set_tree (tree);
     apteryx_free_tree (tree);
 
@@ -431,7 +467,7 @@ apteryx_json_set (int flags, const char *path, json_t * json)
 }
 
 static char *
-rest_api_post (int flags, const char *path, const char *data, int length)
+rest_api_post (int flags, const char *path, const char *data, int length, const char *if_match, const char *if_unmodified_since)
 {
     json_error_t error;
     json_t *json;
@@ -442,7 +478,7 @@ rest_api_post (int flags, const char *path, const char *data, int length)
     json = json_loads (data, 0, &error);
     if (json)
     {
-        rc = apteryx_json_set (flags, path, json);
+        rc = apteryx_json_set (flags, path, json, if_match, if_unmodified_since);
         json_decref (json);
     }
     else if (!(flags & FLAGS_JSON_FORMAT_ROOT))
@@ -712,7 +748,9 @@ rest_api_watch (req_handle handle, int flags, const char *path)
 
 void
 rest_api (req_handle handle, int flags, const char *rpath, const char *path,
-          const char *if_none_match, const char *if_modified_since, const char *data, int length)
+          const char *if_match, const char *if_none_match,
+          const char *if_modified_since, const char *if_unmodified_since,
+          const char *data, int length)
 {
     char *resp = NULL;
 
@@ -778,7 +816,7 @@ rest_api (req_handle handle, int flags, const char *rpath, const char *path,
             resp = rest_api_get (flags, path, if_none_match, if_modified_since);
     }
     else if (flags & (FLAGS_METHOD_POST|FLAGS_METHOD_PUT|FLAGS_METHOD_PATCH))
-        resp = rest_api_post (flags, path, data, length);
+        resp = rest_api_post (flags, path, data, length, if_match, if_unmodified_since);
     else if (flags & FLAGS_METHOD_DELETE)
         resp = rest_api_delete (flags, path);
     else if (flags & FLAGS_METHOD_OPTIONS)

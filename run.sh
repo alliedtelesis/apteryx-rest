@@ -160,8 +160,10 @@ if [ "$1" == "nginx" ]; then
                 fastcgi_param QUERY_STRING       $query_string;
                 fastcgi_param CONTENT_TYPE       $content_type;
                 fastcgi_param CONTENT_LENGTH     $content_length;
+                fastcgi_param HTTP_IF_MATCH      $http_if_match;
                 fastcgi_param HTTP_IF_NONE_MATCH $http_if_none_match;
                 fastcgi_param HTTP_IF_MODIFIED_SINCE $http_if_modified_since;
+                fastcgi_param HTTP_IF_UNMODIFIED_SINCE $http_if_unmodified_since;
             }
             error_page   500 502 503 504  /50x.html;
             location = /50x.html {
