@@ -65,7 +65,7 @@ http {
 
 curl http://localhost:8080/api.xml
 
-python3 -m pytest
+python3 -m pytest -v
 python3 -m pytest -k test_rest_get_single_node
 
 google-chrome .gcov/index.html

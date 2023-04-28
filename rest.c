@@ -24,10 +24,13 @@ extern bool delete_callback (const char *type, const char *path, void *fn, void 
 #include <jansson.h>
 
 #define HTTP_CODE_OK                    200
+#define HTTP_CODE_CREATED               201
 #define HTTP_CODE_NOT_MODIFIED          304
 #define HTTP_CODE_BAD_REQUEST           400
 #define HTTP_CODE_FORBIDDEN             403
 #define HTTP_CODE_NOT_FOUND             404
+#define HTTP_CODE_NOT_SUPPORTED         405
+#define HTTP_CODE_CONFLICT              409
 #define HTTP_CODE_INTERNAL_SERVER_ERROR 500
 
 static sch_instance *g_schema = NULL;
@@ -46,14 +49,29 @@ restconf_error (int status)
         json_object_set_new (error, "error-type", json_string ("protocol"));
         json_object_set_new (error, "error-tag", json_string ("access-denied"));
     }
-    else
+    else if (status == HTTP_CODE_NOT_FOUND)
     {
         json_object_set_new (error, "error-type", json_string ("application"));
         json_object_set_new (error, "error-tag", json_string ("invalid-value"));
-        if (status == HTTP_CODE_NOT_FOUND)
-            json_object_set_new (error, "error-message", json_string ("uri path not found"));
-        else
-            json_object_set_new (error, "error-message", json_string ("malformed request syntax"));
+        json_object_set_new (error, "error-message", json_string ("uri path not found"));
+    }
+    else if (status == HTTP_CODE_NOT_SUPPORTED)
+    {
+        json_object_set_new (error, "error-type", json_string ("application"));
+        json_object_set_new (error, "error-tag", json_string ("operation-not-supported"));
+        json_object_set_new (error, "error-message", json_string ("requested operation is not supported"));
+    }
+    else if (status == HTTP_CODE_CONFLICT)
+    {
+        json_object_set_new (error, "error-type", json_string ("application"));
+        json_object_set_new (error, "error-tag", json_string ("data-exists"));
+        json_object_set_new (error, "error-message", json_string ("object already exists"));
+    }
+    else
+    {
+        json_object_set_new (error, "error-type", json_string ("application"));
+        json_object_set_new (error, "error-tag", json_string ("malformed-message"));
+        json_object_set_new (error, "error-message", json_string ("malformed request syntax"));
     }
     json_array_append_new (array, error);
     json_object_set_new (errors, "error", array);
@@ -697,7 +715,7 @@ rest_api (req_handle handle, int flags, const char *rpath, const char *path, con
         else
             resp = rest_api_get (flags, path, if_none_match);
     }
-    else if (strcmp (action, "POST") == 0 || strcmp (action, "PUT") == 0)
+    else if (strcmp (action, "POST") == 0 || strcmp (action, "PUT") == 0 || strcmp (action, "PATCH") == 0)
         resp = rest_api_post (flags, path, data, length);
     else if (strcmp (action, "DELETE") == 0)
         resp = rest_api_delete (flags, path);

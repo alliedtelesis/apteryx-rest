@@ -5,6 +5,7 @@
         model="testing" organization="Test Ltd" version="2023-01-01">
   <NODE name="test" help="This is a test node">
     <NODE name="settings" help="Settings">
+      <NODE name="description" mode="rw" help="string"/>
       <NODE name="debug" mode="rw" default="disable" help="Debug configuration">
         <VALUE name="disable" value="0" help="Debugging is disabled"/>
         <VALUE name="enable" value="1" help="Debugging is enabled"/>
