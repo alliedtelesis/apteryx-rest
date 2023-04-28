@@ -1131,7 +1131,6 @@ def test_restconf_query_field_list_all_nodes():
 
 # POST - Create the data resource - fail if it already exists
 
-@pytest.mark.skip(reason="should return 201")
 def test_restconf_create_string():
     apteryx_set("/test/settings/description", "")
     response = requests.post("http://{}:{}{}/data/test/settings".format(host,port,docroot), headers=restconf_headers, data="""{"description": "this is a description"}""")
@@ -1139,7 +1138,7 @@ def test_restconf_create_string():
     assert len(response.content) == 0
     assert apteryx_get("/test/settings/description") == "this is a description"
 
-@pytest.mark.skip(reason="should return 409")
+@pytest.mark.skip(reason="should fail to create and return (CONFLICT)")
 def test_restconf_create_existing_string():
     apteryx_set("/test/settings/description", "already set")
     response = requests.post("http://{}:{}{}/data/test/settings".format(host,port,docroot), headers=restconf_headers, data="""{"description": "this is a description"}""")
@@ -1162,7 +1161,6 @@ def test_restconf_create_existing_string():
     """)
     assert apteryx_get("/test/settings/description") == "already set"
 
-@pytest.mark.skip(reason="should return 201")
 def test_restconf_create_null():
     apteryx_set("/test/settings/description", "")
     response = requests.post("http://{}:{}{}/data/test/settings".format(host,port,docroot), headers=restconf_headers, data="""{"description": ""}""")
@@ -1189,7 +1187,6 @@ def test_restconf_create_readonly():
     """)
     assert apteryx_get("/test/state/counter") == "42"
 
-@pytest.mark.skip(reason="should return 404")
 def test_restconf_create_invalid_path():
     response = requests.post("http://{}:{}{}/data/test/cabbage".format(host,port,docroot), headers=restconf_headers, data="""{"description": "this is a description"}""")
     assert response.status_code == 404
@@ -1210,7 +1207,6 @@ def test_restconf_create_invalid_path():
 }
     """)
 
-@pytest.mark.skip(reason="should return 201")
 def test_restconf_create_enum():
     apteryx_set("/test/settings/debug", "")
     response = requests.post("http://{}:{}{}/data/test/settings".format(host,port,docroot), headers=restconf_headers, data="""{"debug": "disable"}""")
@@ -1265,7 +1261,6 @@ def test_restconf_create_hidden():
     """)
     assert apteryx_get("/test/settings/hidden") == "friend"
 
-@pytest.mark.skip(reason="should return 201")
 def test_restconf_create_out_of_range_integer():
     apteryx_set("/test/settings/priority", "")
     response = requests.post("http://{}:{}{}/data/test/settings".format(host,port,docroot), headers=restconf_headers, data="""{"priority": 1}""")
@@ -1281,7 +1276,6 @@ def test_restconf_create_out_of_range_integer():
     assert response.status_code == 400
     assert apteryx_get("/test/settings/priority") == "Not found"
 
-@pytest.mark.skip(reason="should return 201")
 def test_restconf_create_list_entry_ok():
     tree = """
 {
@@ -1295,7 +1289,7 @@ def test_restconf_create_list_entry_ok():
     response = requests.post("http://{}:{}{}/data/test/animals".format(host,port,docroot), data=tree, headers=restconf_headers)
     assert response.status_code == 201
 
-@pytest.mark.skip(reason="should return 409")
+@pytest.mark.skip(reason="should fail to create return 409(CONFLICT)")
 def test_restconf_create_list_entry_exists():
     tree = """
 {
@@ -1332,7 +1326,6 @@ def test_restconf_create_list_entry_exists():
 # being replaced. Any child nodes not present in the <data> element
 # but present in the server will be deleted.
 
-@pytest.mark.skip(reason="should return 204")
 def test_restconf_replace_list_entry_new():
     tree = """
 {
@@ -1407,7 +1400,6 @@ def test_restconf_replace_if_none_match_namespace():
 
 # PATCH - Create or update a data resource but not create resource instance
 
-@pytest.mark.skip(reason="should return 204")
 def test_restconf_update_string():
     apteryx_set("/test/settings/description", "previously set")
     response = requests.patch("http://{}:{}{}/data/test/settings".format(host,port,docroot), headers=restconf_headers, data="""{"description": "this is a description"}""")
@@ -1415,7 +1407,6 @@ def test_restconf_update_string():
     assert len(response.content) == 0
     assert apteryx_get("/test/settings/description") == "this is a description"
 
-@pytest.mark.skip(reason="should return 204")
 def test_restconf_update_missing_string():
     apteryx_set("/test/settings/description", "")
     response = requests.patch("http://{}:{}{}/data/test/settings".format(host,port,docroot), headers=restconf_headers, data="""{"description": "this is a description"}""")
@@ -1423,7 +1414,6 @@ def test_restconf_update_missing_string():
     assert len(response.content) == 0
     assert apteryx_get("/test/settings/description") == "this is a description"
 
-@pytest.mark.skip(reason="should return 204")
 def test_restconf_update_existing_list_entry():
     tree = """
 {

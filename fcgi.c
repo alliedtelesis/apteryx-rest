@@ -48,6 +48,28 @@ get_flags (FCGX_Request * r)
     int flags = 0;
     char *param;
 
+    /* Method */
+    param = FCGX_GetParam ("REQUEST_METHOD", r->envp);
+    if (g_strcmp0 (param, "GET") == 0)
+        flags |= FLAGS_METHOD_GET;
+    else if (g_strcmp0 (param, "POST") == 0)
+        flags |= FLAGS_METHOD_POST;
+    else if (g_strcmp0 (param, "PUT") == 0)
+        flags |= FLAGS_METHOD_PUT;
+    else if (g_strcmp0 (param, "PATCH") == 0)
+        flags |= FLAGS_METHOD_PATCH;
+    else if (g_strcmp0 (param, "DELETE") == 0)
+        flags |= FLAGS_METHOD_DELETE;
+    else if (g_strcmp0 (param, "HEAD") == 0)
+        flags |= FLAGS_METHOD_HEAD;
+    else if (g_strcmp0 (param, "OPTIONS") == 0)
+        flags |= FLAGS_METHOD_OPTIONS;
+    else
+    {
+        ERROR ("Unsupported action \"%s\" - assuming GET)\n", param);
+        flags |= FLAGS_METHOD_GET;
+    }
+
     /* Parse content type */
     param = FCGX_GetParam ("HTTP_CONTENT_TYPE", r->envp);
     if (param)
@@ -114,7 +136,7 @@ static void *
 handle_http (void *arg)
 {
     FCGX_Request *request = (FCGX_Request *) arg;
-    char *rpath, *path, *action, *length, *if_none_match, *if_modified_since;
+    char *rpath, *path, *length, *if_none_match, *if_modified_since;
     int flags;
     char *data = NULL;
     int len = 0;
@@ -134,16 +156,15 @@ handle_http (void *arg)
     flags = get_flags (request);
     if_none_match = FCGX_GetParam ("HTTP_IF_NONE_MATCH", request->envp);
     if_modified_since = FCGX_GetParam ("HTTP_IF_MODIFIED_SINCE", request->envp);
-    action = FCGX_GetParam ("REQUEST_METHOD", request->envp);
     length = FCGX_GetParam ("CONTENT_LENGTH", request->envp);
-    if (!rpath || !path || !action)
+    if (!rpath || !path)
     {
-        ERROR ("Invalid server configuration (flags:0x%x, rpath:%s, path:%s, action:%s)\n",
-               flags, rpath, path, action);
+        ERROR ("Invalid server configuration (flags:0x%x, rpath:%s, path:%s)\n",
+               flags, rpath, path);
         data = g_strdup_printf ("Status: 500\r\n"
                         "Content-Type: text/html\r\n\r\n"
-                        "Invalid server configuration (flags:0x%x, rpath:%s, path:%s, action:%s)\n",
-                        flags, rpath, path, action);
+                        "Invalid server configuration (flags:0x%x, rpath:%s, path:%s)\n",
+                        flags, rpath, path);
         send_response (request, data, false);
         goto exit;
     }
@@ -160,7 +181,7 @@ handle_http (void *arg)
             }
         }
     }
-    g_cb ((req_handle) request, flags, rpath, path, action, if_none_match, if_modified_since, data, len);
+    g_cb ((req_handle) request, flags, rpath, path, if_none_match, if_modified_since, data, len);
 
 exit:
     free (data);

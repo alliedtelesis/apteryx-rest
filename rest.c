@@ -25,6 +25,7 @@ extern bool delete_callback (const char *type, const char *path, void *fn, void 
 
 #define HTTP_CODE_OK                    200
 #define HTTP_CODE_CREATED               201
+#define HTTP_CODE_NO_CONTENT            204
 #define HTTP_CODE_NOT_MODIFIED          304
 #define HTTP_CODE_BAD_REQUEST           400
 #define HTTP_CODE_FORBIDDEN             403
@@ -113,7 +114,12 @@ apteryx_json_search (const char *path, char **data)
     _path[len - 1] = '\0';
 
     /* Validate starting path */
-    if ((root = sch_lookup (g_schema, _path)) == NULL || !sch_is_readable (root))
+    if ((root = sch_lookup (g_schema, _path)) == NULL)
+    {
+        free (_path);
+        return HTTP_CODE_NOT_FOUND;
+    }
+    if (!sch_is_readable (root))
     {
         free (_path);
         return HTTP_CODE_FORBIDDEN;
@@ -359,7 +365,7 @@ exit:
 }
 
 static int
-apteryx_json_set (const char *path, json_t * json)
+apteryx_json_set (int flags, const char *path, json_t * json)
 {
     sch_node *api_subtree;
     GNode *tree = NULL;
@@ -369,7 +375,7 @@ apteryx_json_set (const char *path, json_t * json)
     api_subtree = sch_lookup (g_schema, path);
     if (!api_subtree)
     {
-        return HTTP_CODE_FORBIDDEN;
+        return HTTP_CODE_NOT_FOUND;
     }
 
     schflags = SCH_F_JSON_ARRAYS | SCH_F_JSON_TYPES;
@@ -401,7 +407,7 @@ apteryx_json_set (const char *path, json_t * json)
         return HTTP_CODE_BAD_REQUEST;
     }
 
-    return HTTP_CODE_OK;
+    return flags & FLAGS_METHOD_POST ? HTTP_CODE_CREATED : HTTP_CODE_NO_CONTENT;
 }
 
 static char *
@@ -416,7 +422,7 @@ rest_api_post (int flags, const char *path, const char *data, int length)
     json = json_loads (data, 0, &error);
     if (json)
     {
-        rc = apteryx_json_set (path, json);
+        rc = apteryx_json_set (flags, path, json);
         json_decref (json);
     }
     else if (!(flags & FLAGS_JSON_FORMAT_ROOT))
@@ -436,7 +442,11 @@ rest_api_post (int flags, const char *path, const char *data, int length)
 
         /* Manage value with no key */
         node = sch_lookup (g_schema, path);
-        if (!node || !sch_is_leaf (node) || !sch_is_writable (node))
+        if (!node || !sch_is_leaf (node))
+        {
+            rc = HTTP_CODE_NOT_FOUND;
+        }
+        else if (!sch_is_writable (node))
         {
             rc = HTTP_CODE_FORBIDDEN;
         }
@@ -446,7 +456,7 @@ rest_api_post (int flags, const char *path, const char *data, int length)
         }
         else
         {
-            rc = HTTP_CODE_OK;
+            rc = flags & FLAGS_METHOD_POST ? HTTP_CODE_CREATED : HTTP_CODE_NO_CONTENT;
         }
 
         g_free (escaped);
@@ -482,7 +492,12 @@ set_data_null (GNode *node, gpointer data)
         // TODO Pretend it is not here rather than letting it be set again
         return false;
     }
-    else if (schema == NULL || !sch_is_writable (schema))
+    else if (schema == NULL)
+    {
+        *rc = HTTP_CODE_NOT_FOUND;
+        return true;
+    }
+    else if (!sch_is_writable (schema))
     {
         *rc = HTTP_CODE_FORBIDDEN;
         return true;
@@ -518,7 +533,7 @@ rest_api_delete (int flags, const char *path)
     if (!query)
     {
         VERBOSE ("REST: Path \"%s\" not found\n", path);
-        rc = HTTP_CODE_FORBIDDEN;
+        rc = HTTP_CODE_NOT_FOUND;
         goto exit;
     }
 
@@ -676,25 +691,25 @@ rest_api_watch (req_handle handle, int flags, const char *path)
 }
 
 void
-rest_api (req_handle handle, int flags, const char *rpath, const char *path, const char *action,
+rest_api (req_handle handle, int flags, const char *rpath, const char *path,
           const char *if_none_match, const char *if_modified_since, const char *data, int length)
 {
     char *resp = NULL;
 
     /* Sanity check parameters */
-    if (!rpath || !path || !action || !(flags & FLAGS_ACCEPT_JSON))
+    if (!rpath || !path || !(flags & FLAGS_ACCEPT_JSON))
     {
-        ERROR ("ERROR: invalid parameters (flags:0x%x, rpath:%s, path:%s, action:%s)\n",
-               flags, rpath, path, action);
+        ERROR ("ERROR: invalid parameters (flags:0x%x, rpath:%s, path:%s)\n",
+               flags, rpath, path);
         resp = g_strdup_printf ("Status: 500\r\n"
                         "Content-Type: text/html\r\n\r\n"
-                        "Invalid parameters (flags:0x%x, rpath:%s, path:%s, action:%s)\n",
-                        flags, rpath, path, action);
+                        "Invalid parameters (flags:0x%x, rpath:%s, path:%s)\n",
+                        flags, rpath, path);
         send_response (handle, resp, false);
         g_free (resp);
         return;
     }
-    VERBOSE ("%s(0x%x) %s\n", action, flags, path);
+    VERBOSE ("[0x%x] %s\n", flags, path);
 
     /* Process method */
     path = path + strlen (rpath);
@@ -702,7 +717,7 @@ rest_api (req_handle handle, int flags, const char *rpath, const char *path, con
     {
         if (strstr (path, "/data") == path)
             path += strlen ("/data");
-        else if (strcmp (action, "GET") == 0)
+        else if (flags & FLAGS_METHOD_GET)
         {
             json_t *json = json_object();
             json_t *obj = json;
@@ -728,7 +743,7 @@ rest_api (req_handle handle, int flags, const char *rpath, const char *path, con
             return;
         }
     }
-    if (strcmp (action, "GET") == 0 || strcmp (action, "HEAD") == 0)
+    if (flags & FLAGS_METHOD_GET || flags & FLAGS_METHOD_HEAD)
     {
         if (strcmp (path, ".xml") == 0)
             resp = rest_api_xml ();
@@ -742,11 +757,11 @@ rest_api (req_handle handle, int flags, const char *rpath, const char *path, con
         else
             resp = rest_api_get (flags, path, if_none_match, if_modified_since);
     }
-    else if (strcmp (action, "POST") == 0 || strcmp (action, "PUT") == 0 || strcmp (action, "PATCH") == 0)
+    else if (flags & (FLAGS_METHOD_POST|FLAGS_METHOD_PUT|FLAGS_METHOD_PATCH))
         resp = rest_api_post (flags, path, data, length);
-    else if (strcmp (action, "DELETE") == 0)
+    else if (flags & FLAGS_METHOD_DELETE)
         resp = rest_api_delete (flags, path);
-    else if (strcmp (action, "OPTIONS") == 0)
+    else if (flags & FLAGS_METHOD_OPTIONS)
     {
         resp = g_strdup_printf ("Status: 200\r\n"
                         "Allow: GET,POST,PUT,PATCH,DELETE,HEAD,OPTIONS\r\n"
@@ -756,9 +771,9 @@ rest_api (req_handle handle, int flags, const char *rpath, const char *path, con
     }
     if (!resp)
     {
-        resp = g_strdup_printf ("Status: 404\r\n"
+        resp = g_strdup_printf ("Status: 501\r\n"
                                 "Content-Type: text/html\r\n\r\n"
-                                "The requested URL %s was not found on this server.\n",
+                                "Operation not implemented for \"%s\".\n",
                                 path);
     }
 

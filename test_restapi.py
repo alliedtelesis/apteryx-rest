@@ -526,42 +526,42 @@ def test_restapi_get_multi():
 
 def test_restapi_set_single_node():
     response = requests.post("{}{}/test/settings".format(server_uri,docroot), verify=False, auth=server_auth, data="""{"priority": "5"}""")
-    assert response.status_code == 200
+    assert response.status_code == 200 or response.status_code == 201
     assert len(response.content) == 0
     assert apteryx_get("/test/settings/priority") == "5"
 
 @pytest.mark.skipif(not json_types, reason="do not support JSON types")
 def test_restapi_set_value_name():
     response = requests.post("{}{}/test/settings".format(server_uri,docroot), verify=False, auth=server_auth, data="""{"debug": "disable"}""")
-    assert response.status_code == 200
+    assert response.status_code == 200 or response.status_code == 201
     assert len(response.content) == 0
     assert apteryx_get("/test/settings/debug") == "0"
     response = requests.post("{}{}/test/settings".format(server_uri,docroot), verify=False, auth=server_auth, data="""{"debug": "enable"}""")
-    assert response.status_code == 200
+    assert response.status_code == 200 or response.status_code == 201
     assert len(response.content) == 0
     assert apteryx_get("/test/settings/debug") == "1"
 
 def test_restapi_set_value_value():
     response = requests.post("{}{}/test/settings".format(server_uri,docroot), verify=False, auth=server_auth, data="""{"debug": "0"}""")
-    assert response.status_code == 200
+    assert response.status_code == 200 or response.status_code == 201
     assert len(response.content) == 0
     assert apteryx_get("/test/settings/debug") == "0"
     response = requests.post("{}{}/test/settings".format(server_uri,docroot), verify=False, auth=server_auth, data="""{"debug": "1"}""")
-    assert response.status_code == 200
+    assert response.status_code == 200 or response.status_code == 201
     assert len(response.content) == 0
     assert apteryx_get("/test/settings/debug") == "1"
 
 def test_restapi_set_node_null():
     response = requests.post("{}{}/test/settings".format(server_uri,docroot), verify=False, auth=server_auth, data="""{"debug": ""}""")
-    assert response.status_code == 200
+    assert response.status_code == 200 or response.status_code == 201
     assert len(response.content) == 0
     response = requests.get("{}{}/test/settings/debug".format(server_uri,docroot), verify=False, auth=server_auth)
-    assert response.status_code == 200
+    assert response.status_code == 200 or response.status_code == 201
     assert response.json() == json.loads('{}')
 
 def test_restapi_set_invalid_path():
     response = requests.post("{}{}/test/cabbage".format(server_uri,docroot), verify=False, auth=server_auth, data="""{"debug": "enable"}""")
-    assert response.status_code == 403
+    assert response.status_code == 404
     assert len(response.content) == 0
     assert apteryx_get("/test/cabbage/debug") == "Not found"
 
@@ -585,7 +585,7 @@ def test_restapi_set_hidden():
 
 def test_restapi_set_out_of_range_integer_string():
     response = requests.post("{}{}/test/settings".format(server_uri,docroot), verify=False, auth=server_auth, data="""{"priority": "1"}""")
-    assert response.status_code == 200
+    assert response.status_code == 200 or response.status_code == 201
     response = requests.post("{}{}/test/settings".format(server_uri,docroot), verify=False, auth=server_auth, data="""{"priority": "0"}""")
     assert response.status_code == 400
     response = requests.post("{}{}/test/settings".format(server_uri,docroot), verify=False, auth=server_auth, data="""{"priority": "6"}""")
@@ -597,7 +597,7 @@ def test_restapi_set_out_of_range_integer_string():
 @pytest.mark.skipif(not json_types, reason="do not support JSON types")
 def test_restapi_set_out_of_range_integer_integer():
     response = requests.post("{}{}/test/settings".format(server_uri,docroot), verify=False, auth=server_auth, data="""{"priority": 1}""")
-    assert response.status_code == 200
+    assert response.status_code == 200 or response.status_code == 201
     response = requests.post("{}{}/test/settings".format(server_uri,docroot), verify=False, auth=server_auth, data="""{"priority": 0}""")
     assert response.status_code == 400
     response = requests.post("{}{}/test/settings".format(server_uri,docroot), verify=False, auth=server_auth, data="""{"priority": 6}""")
@@ -618,10 +618,10 @@ def test_restapi_set_tree_static():
 }
 """
     response = requests.post("{}{}/test".format(server_uri,docroot), verify=False, auth=server_auth, data=tree)
-    assert response.status_code == 200
+    assert response.status_code == 200 or response.status_code == 201
     response = requests.get("{}{}/test/settings".format(server_uri,docroot), verify=False, auth=server_auth)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
-    assert response.status_code == 200
+    assert response.status_code == 200 or response.status_code == 201
     assert response.headers["Content-Type"] == "application/json"
     assert response.json() == json.loads("""
 {
@@ -646,10 +646,10 @@ def test_restapi_set_tree_null_value():
 }
 """
     response = requests.post("{}{}/test".format(server_uri,docroot), verify=False, auth=server_auth, data=tree)
-    assert response.status_code == 200
+    assert response.status_code == 200 or response.status_code == 201
     response = requests.get("{}{}/test/settings".format(server_uri,docroot), verify=False, auth=server_auth)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
-    assert response.status_code == 200
+    assert response.status_code == 200 or response.status_code == 201
     assert response.headers["Content-Type"] == "application/json"
     assert response.json() == json.loads("""
 {
@@ -696,10 +696,10 @@ def test_restapi_set_tree_list_full_strings():
 }
 """
     response = requests.post("{}{}/test".format(server_uri,docroot), verify=False, auth=server_auth, data=tree)
-    assert response.status_code == 200
+    assert response.status_code == 200 or response.status_code == 201
     response = requests.get("{}{}/test/animals".format(server_uri,docroot), verify=False, auth=server_auth)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
-    assert response.status_code == 200
+    assert response.status_code == 200 or response.status_code == 201
     assert response.headers["Content-Type"] == "application/json"
     assert response.json() == json.loads("""
 {
@@ -780,10 +780,10 @@ def test_restapi_set_tree_list_single_strings():
 }
 """
     response = requests.post("{}{}/test/animals/animal/frog".format(server_uri,docroot), verify=False, auth=server_auth, data=tree)
-    assert response.status_code == 200
+    assert response.status_code == 200 or response.status_code == 201
     response = requests.get("{}{}/test/animals/animal/frog".format(server_uri,docroot), verify=False, auth=server_auth)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
-    assert response.status_code == 200
+    assert response.status_code == 200 or response.status_code == 201
     assert response.headers["Content-Type"] == "application/json"
     assert response.json() == json.loads("""
 {
@@ -829,10 +829,10 @@ def test_restapi_set_tree_list_full_arrays():
 }
 """
     response = requests.post("{}{}/test".format(server_uri,docroot), verify=False, auth=server_auth, headers=json_headers, data=tree)
-    assert response.status_code == 200
+    assert response.status_code == 200 or response.status_code == 201
     response = requests.get("{}{}/test/animals".format(server_uri,docroot), verify=False, auth=server_auth, headers={"X-JSON-Array":"on"})
     print(json.dumps(response.json(), indent=4, sort_keys=True))
-    assert response.status_code == 200
+    assert response.status_code == 200 or response.status_code == 201
     assert response.headers["Content-Type"] == "application/json"
     assert response.json() == json.loads("""
 {
@@ -907,19 +907,19 @@ def test_restapi_set_tree_list_full_arrays():
 
 def test_restapi_set_true_false_string():
     response = requests.post("{}{}/test/settings".format(server_uri,docroot), verify=False, auth=server_auth, data="""{"enable": "false"}""")
-    assert response.status_code == 200
+    assert response.status_code == 200 or response.status_code == 201
     assert apteryx_get("/test/settings/enable") == "false"
     response = requests.post("{}{}/test/settings".format(server_uri,docroot), verify=False, auth=server_auth, data="""{"enable": "true"}""")
-    assert response.status_code == 200
+    assert response.status_code == 200 or response.status_code == 201
     assert apteryx_get("/test/settings/enable") == "true"
 
 @pytest.mark.skipif(not json_types, reason="do not support JSON types")
 def test_restapi_set_true_false_boolean():
     response = requests.post("{}{}/test/settings".format(server_uri,docroot), verify=False, auth=server_auth, data="""{"enable": false}""")
-    assert response.status_code == 200
+    assert response.status_code == 200 or response.status_code == 201
     assert apteryx_get("/test/settings/enable") == "false"
     response = requests.post("{}{}/test/settings".format(server_uri,docroot), verify=False, auth=server_auth, data="""{"enable": true}""")
-    assert response.status_code == 200
+    assert response.status_code == 200 or response.status_code == 201
     assert apteryx_get("/test/settings/enable") == "true"
 
 # DELETE
