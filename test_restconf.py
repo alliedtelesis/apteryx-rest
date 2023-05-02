@@ -88,6 +88,7 @@ def test_restconf_root_discovery():
     print(response)
     assert response.status_code == 200
     # assert response.headers["Content-Type"] == "application/xrd+xml"
+    assert "restconf" in response
     assert docroot in response
 
 def test_restconf_root_resource():
@@ -100,7 +101,7 @@ def test_restconf_root_resource():
     "ietf-restconf:restconf": {
         "data": {},
         "operations": {},
-        "yang-library-version": "2016-06-21"
+        "yang-library-version": "2019-01-04"
     }
 }
 """)
@@ -117,10 +118,9 @@ def test_restconf_yang_library_version():
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/yang-data+json"
-    assert response.json() == json.loads('{ "yang-library-version" : "2016-06-21" }')
+    assert response.json() == json.loads('{ "yang-library-version" : "2019-01-04" }')
 
-# This is actually useless as it is only second granularity - you should use ETag
-def test_restconf_get_timestamp():
+def test_restconf_get_timestamp_node():
     response = requests.get("http://{}:{}{}/data/test/settings/enable".format(host,port,docroot), headers=restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     print(response.headers.get("Last-Modified"))
@@ -132,12 +132,37 @@ def test_restconf_get_timestamp():
 
 def test_restconf_get_timestamp_namespace():
     response = requests.get("http://{}:{}{}/data/testing:test/settings/enable".format(host,port,docroot), headers=restconf_headers)
-    print(json.dumps(response.json(), indent=4, sort_keys=True))
     print(response.headers.get("Last-Modified"))
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/yang-data+json"
-    assert response.headers.get("Last-Modified") != None and response.headers.get("Last-Modified") != "0"
+    assert response.headers.get("Last-Modified") != None
+    assert time.strftime("%a, %d %b", time.gmtime()) in response.headers.get("Last-Modified")
     assert response.json() == json.loads('{ "enable": true }')
+
+def test_restconf_get_timestamp_trunk():
+    response = requests.get("http://{}:{}{}/data/test/settings".format(host,port,docroot), headers=restconf_headers)
+    print(response.headers.get("Last-Modified"))
+    assert response.headers.get("Last-Modified") != None
+    assert time.strftime("%a, %d %b", time.gmtime()) in response.headers.get("Last-Modified")
+
+def test_restconf_get_timestamp_config_changes():
+    response = requests.get("http://{}:{}{}/data/test/settings".format(host,port,docroot), headers=restconf_headers)
+    print(response.headers.get("Last-Modified"))
+    timestamp = response.headers.get("Last-Modified")
+    time.sleep(1)
+    apteryx_set("/test/settings/enable", "false")
+    response = requests.get("http://{}:{}{}/data/test/settings".format(host,port,docroot), headers=restconf_headers)
+    assert response.headers.get("Last-Modified") != None and response.headers.get("Last-Modified") != timestamp
+
+@pytest.mark.skip(reason="we update timestamps for all resource (config/state) changes")
+def test_restconf_get_timestamp_state_no_change():
+    response = requests.get("http://{}:{}{}/data/test/settings".format(host,port,docroot), headers=restconf_headers)
+    print(response.headers.get("Last-Modified"))
+    timestamp = response.headers.get("Last-Modified")
+    time.sleep(1)
+    apteryx_set("/test/settings/readonly", "false")
+    response = requests.get("http://{}:{}{}/data/test/settings".format(host,port,docroot), headers=restconf_headers)
+    assert response.headers.get("Last-Modified") != None and response.headers.get("Last-Modified") == timestamp
 
 def test_restconf_get_if_modified_since():
     response = requests.get("http://{}:{}{}/data/test/settings/enable".format(host,port,docroot), headers=restconf_headers)
@@ -194,6 +219,28 @@ def test_restconf_get_etag_namespace():
     assert response.headers["Content-Type"] == "application/yang-data+json"
     assert response.headers.get("ETag") != None and response.headers.get("ETag") != "0"
     assert response.json() == json.loads('{ "enable": true }')
+
+def test_restconf_get_etag_trunk():
+    response = requests.get("http://{}:{}{}/data/test/settings".format(host,port,docroot), headers=restconf_headers)
+    print(response.headers.get("ETag"))
+    assert response.headers.get("ETag") != None and response.headers.get("ETag") != "0"
+
+def test_restconf_get_etag_config_changes():
+    response = requests.get("http://{}:{}{}/data/test/settings".format(host,port,docroot), headers=restconf_headers)
+    print(response.headers.get("ETag"))
+    etag = response.headers.get("ETag")
+    apteryx_set("/test/settings/enable", "false")
+    response = requests.get("http://{}:{}{}/data/test/settings".format(host,port,docroot), headers=restconf_headers)
+    assert response.headers.get("ETag") != None and response.headers.get("ETag") != etag
+
+@pytest.mark.skip(reason="we update etag for all resource (config/state) changes")
+def test_restconf_get_etag_state_no_change():
+    response = requests.get("http://{}:{}{}/data/test/settings".format(host,port,docroot), headers=restconf_headers)
+    print(response.headers.get("ETag"))
+    etag = response.headers.get("ETag")
+    apteryx_set("/test/settings/readonly", "false")
+    response = requests.get("http://{}:{}{}/data/test/settings".format(host,port,docroot), headers=restconf_headers)
+    assert response.headers.get("ETag") != None and response.headers.get("ETag") == etag
 
 def test_restconf_get_if_none_match():
     response = requests.get("http://{}:{}{}/data/test/settings/enable".format(host,port,docroot), headers=restconf_headers)
@@ -459,6 +506,20 @@ def test_restconf_get_integer():
     assert response.status_code == 200
     assert response.json() == json.loads('{ "priority": 2 }')
 
+def test_restconf_get_string_string():
+    apteryx_set("/test/settings/description", "This is a description")
+    response = requests.get("http://{}:{}{}/data/testing:test/settings/description".format(host,port,docroot), headers=restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.json() == json.loads('{ "description": "This is a description" }')
+
+def test_restconf_get_string_number():
+    apteryx_set("/test/settings/description", "123")
+    response = requests.get("http://{}:{}{}/data/testing:test/settings/description".format(host,port,docroot), headers=restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.json() == json.loads('{ "description": "123" }')
+
 def test_restconf_get_boolean():
     response = requests.get("http://{}:{}{}/data/testing:test/settings/enable".format(host,port,docroot), headers=restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -486,10 +547,9 @@ def test_restconf_get_value_string():
 def test_restconf_get_node_null():
     apteryx_set("/test/settings/debug", "")
     response = requests.get("http://{}:{}{}/data/testing:test/settings/debug".format(host,port,docroot), headers=restconf_headers)
-    print(json.dumps(response.json(), indent=4, sort_keys=True))
-    assert response.status_code == 200
-    assert response.headers["Content-Type"] == "application/yang-data+json"
-    assert response.json() == json.loads('{}')
+    if len(response.content) != 0:
+        print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert (response.status_code == 204 and len(response.content) == 0) or (response.status_code == 200 and response.json() == json.loads('{}'))
 
 def test_restconf_get_trunk_no_namespace():
     response = requests.get("http://{}:{}{}/data/test/settings".format(host,port,docroot), headers=restconf_headers)
@@ -1707,7 +1767,7 @@ def test_restconf_delete_list_entry():
 
 # TODO Event Stream resource
 
-# ietf-yang-library Schema Resource
+# ietf-yang-library
 # module: ietf-yang-library
 #   +--ro yang-library
 #   |  +--ro module-set* [name]
@@ -1739,27 +1799,6 @@ def test_restconf_delete_list_entry():
 #   |  |  +--ro name      ds:datastore-ref
 #   |  |  +--ro schema    -> ../../schema/name
 #   |  +--ro content-id    string
-#   x--ro modules-state
-#      x--ro module-set-id    string
-#      x--ro module* [name revision]
-#         x--ro name                yang:yang-identifier
-#         x--ro revision            union
-#         +--ro schema?             inet:uri
-#         x--ro namespace           inet:uri
-#         x--ro feature*            yang:yang-identifier
-#         x--ro deviation* [name revision]
-#         |  x--ro name        yang:yang-identifier
-#         |  x--ro revision    union
-#         x--ro conformance-type    enumeration
-#         x--ro submodule* [name revision]
-#            x--ro name        yang:yang-identifier
-#            x--ro revision    union
-#            +--ro schema?     inet:uri
-#   notifications:
-#     +---n yang-library-update
-#     |  +--ro content-id    -> /yang-library/content-id
-#     x---n yang-library-change
-#        x--ro module-set-id    -> /modules-state/module-set-id
 def test_restconf_yang_library_tree():
     response = requests.get("http://{}:{}{}/data/ietf-yang-library:yang-library".format(host,port,docroot), headers=restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))

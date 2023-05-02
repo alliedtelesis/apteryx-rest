@@ -226,7 +226,7 @@ get_collapsed_root (GNode *root, gboolean values)
     while (root &&
            (values || !APTERYX_HAS_VALUE (root)) &&
            g_node_n_children (root) == 1 &&
-           g_strcmp0 (APTERYX_NAME(root), "*") != 0)
+           g_strcmp0 (APTERYX_NAME (g_node_first_child (root)), "*") != 0)
     {
         GNode *child = g_node_first_child (root);
         gchar *cpath = g_strdup_printf ("%s/%s", compressed_path ?: "", APTERYX_NAME (child));
@@ -794,7 +794,7 @@ rest_api (req_handle handle, int flags, const char *rpath, const char *path,
             if (path[0] == 0 || g_strcmp0 (path, "/operations") == 0)
                 json_object_set_new (obj, "operations", json_object ());
             if (path[0] == 0 || g_strcmp0 (path, "/yang-library-version") == 0)
-                json_object_set_new (obj, "yang-library-version", json_string ("2016-06-21"));
+                json_object_set_new (obj, "yang-library-version", json_string ("2019-01-04"));
             char *json_string = json_dumps (json, 0);
             resp = g_strdup_printf ("Status: 200\r\n"
                     "Content-Type: application/yang-data+json\r\n"
