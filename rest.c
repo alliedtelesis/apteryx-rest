@@ -869,6 +869,8 @@ rest_init (const char *path)
         return false;
     }
 
+    yang_library_create (g_schema);
+
     return true;
 }
 

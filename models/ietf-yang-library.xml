@@ -1,0 +1,100 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<MODULE xmlns="urn:ietf:params:xml:ns:yang:ietf-yang-library" xmlns:yanglib="urn:ietf:params:xml:ns:yang:ietf-yang-library" model="ietf-yang-library" organization="IETF NETCONF (Network Configuration) Working Group" version="2019-01-04" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="https://github.com/alliedtelesis/apteryx-xml https://github.com/alliedtelesis/apteryx-xml/releases/download/v1.2/apteryx.xsd">
+  <NODE name="yang-library" help="Container holding the entire YANG library of this server.">
+    <NODE name="module-set" help="A set of modules that may be used by one or more schemas.  A module set does not have to be referentially complete, i.e., it may define modules that contain import statements for other modules not included in the module set.">
+      <NODE name="*" help="The module-set entry with key name">
+        <NODE name="name" mode="r" help="An arbitrary name of the module set."/>
+        <NODE name="module" help="An entry in this list represents a module implemented by the server, as per Section 5.6.5 of RFC 7950, with a particular set of supported features and deviations.">
+          <NODE name="*" help="The module entry with key name">
+            <NODE name="name" mode="r" help="The YANG module or submodule name."/>
+            <NODE name="revision" mode="r" help="The YANG module or submodule revision date.  If no revision statement is present in the YANG module or submodule, this leaf is not instantiated."/>
+            <NODE name="namespace" mode="r" help="The XML namespace identifier for this module."/>
+            <NODE name="location" help="Contains a URL that represents the YANG schema resource for this module or submodule.  This leaf will only be present if there is a URL available for retrieval of the schema for this entry.">
+              <NODE name="*" mode="r" help="List of location"/>
+            </NODE>
+            <NODE name="submodule" help="Each entry represents one submodule within the parent module.">
+              <NODE name="*" help="The submodule entry with key name">
+                <NODE name="name" mode="r" help="The YANG module or submodule name."/>
+                <NODE name="revision" mode="r" help="The YANG module or submodule revision date.  If no revision statement is present in the YANG module or submodule, this leaf is not instantiated."/>
+                <NODE name="location" help="Contains a URL that represents the YANG schema resource for this module or submodule.  This leaf will only be present if there is a URL available for retrieval of the schema for this entry.">
+                  <NODE name="*" mode="r" help="List of location"/>
+                </NODE>
+              </NODE>
+            </NODE>
+            <NODE name="feature" help="List of all YANG feature names from this module that are supported by the server, regardless whether they are defined in the module or any included submodule.">
+              <NODE name="*" mode="r" help="List of feature"/>
+            </NODE>
+            <NODE name="deviation" help="List of all YANG deviation modules used by this server to modify the conformance of the module associated with this entry.  Note that the same module can be used for deviations for multiple modules, so the same entry MAY appear within multiple 'module' entries.  This reference MUST NOT (directly or indirectly) refer to the module being deviated.  Robust clients may want to make sure that they handle a situation where a module deviates itself (directly or indirectly) gracefully.">
+              <NODE name="*" mode="r" help="List of deviation"/>
+            </NODE>
+          </NODE>
+        </NODE>
+        <NODE name="import-only-module" help="An entry in this list indicates that the server imports reusable definitions from the specified revision of the module but does not implement any protocol-accessible objects from this revision.  Multiple entries for the same module name MAY exist.  This can occur if multiple modules import the same module but specify different revision dates in the import statements.">
+          <NODE name="*" help="The import-only-module entry with key name revision">
+            <NODE name="name" mode="r" help="The YANG module name."/>
+            <NODE name="revision" mode="r" help="The YANG module revision date. A zero-length string is used if no revision statement is present in the YANG module."/>
+            <NODE name="namespace" mode="r" help="The XML namespace identifier for this module."/>
+            <NODE name="location" help="Contains a URL that represents the YANG schema resource for this module or submodule.  This leaf will only be present if there is a URL available for retrieval of the schema for this entry.">
+              <NODE name="*" mode="r" help="List of location"/>
+            </NODE>
+            <NODE name="submodule" help="Each entry represents one submodule within the parent module.">
+              <NODE name="*" help="The submodule entry with key name">
+                <NODE name="name" mode="r" help="The YANG module or submodule name."/>
+                <NODE name="revision" mode="r" help="The YANG module or submodule revision date.  If no revision statement is present in the YANG module or submodule, this leaf is not instantiated."/>
+                <NODE name="location" help="Contains a URL that represents the YANG schema resource for this module or submodule.  This leaf will only be present if there is a URL available for retrieval of the schema for this entry.">
+                  <NODE name="*" mode="r" help="List of location"/>
+                </NODE>
+              </NODE>
+            </NODE>
+          </NODE>
+        </NODE>
+      </NODE>
+    </NODE>
+    <NODE name="schema" help="A datastore schema that may be used by one or more datastores.  The schema must be valid and referentially complete, i.e., it must contain modules to satisfy all used import statements for all modules specified in the schema.">
+      <NODE name="*" help="The schema entry with key name">
+        <NODE name="name" mode="r" help="An arbitrary name of the schema."/>
+        <NODE name="module-set" help="A set of module-sets that are included in this schema. If a non-import-only module appears in multiple module sets, then the module revision and the associated features and deviations must be identical.">
+          <NODE name="*" mode="r" help="List of module-set"/>
+        </NODE>
+      </NODE>
+    </NODE>
+    <NODE name="datastore" help="A datastore supported by this server.  Each datastore indicates which schema it supports.  The server MUST instantiate one entry in this list per specific datastore it supports. Each datastore entry with the same datastore schema SHOULD reference the same schema.">
+      <NODE name="*" help="The datastore entry with key name">
+        <NODE name="name" mode="r" help="The identity of the datastore."/>
+        <NODE name="schema" mode="r" help="A reference to the schema supported by this datastore. All non-import-only modules of the schema are implemented with their associated features and deviations."/>
+      </NODE>
+    </NODE>
+    <NODE name="content-id" mode="r" help="A server-generated identifier of the contents of the '/yang-library' tree.  The server MUST change the value of this leaf if the information represented by the '/yang-library' tree, except '/yang-library/content-id', has changed."/>
+  </NODE>
+  <NODE name="modules-state" help="Contains YANG module monitoring information.">
+    <NODE name="module-set-id" mode="r" help="Contains a server-specific identifier representing the current set of modules and submodules.  The server MUST change the value of this leaf if the information represented by the 'module' list instances has changed."/>
+    <NODE name="module" help="Each entry represents one revision of one module currently supported by the server.">
+      <NODE name="*" help="The module entry with key name revision">
+        <NODE name="name" mode="r" help="The YANG module or submodule name."/>
+        <NODE name="revision" mode="r" help="The YANG module or submodule revision date. A zero-length string is used if no revision statement is present in the YANG module or submodule."/>
+        <NODE name="schema" mode="r" help="Contains a URL that represents the YANG schema resource for this module or submodule.  This leaf will only be present if there is a URL available for retrieval of the schema for this entry."/>
+        <NODE name="namespace" mode="r" help="The XML namespace identifier for this module."/>
+        <NODE name="feature" help="List of YANG feature names from this module that are supported by the server, regardless of whether they are defined in the module or any included submodule.">
+          <NODE name="*" mode="r" help="List of feature"/>
+        </NODE>
+        <NODE name="deviation" help="List of YANG deviation module names and revisions used by this server to modify the conformance of the module associated with this entry.  Note that the same module can be used for deviations for multiple modules, so the same entry MAY appear within multiple 'module' entries.  The deviation module MUST be present in the 'module' list, with the same name and revision values. The 'conformance-type' value will be 'implement' for the deviation module.">
+          <NODE name="*" help="The deviation entry with key name revision">
+            <NODE name="name" mode="r" help="The YANG module or submodule name."/>
+            <NODE name="revision" mode="r" help="The YANG module or submodule revision date. A zero-length string is used if no revision statement is present in the YANG module or submodule."/>
+          </NODE>
+        </NODE>
+        <NODE name="conformance-type" mode="r" help="Indicates the type of conformance the server is claiming for the YANG module identified by this entry.">
+          <VALUE name="implement" value="0" help="Indicates that the server implements one or more protocol-accessible objects defined in the YANG module identified in this entry.  This includes deviation statements defined in the module.  For YANG version 1.1 modules, there is at most one 'module' entry with conformance type 'implement' for a particular module name, since YANG 1.1 requires that at most one revision of a module is implemented.  For YANG version 1 modules, there SHOULD NOT be more than one 'module' entry for a particular module name."/>
+          <VALUE name="import" value="1" help="Indicates that the server imports reusable definitions from the specified revision of the module but does not implement any protocol-accessible objects from this revision.  Multiple 'module' entries for the same module name MAY exist.  This can occur if multiple modules import the same module but specify different revision dates in the import statements."/>
+        </NODE>
+        <NODE name="submodule" help="Each entry represents one submodule within the parent module.">
+          <NODE name="*" help="The submodule entry with key name revision">
+            <NODE name="name" mode="r" help="The YANG module or submodule name."/>
+            <NODE name="revision" mode="r" help="The YANG module or submodule revision date. A zero-length string is used if no revision statement is present in the YANG module or submodule."/>
+            <NODE name="schema" mode="r" help="Contains a URL that represents the YANG schema resource for this module or submodule.  This leaf will only be present if there is a URL available for retrieval of the schema for this entry."/>
+          </NODE>
+        </NODE>
+      </NODE>
+    </NODE>
+  </NODE>
+</MODULE>

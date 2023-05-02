@@ -28,6 +28,7 @@
 #include <string.h>
 #include <sys/sysinfo.h>
 #include <syslog.h>
+#include <assert.h>
 #include <apteryx.h>
 #define APTERYX_XML_JSON
 #include <apteryx-xml.h>
@@ -86,5 +87,6 @@ void rest_api (req_handle handle, int flags, const char *rpath, const char *path
                const char *if_modified_since, const char *if_unmodified_since,
                const char *data, int length);
 void rest_shutdown (void);
+void yang_library_create (sch_instance *g_schema);
 
 #endif /* _REST_H_ */
