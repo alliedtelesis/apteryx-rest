@@ -18,9 +18,6 @@
  */
 #include "internal.h"
 #include "models/ietf-yang-library.h"
-#define APTERYX_XML_LIBXML2
-#include <libxml/tree.h>
-#include <apteryx-xml.h>
 
 /* Name for the set of modules */
 #define MODULES_STR "modules"
@@ -79,9 +76,7 @@ static void
 traverse_schema_add_models (GNode *root, sch_node *node)
 {
     sch_node *sch_child;
-    xmlNode *xml;
     GNode *gnode;
-    char *revision;
 
     for (sch_child = sch_node_child_first (node); sch_child;
          sch_child = sch_node_next_sibling (sch_child))
@@ -89,8 +84,8 @@ traverse_schema_add_models (GNode *root, sch_node *node)
         char *model = sch_model (sch_child, true);
         if (model && strlen (model))
         {
-            revision = sch_version (sch_child);
-            xml = (xmlNode *) sch_child;
+            char *revision = sch_version (sch_child);
+            char *namespace = sch_namespace (sch_child);
             gnode = add_leaf_strdup (root, YANGLIB_YANG_LIBRARY_MODULE_SET_MODULE_PATH,
                                      model);
 
@@ -99,12 +94,11 @@ traverse_schema_add_models (GNode *root, sch_node *node)
             {
                 add_leaf_strdup (gnode, YANGLIB_MODULES_STATE_MODULE_REVISION, revision);
             }
-            if (xml->ns)
+            if (namespace)
             {
-                add_leaf_strdup (gnode, YANGLIB_MODULES_STATE_MODULE_NAMESPACE,
-                                 (const char *) xml->ns->href);
+                add_leaf_strdup (gnode, YANGLIB_MODULES_STATE_MODULE_NAMESPACE, namespace);
             }
-
+            g_free (namespace);
             g_free (revision);
             g_free (model);
         }
