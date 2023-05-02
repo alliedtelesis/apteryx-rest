@@ -392,53 +392,56 @@ exit:
     return resp;
 }
 
-static int
-apteryx_json_set (int flags, const char *path, json_t * json, const char *if_match, const char *if_unmodified_since)
+static char *
+rest_api_post (int flags, const char *path, const char *data, int length, const char *if_match, const char *if_unmodified_since)
 {
-    sch_node *api_subtree;
+    GNode *root = NULL;
     GNode *tree = NULL;
+    char *apath = NULL;
+    sch_node *api_subtree = NULL;
+    GNode *child;
+    GNode *node;
+    json_t *json;
+    json_error_t error;
+    char *resp = NULL;
+    char *error_string = NULL;
+    int schflags = 0;
     uint64_t ts = 0;
-    char *apath;
-    bool set_successful;
-    int schflags;
+    
+    int rc;
 
-    api_subtree = sch_lookup (g_schema, path);
-    if (!api_subtree)
-    {
-        VERBOSE ("REST: %s not found\n", path);
-        return HTTP_CODE_NOT_FOUND;
-    }
-
+    /* Parsing options - always set arrays and types */
     schflags = SCH_F_JSON_ARRAYS | SCH_F_JSON_TYPES;
     if (verbose)
         schflags |= SCH_F_DEBUG;
-    tree = sch_json_to_gnode (g_schema, api_subtree, json, schflags);
-    if (!tree)
+    if (flags & FLAGS_RESTCONF)
+        schflags |= SCH_F_NS_MODEL_NAME;
+    schflags |= SCH_F_STRIP_DATA;
+
+    /* Generate an aperyx tree from the path */
+    root = sch_path_to_query (g_schema, &api_subtree, path, schflags);
+    if (!root || !api_subtree)
     {
-        switch (sch_last_err ())
-        {
-        case SCH_E_NOSCHEMANODE:
-            return HTTP_CODE_NOT_FOUND;
-        case SCH_E_NOTREADABLE:
-        case SCH_E_NOTWRITABLE:
-            return HTTP_CODE_FORBIDDEN;
-        default:
-            return HTTP_CODE_BAD_REQUEST;
-        }
+        VERBOSE ("REST: Path \"%s\" not found\n", path);
+        rc = HTTP_CODE_NOT_FOUND;
+        goto exit;
     }
-    free (tree->data);
-    tree->data = g_strdup (path);
+
+    /* Find the end of the path node */
+    child = root;
+    while (child && g_node_first_child (child))
+        child = g_node_first_child (child);
 
     /* Get a timestamp for the apteryx path */
-    apath = get_collapsed_root (tree, false);
+    apath = apteryx_node_path (child);
     ts = apteryx_timestamp (apath);
     free (apath);
     if (if_match && if_match[0] != '\0' &&
         ts != strtoull (if_match, NULL, 16))
     {
         VERBOSE ("REST: Path \"%s\" modified since ETag:%s\n", path, if_match);
-        apteryx_free_tree (tree);
-        return HTTP_CODE_PRECONDITION_FAILED;
+        rc = HTTP_CODE_PRECONDITION_FAILED;
+        goto exit;
     }
     if (if_unmodified_since && if_unmodified_since[0] != '\0')
     {
@@ -449,79 +452,76 @@ apteryx_json_set (int flags, const char *path, json_t * json, const char *if_mat
         if ((ts / 1000000) != (realtime - g_boottime))
         {
             VERBOSE ("REST: Path \"%s\" modified since Time:%s\n", path, if_unmodified_since);
-            apteryx_free_tree (tree);
-            return HTTP_CODE_PRECONDITION_FAILED;
+            rc =  HTTP_CODE_PRECONDITION_FAILED;
+            goto exit;
         }
     }
 
-    set_successful = apteryx_set_tree (tree);
-    apteryx_free_tree (tree);
-
-    if (!set_successful)
+    /* Parse the JSON data (support full path to leaf value) */
+    if (sch_is_leaf (api_subtree))
     {
-        // TODO error message
-        return HTTP_CODE_BAD_REQUEST;
-    }
-
-    return flags & FLAGS_METHOD_POST ? HTTP_CODE_CREATED : HTTP_CODE_NO_CONTENT;
-}
-
-static char *
-rest_api_post (int flags, const char *path, const char *data, int length, const char *if_match, const char *if_unmodified_since)
-{
-    json_error_t error;
-    json_t *json;
-    char *error_string = NULL;
-    char *resp = NULL;
-    int rc;
-
-    json = json_loads (data, 0, &error);
-    if (json)
-    {
-        rc = apteryx_json_set (flags, path, json, if_match, if_unmodified_since);
-        json_decref (json);
-    }
-    else if (!(flags & FLAGS_JSON_FORMAT_ROOT))
-    {
-        sch_node *node;
-        char *escaped = NULL;
-
-        /* Remove quotes around data if they exist */
-        if (strlen (data) > 1 && data[0] == '"' && data[strlen (data) - 1] == '"')
+        char *name = sch_name (api_subtree);
+        json_t *value = json_loadb (data, strlen (data), JSON_DECODE_ANY, &error);
+        if (!value && data && data[0] != '{' && data[0] != '[')
         {
-            escaped = g_strndup (data + 1, strlen (data) - 2);
+            value = json_stringn (data, strlen (data));
         }
-        else
-        {
-            escaped = g_strdup (data);
-        }
-
-        /* Manage value with no key */
-        node = sch_lookup (g_schema, path);
-        if (!node || !sch_is_leaf (node))
-        {
-            rc = HTTP_CODE_NOT_FOUND;
-        }
-        else if (!sch_is_writable (node))
-        {
-            rc = HTTP_CODE_FORBIDDEN;
-        }
-        else if (!apteryx_set (path, escaped ? escaped : data))
-        {
-            rc = HTTP_CODE_BAD_REQUEST;
-        }
-        else
-        {
-            rc = flags & FLAGS_METHOD_POST ? HTTP_CODE_CREATED : HTTP_CODE_NO_CONTENT;
-        }
-
-        g_free (escaped);
+        json = json_object ();
+        json_object_set_new (json, name, value);
+        free (name);
+        /* Jump back node */
+        api_subtree = sch_node_parent (api_subtree);
+        node = child;
+        child = child->parent;
+        g_node_unlink (node);
+        free (node->data);
+        g_node_destroy (node);
     }
     else
     {
-        ERROR ("error: on line %d: %s\n", error.line, error.text);
-        rc = HTTP_CODE_BAD_REQUEST;
+        json = json_loads (data, 0, &error);
+        if (!json)
+        {
+            ERROR ("error: on line %d: %s\n", error.line, error.text);
+            rc = HTTP_CODE_BAD_REQUEST;
+            goto exit;
+        }
     }
+
+    /* Convert to GNode and validate the data */
+    tree = sch_json_to_gnode (g_schema, api_subtree, json, schflags);
+    json_decref (json);
+    if (!tree)
+    {
+        switch (sch_last_err ())
+        {
+        case SCH_E_NOSCHEMANODE:
+            rc = HTTP_CODE_NOT_FOUND;
+            break;
+        case SCH_E_NOTREADABLE:
+        case SCH_E_NOTWRITABLE:
+            rc = HTTP_CODE_FORBIDDEN;
+            break;
+        default:
+            rc = HTTP_CODE_BAD_REQUEST;
+            break;
+        }
+        goto exit;
+    }
+
+    /* Write the combinded tree to apteryx */
+    child->children = tree->children;
+    if (apteryx_set_tree (root))
+    {
+        rc = flags & FLAGS_METHOD_POST ? HTTP_CODE_CREATED : HTTP_CODE_NO_CONTENT;
+    }
+    else
+    {
+        rc = HTTP_CODE_FORBIDDEN;
+    }
+    child->children = NULL;
+
+exit:
     if (flags & FLAGS_RESTCONF && rc >= 400 && rc <= 499)
     {
         error_string = restconf_error (rc);
@@ -532,6 +532,8 @@ rest_api_post (int flags, const char *path, const char *data, int length, const 
                             flags & FLAGS_RESTCONF ? "application/yang-data+json" : "application/json",
                             error_string ? : "");
     free (error_string);
+    apteryx_free_tree (tree);
+    apteryx_free_tree (root);
     return resp;
 }
 
@@ -767,7 +769,11 @@ rest_api (req_handle handle, int flags, const char *rpath, const char *path,
         g_free (resp);
         return;
     }
-    VERBOSE ("[0x%x] %s\n", flags, path);
+    VERBOSE ("REQ:\n[0x%x] %s\n", flags, path);
+    if (data && data[0])
+    {
+        VERBOSE ("%s\n", data);
+    }
 
     /* Process method */
     path = path + strlen (rpath);

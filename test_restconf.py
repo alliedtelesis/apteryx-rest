@@ -439,7 +439,7 @@ def test_restconf_get_single_node_ns_other():
     assert response.headers["Content-Type"] == "application/yang-data+json"
     assert response.json() == json.loads('{ "priority": 2 }')
 
-@pytest.mark.skip(reason="does not work yet")
+@pytest.mark.skip(reason="augmented sub paths not working")
 def test_restconf_get_single_node_ns_aug_other():
     response = requests.get("http://{}:{}{}/data/testing-2:test/settings/testing2-augmented:speed".format(host,port,docroot), headers=restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -1142,7 +1142,6 @@ def test_restconf_create_single_node_ns_aug_none():
     assert len(response.content) == 0
     assert apteryx_get("/test/settings/volume") == "2"
 
-@pytest.mark.skip(reason="sch_lookup does not support namespaces")
 def test_restconf_create_single_node_ns_default():
     apteryx_set("/test/settings/priority", "")
     response = requests.post("http://{}:{}{}/data/testing:test/settings".format(host,port,docroot), headers=restconf_headers, data="""{"priority": "2"}""")
@@ -1150,7 +1149,6 @@ def test_restconf_create_single_node_ns_default():
     assert len(response.content) == 0
     assert apteryx_get("/test/settings/priority") == "2"
 
-@pytest.mark.skip(reason="sch_lookup does not support namespaces")
 def test_restconf_create_single_node_ns_aug_default():
     apteryx_set("/test/settings/volume", "")
     response = requests.post("http://{}:{}{}/data/testing:test/settings".format(host,port,docroot), headers=restconf_headers, data="""{"volume": "2"}""")
@@ -1158,7 +1156,6 @@ def test_restconf_create_single_node_ns_aug_default():
     assert len(response.content) == 0
     assert apteryx_get("/test/settings/volume") == "2"
 
-@pytest.mark.skip(reason="sch_lookup does not support namespaces")
 def test_restconf_create_single_node_ns_other():
     apteryx_set("/t2:test/settings/priority", "")
     response = requests.post("http://{}:{}{}/data/testing-2:test/settings".format(host,port,docroot), headers=restconf_headers, data="""{"priority": "3"}""")
@@ -1166,7 +1163,7 @@ def test_restconf_create_single_node_ns_other():
     assert len(response.content) == 0
     assert apteryx_get("/t2:test/settings/priority") == "3"
 
-@pytest.mark.skip(reason="sch_lookup does not support namespaces")
+@pytest.mark.skip(reason="namespace change in json data not working")
 def test_restconf_create_single_node_ns_aug_other():
     apteryx_set("/t2:test/settings/speed", "")
     response = requests.post("http://{}:{}{}/data/testing-2:test/settings".format(host,port,docroot), headers=restconf_headers, data="""{"testing2-augmented:speed": "3"}""")
@@ -1427,7 +1424,6 @@ def test_restconf_replace_if_not_modified_since():
     """)
     assert apteryx_get("/test/settings/priority") == "2"
 
-@pytest.mark.skip(reason="sch_lookup does not support namespaces")
 def test_restconf_replace_if_not_modified_since_namespace():
     response = requests.get("http://{}:{}{}/data/testing:test/settings/priority".format(host,port,docroot), headers=restconf_headers)
     assert response.status_code == 200 and len(response.content) > 0 and response.json() == json.loads('{ "priority": 1 }')
@@ -1480,7 +1476,6 @@ def test_restconf_replace_if_match():
     """)
     assert apteryx_get("/test/settings/priority") == "2"
 
-@pytest.mark.skip(reason="sch_lookup does not support namespaces")
 def test_restconf_replace_if_match_namespace():
     response = requests.get("http://{}:{}{}/data/testing:test/settings/priority".format(host,port,docroot), headers=restconf_headers)
     assert response.status_code == 200 and len(response.content) > 0 and response.json() == json.loads('{ "priority": 1 }')
@@ -1621,7 +1616,7 @@ def test_restconf_delete_single_node_ns_other():
     assert response.headers["Content-Type"] == "application/yang-data+json"
     assert response.json() == json.loads('{ "priority": 1 }')
 
-@pytest.mark.skip(reason="augmented paths not working")
+@pytest.mark.skip(reason="augmented sub paths not working")
 def test_restconf_delete_single_node_ns_aug_other():
     response = requests.delete("http://{}:{}{}/data/testing-2:test/settings/testing2-augmented:speed".format(host,port,docroot), headers=restconf_headers)
     assert response.status_code == 200

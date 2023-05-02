@@ -93,6 +93,11 @@ def test_restapi_api_xml():
     print(etree.tostring(xml, pretty_print=True, encoding="unicode"))
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "text/xml"
+    assert xml.findall('.//*[@mode="h"]') == []
+    assert xml.findall('.//*[@mode="hr"]') == []
+    assert xml.findall('.//*[@mode="rh"]') == []
+    assert xml.findall('.//*[@mode="wh"]') == []
+    assert xml.findall('.//*[@mode="hw"]') == []
 
 def test_restapi_ns_api_xml():
     response = requests.get("{}{}.xml".format(server_uri,docroot), verify=False, auth=server_auth)
@@ -524,6 +529,42 @@ def test_restapi_get_multi():
 
 # SET
 
+def test_restapi_set_nonjson_string_unquoted():
+    response = requests.post("{}{}/test/settings/description".format(server_uri,docroot), verify=False, auth=server_auth, data="This is a description")
+    assert response.status_code == 200 or response.status_code == 201
+    assert len(response.content) == 0
+    assert apteryx_get("/test/settings/description") == "This is a description"
+
+def test_restapi_set_nonjson_string_quoted():
+    response = requests.post("{}{}/test/settings/description".format(server_uri,docroot), verify=False, auth=server_auth, data='"This is a description"')
+    assert response.status_code == 200 or response.status_code == 201
+    assert len(response.content) == 0
+    assert apteryx_get("/test/settings/description") == "This is a description"
+
+def test_restapi_set_nonjson_number_unquoted():
+    response = requests.post("{}{}/test/settings/priority".format(server_uri,docroot), verify=False, auth=server_auth, data='5')
+    assert response.status_code == 200 or response.status_code == 201
+    assert len(response.content) == 0
+    assert apteryx_get("/test/settings/priority") == "5"
+
+def test_restapi_set_nonjson_number_quoted():
+    response = requests.post("{}{}/test/settings/priority".format(server_uri,docroot), verify=False, auth=server_auth, data='"5"')
+    assert response.status_code == 200 or response.status_code == 201
+    assert len(response.content) == 0
+    assert apteryx_get("/test/settings/priority") == "5"
+
+def test_restapi_set_nonjson_value_unquoted():
+    response = requests.post("{}{}/test/settings/debug".format(server_uri,docroot), verify=False, auth=server_auth, data="disable")
+    assert response.status_code == 200 or response.status_code == 201
+    assert len(response.content) == 0
+    assert apteryx_get("/test/settings/debug") == "0"
+
+def test_restapi_set_nonjson_value_quoted():
+    response = requests.post("{}{}/test/settings/debug".format(server_uri,docroot), verify=False, auth=server_auth, data='"disable"')
+    assert response.status_code == 200 or response.status_code == 201
+    assert len(response.content) == 0
+    assert apteryx_get("/test/settings/debug") == "0"
+
 def test_restapi_set_single_node():
     response = requests.post("{}{}/test/settings".format(server_uri,docroot), verify=False, auth=server_auth, data="""{"priority": "5"}""")
     assert response.status_code == 200 or response.status_code == 201
@@ -944,9 +985,14 @@ def test_restapi_delete_hidden_node():
     assert response.status_code == 403 or response.status_code == 404
     assert len(response.content) == 0
 
+def test_restapi_delete_unset():
+    response = requests.delete("{}{}/test/settings/description".format(server_uri,docroot), verify=False, auth=server_auth)
+    assert response.status_code == 200 or response.status_code == 204
+    assert len(response.content) == 0
+
 def test_restapi_delete_single_node():
     response = requests.delete("{}{}/test/settings/debug".format(server_uri,docroot), verify=False, auth=server_auth)
-    assert response.status_code == 200
+    assert response.status_code == 200 or response.status_code == 204
     assert len(response.content) == 0
     response = requests.get("{}{}/test/settings/debug".format(server_uri,docroot), verify=False, auth=server_auth)
     assert response.status_code == 200
@@ -956,20 +1002,20 @@ def test_restapi_delete_single_node():
 @pytest.mark.skip(reason="we reject this because of the readonly field")
 def test_restapi_delete_trunk():
     response = requests.delete("{}{}/test/settings".format(server_uri,docroot), verify=False, auth=server_auth)
-    assert response.status_code == 200
+    assert response.status_code == 200 or response.status_code == 204
     assert len(response.content) == 0
     response = requests.get("{}{}/test/settings".format(server_uri,docroot), verify=False, auth=server_auth)
-    assert response.status_code == 200
+    assert response.status_code == 200 or response.status_code == 204
     assert response.json() == json.loads('{}')
     assert apteryx_get("/test/settings/hidden") == "friend"
 
 def test_restapi_delete_list_entry():
     response = requests.delete("{}{}/test/animals/animal/cat".format(server_uri,docroot), verify=False, auth=server_auth)
-    assert response.status_code == 200
+    assert response.status_code == 200 or response.status_code == 204
     assert len(response.content) == 0
     response = requests.get("{}{}/test/animals".format(server_uri,docroot), verify=False, auth=server_auth, headers={"X-JSON-Array":"on"})
     print(json.dumps(response.json(), indent=4, sort_keys=True))
-    assert response.status_code == 200
+    assert response.status_code == 200 or response.status_code == 204
     assert response.headers["Content-Type"] == "application/json"
     assert response.json() == json.loads("""
 {
@@ -1026,6 +1072,37 @@ def test_restapi_search_node():
     "enable": []
 }
 """)
+
+def test_restapi_search_empty():
+    apteryx_set("/test/settings/debug", "")
+    apteryx_set("/test/settings/enable", "")
+    apteryx_set("/test/settings/priority", "")
+    apteryx_set("/test/settings/readonly", "")
+    apteryx_set("/test/settings/volume", "")
+    response = requests.get("{}{}/test/settings/".format(server_uri,docroot), verify=False, auth=server_auth)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/json"
+    assert response.json() == json.loads("""
+{
+    "settings": []
+}
+""")
+
+def test_restapi_search_not_found():
+    response = requests.get("{}{}/test/settings/invalid/".format(server_uri,docroot), verify=False, auth=server_auth)
+    assert response.status_code == 404
+    assert len(response.content) == 0
+
+def test_restapi_search_forbidden():
+    response = requests.get("{}{}/test/settings/writeonly/".format(server_uri,docroot), verify=False, auth=server_auth)
+    assert response.status_code == 403 or response.status_code == 404
+    assert len(response.content) == 0
+
+def test_restapi_search_hidden_node():
+    response = requests.get("{}{}/test/settings/hidden/".format(server_uri,docroot), verify=False, auth=server_auth)
+    assert response.status_code == 403 or response.status_code == 404
+    assert len(response.content) == 0
 
 def test_restapi_search_trunk():
     response = requests.get("{}{}/test/settings/".format(server_uri,docroot), verify=False, auth=server_auth)
