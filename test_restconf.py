@@ -1707,7 +1707,7 @@ def test_restconf_delete_list_entry():
 
 # TODO Event Stream resource
 
-# TODO 3.7.  Schema Resource
+# ietf-yang-library Schema Resource
 # module: ietf-yang-library
 #   +--ro yang-library
 #   |  +--ro module-set* [name]
@@ -1755,12 +1755,48 @@ def test_restconf_delete_list_entry():
 #            x--ro name        yang:yang-identifier
 #            x--ro revision    union
 #            +--ro schema?     inet:uri
-
 #   notifications:
 #     +---n yang-library-update
 #     |  +--ro content-id    -> /yang-library/content-id
 #     x---n yang-library-change
 #        x--ro module-set-id    -> /modules-state/module-set-id
+def test_restconf_yang_library_tree():
+    response = requests.get("http://{}:{}{}/data/ietf-yang-library:yang-library".format(host,port,docroot), headers=restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    tree = response.json()
+    contentid = tree['yanglib:yang-library']['content-id']
+    assert contentid is not None
+    assert tree == json.loads("""
+{
+    "yanglib:yang-library": {
+        "content-id": "%s",
+        "module-set": [
+            {
+                "module": [
+                    {
+                        "name": "ietf-yang-library",
+                        "namespace": "urn:ietf:params:xml:ns:yang:ietf-yang-library",
+                        "revision": "2019-01-04"
+                    },
+                    {
+                        "name": "testing",
+                        "namespace": "https://github.com/alliedtelesis/apteryx",
+                        "revision": "2023-01-01"
+                    },
+                    {
+                        "name": "testing-2",
+                        "namespace": "http://test.com/ns/yang/testing-2",
+                        "revision": "2023-02-01"
+                    }
+                ],
+                "name": "modules"
+            }
+        ]
+    }
+}
+""" % (contentid))
 
 # TODO 9.  RESTCONF Monitoring
 # module: ietf-restconf-monitoring
