@@ -587,14 +587,14 @@ set_values_to_null (GNode *node, sch_node *schema)
             sch_node *cschema = sch_node_child (schema, APTERYX_NAME (child));
             if (!cschema)
             {
+                /* Quetly ignore fields not specified in the schema */
                 if (verbose)
                 {
                     char *path = apteryx_node_path (child);
-                    VERBOSE ("REST: Path \"%s\" not found\n", path);
+                    VERBOSE ("REST: Silently ignoring path \"%s\"\n", path);
                     free (path);
                 }
-                rc = HTTP_CODE_NOT_FOUND;
-                break;
+                continue;
             }
             rc = set_values_to_null (child, cschema);
             if (rc != HTTP_CODE_OK)
@@ -796,7 +796,7 @@ rest_api (req_handle handle, int flags, const char *rpath, const char *path,
     char *resp = NULL;
 
     /* Sanity check parameters */
-    if (!rpath || !path || !(flags & FLAGS_ACCEPT_JSON))
+    if (!rpath || !path || !(flags & (FLAGS_ACCEPT_JSON|FLAGS_CONTENT_JSON)))
     {
         ERROR ("ERROR: invalid parameters (flags:0x%x, rpath:%s, path:%s)\n",
                flags, rpath, path);

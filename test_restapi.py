@@ -66,7 +66,7 @@ db_default = [
 
 
 def apteryx_set(path, value):
-    assert subprocess.check_output("%s -s %s%s %s" % (APTERYX, APTERYX_URL, path, value), shell=True).strip().decode('utf-8') != "Failed"
+    assert subprocess.check_output('%s -s %s%s "%s"' % (APTERYX, APTERYX_URL, path, value), shell=True).strip().decode('utf-8') != "Failed"
 
 
 def apteryx_get(path):
@@ -541,12 +541,61 @@ def test_restapi_get_hidden_tree():
 
 
 # FLAGS_JSON_FORMAT_ROOT=off
-def test_restapi_get_drop_root():
+def test_restapi_get_drop_root_string():
+    apteryx_set("/test/settings/description", "This is a description")
+    response = requests.get("{}{}/test/settings/description".format(server_uri, docroot), verify=False, auth=server_auth, headers={"X-JSON-Root": "off"})
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/json"
+    assert response.json() == json.loads('"This is a description"')
+
+
+def test_restapi_get_drop_root_integer_string():
     response = requests.get("{}{}/test/settings/priority".format(server_uri, docroot), verify=False, auth=server_auth, headers={"X-JSON-Root": "off"})
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/json"
     assert response.json() == json.loads('"1"')
+
+
+def test_restapi_get_drop_root_integer_json():
+    response = requests.get("{}{}/test/settings/priority".format(server_uri, docroot), verify=False, auth=server_auth, headers={"X-JSON-Root": "off", "X-JSON-Types": "on"})
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/json"
+    assert response.json() == json.loads('1')
+
+
+def test_restapi_get_drop_root_boolean_string():
+    response = requests.get("{}{}/test/settings/enable".format(server_uri, docroot), verify=False, auth=server_auth, headers={"X-JSON-Root": "off"})
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/json"
+    assert response.json() == json.loads('"true"')
+
+
+def test_restapi_get_drop_root_boolean_json():
+    response = requests.get("{}{}/test/settings/enable".format(server_uri, docroot), verify=False, auth=server_auth, headers={"X-JSON-Root": "off", "X-JSON-Types": "on"})
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/json"
+    assert response.json() == json.loads('true')
+
+
+def test_restapi_get_drop_root_enum_string():
+    response = requests.get("{}{}/test/settings/debug".format(server_uri, docroot), verify=False, auth=server_auth, headers={"X-JSON-Root": "off"})
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/json"
+    assert response.json() == json.loads('"1"')
+
+
+def test_restapi_get_drop_root_enum_json():
+    response = requests.get("{}{}/test/settings/debug".format(server_uri, docroot), verify=False, auth=server_auth, headers={"X-JSON-Root": "off", "X-JSON-Types": "on"})
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/json"
+    assert response.json() == json.loads('"enable"')
 
 
 # FLAGS_JSON_FORMAT_MULTI=on

@@ -72,6 +72,8 @@ get_flags (FCGX_Request * r)
 
     /* Parse content type */
     param = FCGX_GetParam ("HTTP_CONTENT_TYPE", r->envp);
+    if (!param)
+        param = FCGX_GetParam ("CONTENT_TYPE", r->envp);
     if (param)
     {
         if (g_strcmp0 (param, "application/json") == 0)
