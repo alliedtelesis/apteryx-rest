@@ -188,21 +188,20 @@ rest_api_search (const char *path, const char *if_none_match, const char *if_mod
 }
 
 static json_t *
-get_response_node (const char *path, json_t *root)
+get_response_node (sch_node *schema, json_t *root, int flags)
 {
-    const char *s;
-    int slashes;
-    int equals;
-    int depth;
+    int depth = 0;
 
-    for (s=path, slashes=0; s[slashes]; s[slashes]=='/' ? slashes++ : *s++);
-    for (s=path, equals=0; s[equals]; s[equals]=='=' ? equals++ : *s++);
-    depth = slashes + (equals > 0 ? equals - 1 : 0) - 1;
-    depth = slashes + equals - 1;
-    /* Special case of list-identifier at end */
-    if (strrchr (path, '=') > strrchr (path, '/'))
+    schema = sch_node_parent (schema);
+    if (flags & FLAGS_RESTCONF && schema && sch_is_list (schema))
         depth--;
-    while (root && depth > 0)
+    while (schema)
+    {
+        schema = sch_node_parent (schema);
+        depth++;
+    }
+
+    while (root && depth > 1)
     {
         if (json_is_array (root))
             root = json_array_get(root, 0);
@@ -241,6 +240,7 @@ static char *
 rest_api_get (int flags, const char *path, const char *if_none_match, const char *if_modified_since)
 {
     char *rpath = NULL;
+    sch_node *api_subtree = NULL;
     char *apath = NULL;
     json_t *json = NULL;
     uint64_t ts = 0;
@@ -268,7 +268,7 @@ rest_api_get (int flags, const char *path, const char *if_none_match, const char
         schflags |= SCH_F_NS_MODEL_NAME;
 
     /* Generate an aperyx query from the path */
-    query = sch_path_to_query (g_schema, NULL, path, schflags);
+    query = sch_path_to_query (g_schema, &api_subtree, path, schflags);
     if (!query)
     {
         VERBOSE ("REST: Path \"%s\" invalid\n", path);
@@ -326,7 +326,7 @@ rest_api_get (int flags, const char *path, const char *if_none_match, const char
         json = sch_gnode_to_json (g_schema, NULL, tree, schflags);
         if (json)
         {
-            json_t *json_new = get_response_node (rpath, json);
+            json_t *json_new = get_response_node (api_subtree, json, flags);
             if (!(flags & FLAGS_JSON_FORMAT_ROOT) && !json_is_string (json))
             {
                 /* Chop off the root node */
