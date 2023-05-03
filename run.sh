@@ -128,6 +128,11 @@ fi
 make -C $BUILD/../
 rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
 
+# Check tests
+echo Checking pytest coding style ...
+flake8 --max-line-length=180 ../test*.py
+rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
+
 # Start Apteryx and populate the database
 export LD_LIBRARY_PATH=$BUILD/usr/lib
 rm -f /tmp/apteryx
