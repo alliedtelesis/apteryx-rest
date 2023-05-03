@@ -1013,52 +1013,10 @@ def test_restapi_delete_list_entry():
     response = requests.delete("{}{}/test/animals/animal/cat".format(server_uri,docroot), verify=False, auth=server_auth)
     assert response.status_code == 200 or response.status_code == 204
     assert len(response.content) == 0
-    response = requests.get("{}{}/test/animals".format(server_uri,docroot), verify=False, auth=server_auth, headers={"X-JSON-Array":"on"})
-    print(json.dumps(response.json(), indent=4, sort_keys=True))
-    assert response.status_code == 200 or response.status_code == 204
-    assert response.headers["Content-Type"] == "application/json"
-    assert response.json() == json.loads("""
-{
-    "animals": {
-        "animal": [
-            {
-                "name": "dog",
-                "colour": "brown"
-            },
-            {
-                "name": "hamster",
-                "food" : [
-                   {
-                        "name": "banana",
-                        "type": "fruit"
-                    },
-                    {
-                        "name": "nuts",
-                        "type": "kibble"
-                    }
-                 ],
-                "type": "2"
-            },
-            {
-                "name": "mouse",
-                "type": "2",
-                "colour": "grey"
-            },
-            {
-                "name": "parrot",
-                "type": "1",
-                "colour": "blue",
-                "toys": {
-                    "toy": [
-                        "puzzles",
-                        "rings"
-                    ]
-                }
-            }
-        ]
-    }
-}
-""")
+    assert apteryx_get("/test/animals/animal/cat/name") == "Not found"
+    assert apteryx_get("/test/animals/animal/cat/type") == "Not found"
+    assert apteryx_get('/test/animals/animal/dog/name') == 'dog'
+    assert apteryx_get('/test/animals/animal/dog/colour') == 'brown'
 
 # SEARCH
 

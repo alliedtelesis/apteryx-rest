@@ -1673,64 +1673,62 @@ def test_restconf_delete_single_node_ns_none():
     response = requests.delete("http://{}:{}{}/data/test/settings/priority".format(host,port,docroot), headers=restconf_headers)
     assert response.status_code == 200
     assert len(response.content) == 0
-    response = requests.get("http://{}:{}{}/data/test/settings/priority".format(host,port,docroot), headers=restconf_headers)
-    assert response.status_code == 200
-    assert response.json() == json.loads('{}')
+    assert apteryx_get("/test/settings/priority") == "Not found"
 
 def test_restconf_delete_single_node_ns_aug_none():
     response = requests.delete("http://{}:{}{}/data/test/settings/volume".format(host,port,docroot), headers=restconf_headers)
     assert response.status_code == 200
     assert len(response.content) == 0
-    response = requests.get("http://{}:{}{}/data/test/settings/volume".format(host,port,docroot), headers=restconf_headers)
-    assert response.status_code == 200
-    assert response.json() == json.loads('{}')
+    assert apteryx_get("/test/settings/volume") == "Not found"
 
 def test_restconf_delete_single_node_ns_default():
     response = requests.delete("http://{}:{}{}/data/testing:test/settings/priority".format(host,port,docroot), headers=restconf_headers)
     assert response.status_code == 200
     assert len(response.content) == 0
-    response = requests.get("http://{}:{}{}/data/test/settings/priority".format(host,port,docroot), headers=restconf_headers)
-    assert response.status_code == 200
-    assert response.json() == json.loads('{}')
+    assert apteryx_get("/test/settings/priority") == "Not found"
 
 def test_restconf_delete_single_node_ns_aug_default():
     response = requests.delete("http://{}:{}{}/data/testing:test/settings/volume".format(host,port,docroot), headers=restconf_headers)
     assert response.status_code == 200
     assert len(response.content) == 0
-    response = requests.get("http://{}:{}{}/data/test/settings/volume".format(host,port,docroot), headers=restconf_headers)
-    assert response.status_code == 200
-    assert response.json() == json.loads('{}')
+    assert apteryx_get("/test/settings/volume") == "Not found"
 
-@pytest.mark.skip(reason="sch_lookup does not support namespaces")
 def test_restconf_delete_single_node_ns_other():
     response = requests.delete("http://{}:{}{}/data/testing-2:test/settings/priority".format(host,port,docroot), headers=restconf_headers)
     assert response.status_code == 200
     assert len(response.content) == 0
-    response = requests.get("http://{}:{}{}/data/testing-2:test/settings/priority".format(host,port,docroot), headers=restconf_headers)
-    assert response.status_code == 200
-    assert response.json() == json.loads('{}')
-    response = requests.get("http://{}:{}{}/data/test/settings/priority".format(host,port,docroot), headers=restconf_headers)
-    print(json.dumps(response.json(), indent=4, sort_keys=True))
-    assert response.status_code == 200
-    assert response.headers["Content-Type"] == "application/yang-data+json"
-    assert response.json() == json.loads('{ "priority": 1 }')
+    assert apteryx_get("/t2:test/settings/volume") == "Not found"
+    assert apteryx_get("/test/settings/priority") == "1"
 
-@pytest.mark.skip(reason="augmented sub paths not working")
 def test_restconf_delete_single_node_ns_aug_other():
     response = requests.delete("http://{}:{}{}/data/testing-2:test/settings/testing2-augmented:speed".format(host,port,docroot), headers=restconf_headers)
     assert response.status_code == 200
     assert len(response.content) == 0
-    response = requests.get("http://{}:{}{}/data/testing-2:test/settings/testing2-augmented:speed".format(host,port,docroot), headers=restconf_headers)
+    assert apteryx_get("/t2:test/settings/speed") == "Not found"
+    assert apteryx_get("/t2:test/settings/priority") == "2"
+
+def test_restconf_delete_trunk_ns_none():
+    response = requests.delete("http://{}:{}{}/data/test/animals".format(host,port,docroot), headers=restconf_headers)
+    assert response.status_code == 200
+    assert len(response.content) == 0
+    response = requests.get("http://{}:{}{}/data/test/animals".format(host,port,docroot), headers=restconf_headers)
     assert response.status_code == 200
     assert response.json() == json.loads('{}')
 
-def test_restconf_delete_trunk_ok():
+def test_restconf_delete_trunk_ns_default():
     response = requests.delete("http://{}:{}{}/data/testing:test/animals".format(host,port,docroot), headers=restconf_headers)
     assert response.status_code == 200
     assert len(response.content) == 0
     response = requests.get("http://{}:{}{}/data/testing:test/animals".format(host,port,docroot), headers=restconf_headers)
     assert response.status_code == 200
     assert response.json() == json.loads('{}')
+
+def test_restconf_delete_trunk_ns_other():
+    response = requests.delete("http://{}:{}{}/data/testing-2:test/settings".format(host,port,docroot), headers=restconf_headers)
+    assert response.status_code == 200
+    assert len(response.content) == 0
+    assert apteryx_get("/t2:test/settings/priority") == "Not found"
+    assert apteryx_get("/t2:test/settings/speed") == "Not found"
 
 def test_restconf_delete_trunk_denied():
     response = requests.delete("http://{}:{}{}/data/testing:test/settings".format(host,port,docroot), headers=restconf_headers)
@@ -1751,56 +1749,41 @@ def test_restconf_delete_trunk_denied():
 }
     """)
 
-def test_restconf_delete_list_entry():
+def test_restconf_delete_list_select_one():
     response = requests.delete("http://{}:{}{}/data/testing:test/animals/animal=cat".format(host,port,docroot), headers=restconf_headers)
     assert response.status_code == 200
     assert len(response.content) == 0
-    response = requests.get("http://{}:{}{}/data/testing:test/animals".format(host,port,docroot), headers=restconf_headers)
-    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert apteryx_get("/test/animals/animal/cat/name") == "Not found"
+    assert apteryx_get("/test/animals/animal/cat/type") == "Not found"
+    assert apteryx_get('/test/animals/animal/dog/name') == 'dog'
+    assert apteryx_get('/test/animals/animal/dog/colour') == 'brown'
+
+def test_restconf_delete_list_select_by_path_one():
+    response = requests.delete("http://{}:{}{}/data/testing:test/animals/animal/cat".format(host,port,docroot), headers=restconf_headers)
     assert response.status_code == 200
-    assert response.headers["Content-Type"] == "application/yang-data+json"
-    assert response.json() == json.loads("""
-{
-    "animals": {
-        "animal": [
-            {
-                "name": "dog",
-                "colour": "brown"
-            },
-            {
-                "name": "hamster",
-                "food" : [
-                   {
-                        "name": "banana",
-                        "type": "fruit"
-                    },
-                    {
-                        "name": "nuts",
-                        "type": "kibble"
-                    }
-                 ],
-                "type": "little"
-            },
-            {
-                "name": "mouse",
-                "type": "little",
-                "colour": "grey"
-            },
-            {
-                "name": "parrot",
-                "type": "big",
-                "colour": "blue",
-                "toys": {
-                    "toy": [
-                        "puzzles",
-                        "rings"
-                    ]
-                }
-            }
-        ]
-    }
-}
-""")
+    assert len(response.content) == 0
+    assert apteryx_get("/test/animals/animal/cat/name") == "Not found"
+    assert apteryx_get("/test/animals/animal/cat/type") == "Not found"
+    assert apteryx_get('/test/animals/animal/dog/name') == 'dog'
+    assert apteryx_get('/test/animals/animal/dog/colour') == 'brown'
+
+def test_restconf_delete_list_select_two():
+    response = requests.delete("http://{}:{}{}/data/testing:test/animals/animal=hamster/food=banana".format(host,port,docroot), headers=restconf_headers)
+    assert response.status_code == 200
+    assert len(response.content) == 0
+    assert apteryx_get("/test/animals/animal/hamster/food/banana/name") == "Not found"
+    assert apteryx_get("/test/animals/animal/hamster/food/banana/type") == "Not found"
+    assert apteryx_get('/test/animals/animal/hamster/food/nuts/name') == 'nuts'
+    assert apteryx_get('/test/animals/animal/hamster/food/nuts/type') == 'kibble'
+
+def test_restconf_delete_list_by_path_select_two():
+    response = requests.delete("http://{}:{}{}/data/testing:test/animals/animal/hamster/food/banana".format(host,port,docroot), headers=restconf_headers)
+    assert response.status_code == 200
+    assert len(response.content) == 0
+    assert apteryx_get("/test/animals/animal/hamster/food/banana/name") == "Not found"
+    assert apteryx_get("/test/animals/animal/hamster/food/banana/type") == "Not found"
+    assert apteryx_get('/test/animals/animal/hamster/food/nuts/name') == 'nuts'
+    assert apteryx_get('/test/animals/animal/hamster/food/nuts/type') == 'kibble'
 
 # TODO RPC
 

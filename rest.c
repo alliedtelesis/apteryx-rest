@@ -269,7 +269,7 @@ rest_api_get (int flags, const char *path, const char *if_none_match, const char
 
     /* Generate an aperyx query from the path */
     query = sch_path_to_query (g_schema, &api_subtree, path, schflags);
-    if (!query)
+    if (!query || !api_subtree)
     {
         VERBOSE ("REST: Path \"%s\" invalid\n", path);
         switch (sch_last_err ())
@@ -537,40 +537,78 @@ exit:
     return resp;
 }
 
-static gboolean
-set_data_null (GNode *node, gpointer data)
+// TODO reuse for get_response_node above
+static GNode *
+_get_response_node (sch_node *schema, GNode *root, int flags)
 {
-    int *rc = (int *) data;
-    char *path = apteryx_node_path (node->parent);
-    sch_node *schema = sch_lookup (g_schema, path);
-    free (path);
+    int depth = 0;
 
-    if (schema && sch_is_hidden (schema))
+    schema = sch_node_parent (schema);
+    if (flags & FLAGS_RESTCONF && schema && sch_is_list (schema))
+        depth--;
+    while (schema)
     {
-        // TODO Pretend it is not here rather than letting it be set again
-        return false;
-    }
-    else if (schema == NULL)
-    {
-        *rc = HTTP_CODE_NOT_FOUND;
-        return true;
-    }
-    else if (!sch_is_writable (schema))
-    {
-        *rc = HTTP_CODE_FORBIDDEN;
-        return true;
+        schema = sch_node_parent (schema);
+        depth++;
     }
 
-    /* Otherwise we can set this to null */
-    free (node->data);
-    node->data = strdup ("");
-    return false;
+    while (root && depth > 1)
+    {
+        root = root->children;
+        depth--;
+    }
+    return root;
+}
+
+int
+set_values_to_null (GNode *node, sch_node *schema)
+{
+    int rc = HTTP_CODE_OK;
+
+    if (sch_is_leaf (schema))
+    {
+        if (sch_is_hidden (schema))
+        {
+            // TODO Pretend it is not here rather than letting it be set again
+            return HTTP_CODE_OK;
+        }
+        else if (!sch_is_writable (schema))
+        {
+            return HTTP_CODE_FORBIDDEN;
+        }
+        /* Otherwise we can set this to null */
+        free (APTERYX_VALUE (node));
+        g_node_first_child (node)->data = strdup ("");
+    }
+    else
+    {
+        for (GNode *child = g_node_first_child (node); child; child = g_node_next_sibling (child))
+        {
+            sch_node *cschema = sch_node_child (schema, APTERYX_NAME (child));
+            if (!cschema)
+            {
+                if (verbose)
+                {
+                    char *path = apteryx_node_path (child);
+                    VERBOSE ("REST: Path \"%s\" not found\n", path);
+                    free (path);
+                }
+                rc = HTTP_CODE_NOT_FOUND;
+                break;
+            }
+            rc = set_values_to_null (child, cschema);
+            if (rc != HTTP_CODE_OK)
+                break;
+        }
+    }
+    return rc;
 }
 
 /* Implemented by doing a query and setting all data to NULL */
 static char *
 rest_api_delete (int flags, const char *path)
 {
+    sch_node *api_subtree = NULL;
     char *error_string = NULL;
     char *resp = NULL;
     int rc = HTTP_CODE_OK;
@@ -587,8 +625,8 @@ rest_api_delete (int flags, const char *path)
         schflags |= SCH_F_NS_MODEL_NAME;
 
     /* Generate an aperyx query from the path */
-    GNode *query = sch_path_to_query (g_schema, NULL, path, schflags);
-    if (!query)
+    GNode *query = sch_path_to_query (g_schema, &api_subtree, path, schflags);
+    if (!query || !api_subtree)
     {
         VERBOSE ("REST: Path \"%s\" not found\n", path);
         rc = HTTP_CODE_NOT_FOUND;
@@ -601,7 +639,8 @@ rest_api_delete (int flags, const char *path)
     if (tree)
     {
         /* Set all leaves to NULL if we are allowed */
-        g_node_traverse (tree, G_IN_ORDER, G_TRAVERSE_LEAVES, -1, set_data_null, &rc);
+        GNode *rnode = _get_response_node (api_subtree, tree, 0/*flags*/);
+        rc = set_values_to_null (rnode, api_subtree);
         if (rc == HTTP_CODE_OK)
             rc = apteryx_set_tree (tree) ? HTTP_CODE_OK : 400;
         apteryx_free_tree (tree);
