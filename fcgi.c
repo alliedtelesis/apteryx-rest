@@ -66,8 +66,8 @@ get_flags (FCGX_Request * r)
         flags |= FLAGS_METHOD_OPTIONS;
     else
     {
-        ERROR ("Unsupported action \"%s\" - assuming GET)\n", param);
-        flags |= FLAGS_METHOD_GET;
+        ERROR ("Method \"%s\" not allowed\n", param);
+        return -405;
     }
 
     /* Parse content type */
@@ -78,12 +78,22 @@ get_flags (FCGX_Request * r)
     {
         if (g_strcmp0 (param, "application/json") == 0)
             flags |= FLAGS_CONTENT_JSON;
-        if (g_strcmp0 (param, "application/yang-data+json") == 0)
+        else if (g_strcmp0 (param, "application/yang-data+json") == 0)
             flags |= FLAGS_CONTENT_JSON | FLAGS_RESTCONF;
-        if (g_strcmp0 (param, "application/xml") == 0)
-            flags |= FLAGS_CONTENT_XML;
-        if (g_strcmp0 (param, "application/yang.data+xml") == 0)
-            flags |= FLAGS_CONTENT_XML | FLAGS_RESTCONF;
+        // else if (g_strcmp0 (param, "application/xml") == 0)
+        //     flags |= FLAGS_CONTENT_XML;
+        // else if (g_strcmp0 (param, "application/yang.data+xml") == 0)
+        //     flags |= FLAGS_CONTENT_XML | FLAGS_RESTCONF;
+        else
+        {
+            ERROR ("Media-Type \"%s\" not allowed\n", param);
+            return -415;
+        }
+    }
+    else if (flags | (FLAGS_METHOD_POST|FLAGS_METHOD_PUT|FLAGS_METHOD_PATCH))
+    {
+        /* Assume default encoding */
+        flags |= default_content_encoding;
     }
 
     /* Parse accept types */
@@ -92,18 +102,24 @@ get_flags (FCGX_Request * r)
     {
         if (g_strrstr (param, "application/json") != 0)
             flags |= FLAGS_ACCEPT_JSON;
-        if (g_strrstr (param, "application/yang-data+json") != 0)
+        else if (g_strrstr (param, "application/yang-data+json") != 0)
             flags |= FLAGS_ACCEPT_JSON | FLAGS_RESTCONF;
-        if (g_strrstr (param, "application/xml") != 0)
-            flags |= FLAGS_ACCEPT_XML;
-        if (g_strrstr (param, "application/yang-data+xml") != 0)
-            flags |= FLAGS_ACCEPT_XML | FLAGS_RESTCONF;
-        if (g_strrstr (param, "text/event-stream") != 0)
+        // if (g_strrstr (param, "application/xml") != 0)
+        //     flags |= FLAGS_ACCEPT_XML;
+        // if (g_strrstr (param, "application/yang-data+xml") != 0)
+        //     flags |= FLAGS_ACCEPT_XML | FLAGS_RESTCONF;
+        else if (g_strrstr (param, "text/event-stream") != 0)
             flags |= FLAGS_EVENT_STREAM | FLAGS_ACCEPT_JSON;
-        if (g_strrstr (param, "application/stream+json") != 0)
+        else if (g_strrstr (param, "application/stream+json") != 0)
             flags |= FLAGS_APPLICATION_STREAM | FLAGS_ACCEPT_JSON;
-        if (g_strrstr (param, "*/*") != 0)
-            flags |= (FLAGS_ACCEPT_JSON | FLAGS_ACCEPT_XML);
+        /* Any encoding - use default */
+        else if (g_strrstr (param, "*/*") != 0)
+            flags |= default_accept_encoding;
+        else
+        {
+            ERROR ("Media-Type \"%s\" not allowed\n", param);
+            return -415;
+        }
     }
 
     /* JSON formatinng */
@@ -143,6 +159,7 @@ handle_http (void *arg)
     char *data = NULL;
     int len = 0;
     int i;
+    int rc = 0;
 
     DEBUG ("FCGI(%p): New connection\n", request);
 
@@ -156,6 +173,11 @@ handle_http (void *arg)
     rpath = FCGX_GetParam ("DOCUMENT_ROOT", request->envp);
     path = FCGX_GetParam ("REQUEST_URI", request->envp);
     flags = get_flags (request);
+    if (flags < 0)
+    {
+        rc = -(flags);
+        goto exit;
+    }
     if_match = FCGX_GetParam ("HTTP_IF_MATCH", request->envp);
     if_none_match = FCGX_GetParam ("HTTP_IF_NONE_MATCH", request->envp);
     if_modified_since = FCGX_GetParam ("HTTP_IF_MODIFIED_SINCE", request->envp);
@@ -165,11 +187,7 @@ handle_http (void *arg)
     {
         ERROR ("Invalid server configuration (flags:0x%x, rpath:%s, path:%s)\n",
                flags, rpath, path);
-        data = g_strdup_printf ("Status: 500\r\n"
-                        "Content-Type: text/html\r\n\r\n"
-                        "Invalid server configuration (flags:0x%x, rpath:%s, path:%s)\n",
-                        flags, rpath, path);
-        send_response (request, data, false);
+        rc = 500;
         goto exit;
     }
     if (length != NULL)
@@ -188,6 +206,16 @@ handle_http (void *arg)
     g_cb ((req_handle) request, flags, rpath, path, if_match, if_none_match, if_modified_since, if_unmodified_since, data, len);
 
 exit:
+    if (rc)
+    {
+        char *resp = g_strdup_printf ("Status: %d\r\n"
+                                      "Content-Type: text/html\r\n\r\n"
+                                      "Error. Check device log for more detail\n",
+                                      rc);
+        VERBOSE ("RESP:\n%s\n", resp);
+        send_response (request, resp, false);
+        free (resp);
+    }
     free (data);
     DEBUG ("FCGI(%p): Closing connection\n", request);
     FCGX_Finish_r (request);

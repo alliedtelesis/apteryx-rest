@@ -66,6 +66,8 @@ extern bool verbose;
 #define FLAGS_EVENT_STREAM          (1 << 15)
 #define FLAGS_APPLICATION_STREAM    (1 << 16)
 #define FLAGS_RESTCONF              (1 << 17)
+extern int default_accept_encoding;
+extern int default_content_encoding;
 typedef void *req_handle;
 void send_response (req_handle handle, const char *data, bool flush);
 bool is_connected (req_handle handle, bool block);

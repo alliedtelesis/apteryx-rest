@@ -443,6 +443,27 @@ def test_restconf_error_unknown_namespace():
     """)
 
 
+def test_restconf_unsupported_method():
+    response = requests.request("TRACE", "http://{}:{}{}/data/".format(host, port, docroot), headers=get_restconf_headers)
+    assert response.status_code == 405
+
+
+def test_restconf_unsupported_encoding():
+    response = requests.get("http://{}:{}{}/data/test".format(host, port, docroot), headers={"Accept": "text/html"})
+    assert response.status_code == 415
+    response = requests.get("http://{}:{}{}/data/test".format(host, port, docroot), headers={"Accept": "application/xml"})
+    assert response.status_code == 415
+    response = requests.get("http://{}:{}{}/data/test".format(host, port, docroot), headers={"Accept": "application/yang.data+xml"})
+    assert response.status_code == 415
+    response = requests.post("http://{}:{}{}/data/test".format(host, port, docroot), headers={"Content-Type": "text/html"}, data="""Hello World""")
+    assert response.status_code == 415
+    response = requests.post("http://{}:{}{}/data/test".format(host, port, docroot), headers={"Content-Type": "application/xml"}, data="""<cat></cat>""")
+    assert response.status_code == 415
+    content = """<settings><priority>1</priority></settings>"""
+    response = requests.post("http://{}:{}{}/data/test".format(host, port, docroot), headers={"Content-Type": "application/yang.data+xml"}, data=content)
+    assert response.status_code == 415
+
+
 def test_restconf_options():
     response = requests.options("http://{}:{}{}/data/".format(host, port, docroot), headers=get_restconf_headers)
     assert response.status_code == 200

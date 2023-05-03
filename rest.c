@@ -795,19 +795,6 @@ rest_api (req_handle handle, int flags, const char *rpath, const char *path,
 {
     char *resp = NULL;
 
-    /* Sanity check parameters */
-    if (!rpath || !path || !(flags & (FLAGS_ACCEPT_JSON|FLAGS_CONTENT_JSON)))
-    {
-        ERROR ("ERROR: invalid parameters (flags:0x%x, rpath:%s, path:%s)\n",
-               flags, rpath, path);
-        resp = g_strdup_printf ("Status: 500\r\n"
-                        "Content-Type: text/html\r\n\r\n"
-                        "Invalid parameters (flags:0x%x, rpath:%s, path:%s)\n",
-                        flags, rpath, path);
-        send_response (handle, resp, false);
-        g_free (resp);
-        return;
-    }
     VERBOSE ("REQ:\n[0x%x] %s\n", flags, path);
     if (data && data[0])
     {

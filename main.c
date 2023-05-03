@@ -28,6 +28,8 @@ bool debug = false;
 bool verbose = false;
 
 /* Format modes */
+int default_accept_encoding = FLAGS_ACCEPT_JSON;
+int default_content_encoding = FLAGS_CONTENT_JSON;
 bool rest_use_arrays = false;
 bool rest_use_types = false;
 
@@ -44,11 +46,12 @@ help (char *app_name)
 {
     printf ("Usage: %s [-h] [-b] [-d] [-v] [-a] [-t] [-m <path>] [-p <pidfile>]\n"
             "                [-n] [-l <port>] [-k <key>]\n"
-            "                [-r] [-s <socket>]\n"
+            "                [-r] [-s <socket>] [-e <encoding>]\n"
             "  -h   show this help\n"
             "  -b   background mode\n"
             "  -d   enable debug\n"
             "  -v   enable verbose debug\n"
+            "  -e   set default data encoding (defaults to \"application/json\")\n"
             "  -a   enable the use of JSON arrays for lists\n"
             "  -t   encode values as JSON types where possible\n"
             "  -m   search <path> for modules\n"
@@ -68,7 +71,7 @@ main (int argc, char *argv[])
     int rc = EXIT_SUCCESS;
 
     /* Parse options */
-    while ((i = getopt (argc, argv, "bdvatm:s:p:h")) != -1)
+    while ((i = getopt (argc, argv, "bdvatm:s:p:e:h")) != -1)
     {
         switch (i)
         {
@@ -81,6 +84,24 @@ main (int argc, char *argv[])
         case 'v':
             debug = true;
             verbose = true;
+            break;
+        case 'e':
+            if (g_strcmp0 (optarg, "application/json") == 0)
+            {
+                default_content_encoding = FLAGS_CONTENT_JSON;
+                default_accept_encoding = FLAGS_ACCEPT_JSON;
+            }
+            else if (g_strcmp0 (optarg, "application/yang-data+json") == 0)
+            {
+                default_content_encoding = FLAGS_CONTENT_JSON | FLAGS_RESTCONF;
+                default_accept_encoding = FLAGS_ACCEPT_JSON | FLAGS_RESTCONF;
+            }
+            else
+            {
+                printf ("ERROR: Expect one of \"application/json\", \"application/yang-data+json\"\n");
+                help (argv[0]);
+                return 0;
+            }
             break;
         case 'a':
             rest_use_arrays = true;

@@ -130,6 +130,14 @@ def test_restapi_get_single_node():
     assert response.json() == json.loads('{ "priority": "1" }')
 
 
+def test_restapi_get_explicit_accept():
+    response = requests.get("{}{}/test/settings/priority".format(server_uri, docroot), verify=False, auth=server_auth, headers={"Accept": "application/json"})
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/json"
+    assert response.json() == json.loads('{ "priority": "1" }')
+
+
 def test_restapi_get_integer_string():
     response = requests.get("{}{}/test/settings/priority".format(server_uri, docroot), verify=False, auth=server_auth)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -651,6 +659,14 @@ def test_restapi_set_nonjson_value_quoted():
 
 def test_restapi_set_single_node():
     response = requests.post("{}{}/test/settings".format(server_uri, docroot), verify=False, auth=server_auth, data="""{"priority": "5"}""")
+    assert response.status_code == 200 or response.status_code == 201
+    assert len(response.content) == 0
+    assert apteryx_get("/test/settings/priority") == "5"
+
+
+def test_restapi_set_explicit_content_type():
+    headers = {"Content-Type": "application/json"}
+    response = requests.post("{}{}/test/settings".format(server_uri, docroot), verify=False, auth=server_auth, data="""{"priority": "5"}""", headers=headers)
     assert response.status_code == 200 or response.status_code == 201
     assert len(response.content) == 0
     assert apteryx_get("/test/settings/priority") == "5"
