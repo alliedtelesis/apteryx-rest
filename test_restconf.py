@@ -1098,7 +1098,6 @@ def test_restconf_query_field_two_paths_two_nodes():
 }
 """)
 
-@pytest.mark.skip(reason="does not work yet")
 def test_restconf_query_field_list_one_specific_node():
     response = requests.get("http://{}:{}{}/data/test/animals/animal=mouse?fields=type".format(host,port,docroot), headers=restconf_headers)
     assert response.status_code == 200
@@ -1112,7 +1111,6 @@ def test_restconf_query_field_list_one_specific_node():
 }
 """)
 
-@pytest.mark.skip(reason="does not work yet")
 def test_restconf_query_field_list_two_specific_nodes():
     response = requests.get("http://{}:{}{}/data/test/animals/animal=mouse?fields=name;type".format(host,port,docroot), headers=restconf_headers)
     assert response.status_code == 200
@@ -1127,7 +1125,7 @@ def test_restconf_query_field_list_two_specific_nodes():
 }
 """)
 
-@pytest.mark.skip(reason="does not work yet")
+# @pytest.mark.skip(reason="does not work yet")
 def test_restconf_query_field_list_all_nodes():
     response = requests.get("http://{}:{}{}/data/test/animals/animal?fields=name".format(host,port,docroot), headers=restconf_headers)
     assert response.status_code == 200
@@ -1150,6 +1148,24 @@ def test_restconf_query_field_list_all_nodes():
         },
         {
             "name": "parrot"
+        }
+    ]
+}
+""")
+
+def test_restconf_query_field_list_select_two_all_nodes():
+    response = requests.get("http://{}:{}{}/data/test/animals/animal=hamster/food?fields=name".format(host,port,docroot), headers=restconf_headers)
+    assert response.status_code == 200
+    assert len(response.content) > 0
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.json() == json.loads("""
+{
+    "food": [
+        {
+            "name": "banana"
+        },
+        {
+            "name": "nuts"
         }
     ]
 }
