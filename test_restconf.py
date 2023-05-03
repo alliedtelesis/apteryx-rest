@@ -1263,13 +1263,12 @@ def test_restconf_create_single_node_ns_other():
     assert len(response.content) == 0
     assert apteryx_get("/t2:test/settings/priority") == "3"
 
-@pytest.mark.skip(reason="namespace change in json data not working")
 def test_restconf_create_single_node_ns_aug_other():
     apteryx_set("/t2:test/settings/speed", "")
     response = requests.post("http://{}:{}{}/data/testing-2:test/settings".format(host,port,docroot), headers=restconf_headers, data="""{"testing2-augmented:speed": "3"}""")
     assert response.status_code == 201
     assert len(response.content) == 0
-    assert apteryx_get("/t2:test/settings/priority") == "3"
+    assert apteryx_get("/t2:test/settings/speed") == "3"
 
 def test_restconf_create_string():
     apteryx_set("/test/settings/description", "")
