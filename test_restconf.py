@@ -55,7 +55,7 @@ db_default = [
     # Non-default namespace same path as default
     ('/t2:test/settings/priority', '2'),
     # Non-default namespace augmented path
-    ('/t2:test/settings/volume', '2'),
+    ('/t2:test/settings/speed', '2'),
 ]
 
 def apteryx_set(path, value):
@@ -486,7 +486,7 @@ def test_restconf_get_single_node_ns_other():
     assert response.headers["Content-Type"] == "application/yang-data+json"
     assert response.json() == json.loads('{ "priority": 2 }')
 
-@pytest.mark.skip(reason="augmented sub paths not working")
+# @pytest.mark.skip(reason="augmented sub paths not working")
 def test_restconf_get_single_node_ns_aug_other():
     response = requests.get("http://{}:{}{}/data/testing-2:test/settings/testing2-augmented:speed".format(host,port,docroot), headers=restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
