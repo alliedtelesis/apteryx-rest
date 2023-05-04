@@ -1939,35 +1939,35 @@ def test_restconf_update_missing_list_entry():
 
 def test_restconf_delete_single_node_ns_none():
     response = requests.delete("http://{}:{}{}/data/test/settings/priority".format(host, port, docroot), headers=set_restconf_headers)
-    assert response.status_code == 200
+    assert response.status_code == 204
     assert len(response.content) == 0
     assert apteryx_get("/test/settings/priority") == "Not found"
 
 
 def test_restconf_delete_single_node_ns_aug_none():
     response = requests.delete("http://{}:{}{}/data/test/settings/volume".format(host, port, docroot), headers=set_restconf_headers)
-    assert response.status_code == 200
+    assert response.status_code == 204
     assert len(response.content) == 0
     assert apteryx_get("/test/settings/volume") == "Not found"
 
 
 def test_restconf_delete_single_node_ns_default():
     response = requests.delete("http://{}:{}{}/data/testing:test/settings/priority".format(host, port, docroot), headers=set_restconf_headers)
-    assert response.status_code == 200
+    assert response.status_code == 204
     assert len(response.content) == 0
     assert apteryx_get("/test/settings/priority") == "Not found"
 
 
 def test_restconf_delete_single_node_ns_aug_default():
     response = requests.delete("http://{}:{}{}/data/testing:test/settings/volume".format(host, port, docroot), headers=set_restconf_headers)
-    assert response.status_code == 200
+    assert response.status_code == 204
     assert len(response.content) == 0
     assert apteryx_get("/test/settings/volume") == "Not found"
 
 
 def test_restconf_delete_single_node_ns_other():
     response = requests.delete("http://{}:{}{}/data/testing-2:test/settings/priority".format(host, port, docroot), headers=set_restconf_headers)
-    assert response.status_code == 200
+    assert response.status_code == 204
     assert len(response.content) == 0
     assert apteryx_get("/t2:test/settings/volume") == "Not found"
     assert apteryx_get("/test/settings/priority") == "1"
@@ -1975,7 +1975,7 @@ def test_restconf_delete_single_node_ns_other():
 
 def test_restconf_delete_single_node_ns_aug_other():
     response = requests.delete("http://{}:{}{}/data/testing-2:test/settings/testing2-augmented:speed".format(host, port, docroot), headers=set_restconf_headers)
-    assert response.status_code == 200
+    assert response.status_code == 204
     assert len(response.content) == 0
     assert apteryx_get("/t2:test/settings/speed") == "Not found"
     assert apteryx_get("/t2:test/settings/priority") == "2"
@@ -1983,7 +1983,7 @@ def test_restconf_delete_single_node_ns_aug_other():
 
 def test_restconf_delete_trunk_ns_none():
     response = requests.delete("http://{}:{}{}/data/test/animals".format(host, port, docroot), headers=set_restconf_headers)
-    assert response.status_code == 200
+    assert response.status_code == 204
     assert len(response.content) == 0
     response = requests.get("http://{}:{}{}/data/test/animals".format(host, port, docroot), headers=get_restconf_headers)
     assert response.status_code == 200
@@ -1992,7 +1992,7 @@ def test_restconf_delete_trunk_ns_none():
 
 def test_restconf_delete_trunk_ns_default():
     response = requests.delete("http://{}:{}{}/data/testing:test/animals".format(host, port, docroot), headers=set_restconf_headers)
-    assert response.status_code == 200
+    assert response.status_code == 204
     assert len(response.content) == 0
     response = requests.get("http://{}:{}{}/data/testing:test/animals".format(host, port, docroot), headers=get_restconf_headers)
     assert response.status_code == 200
@@ -2001,7 +2001,7 @@ def test_restconf_delete_trunk_ns_default():
 
 def test_restconf_delete_trunk_ns_other():
     response = requests.delete("http://{}:{}{}/data/testing-2:test/settings".format(host, port, docroot), headers=set_restconf_headers)
-    assert response.status_code == 200
+    assert response.status_code == 204
     assert len(response.content) == 0
     assert apteryx_get("/t2:test/settings/priority") == "Not found"
     assert apteryx_get("/t2:test/settings/speed") == "Not found"
@@ -2031,7 +2031,7 @@ def test_restconf_delete_trunk_hidden():
     # Remove the readonly field so there is nothing illiegal to delete
     apteryx_set("/test/settings/readonly", "")
     response = requests.delete("http://{}:{}{}/data/testing:test/settings".format(host, port, docroot), headers=set_restconf_headers)
-    assert response.status_code == 200
+    assert response.status_code == 204
     assert len(response.content) == 0
     assert apteryx_get("/test/settings/debug") == "Not found"
     assert apteryx_get("/test/settings/enable") == "Not found"
@@ -2044,7 +2044,7 @@ def test_restconf_delete_trunk_nonschema():
     apteryx_set("/test/settings/readonly", "")
     apteryx_set("/test/settings/vegetable", "cabagge")
     response = requests.delete("http://{}:{}{}/data/testing:test/settings".format(host, port, docroot), headers=set_restconf_headers)
-    assert response.status_code == 200
+    assert response.status_code == 204
     assert len(response.content) == 0
     assert apteryx_get("/test/settings/debug") == "Not found"
     assert apteryx_get("/test/settings/enable") == "Not found"
@@ -2055,7 +2055,7 @@ def test_restconf_delete_trunk_nonschema():
 
 def test_restconf_delete_list_select_one():
     response = requests.delete("http://{}:{}{}/data/testing:test/animals/animal=cat".format(host, port, docroot), headers=set_restconf_headers)
-    assert response.status_code == 200
+    assert response.status_code == 204
     assert len(response.content) == 0
     assert apteryx_get("/test/animals/animal/cat/name") == "Not found"
     assert apteryx_get("/test/animals/animal/cat/type") == "Not found"
@@ -2065,7 +2065,7 @@ def test_restconf_delete_list_select_one():
 
 def test_restconf_delete_list_select_by_path_one():
     response = requests.delete("http://{}:{}{}/data/testing:test/animals/animal/cat".format(host, port, docroot), headers=set_restconf_headers)
-    assert response.status_code == 200
+    assert response.status_code == 204
     assert len(response.content) == 0
     assert apteryx_get("/test/animals/animal/cat/name") == "Not found"
     assert apteryx_get("/test/animals/animal/cat/type") == "Not found"
@@ -2075,7 +2075,7 @@ def test_restconf_delete_list_select_by_path_one():
 
 def test_restconf_delete_list_select_two():
     response = requests.delete("http://{}:{}{}/data/testing:test/animals/animal=hamster/food=banana".format(host, port, docroot), headers=set_restconf_headers)
-    assert response.status_code == 200
+    assert response.status_code == 204
     assert len(response.content) == 0
     assert apteryx_get("/test/animals/animal/hamster/food/banana/name") == "Not found"
     assert apteryx_get("/test/animals/animal/hamster/food/banana/type") == "Not found"
@@ -2085,7 +2085,7 @@ def test_restconf_delete_list_select_two():
 
 def test_restconf_delete_list_by_path_select_two():
     response = requests.delete("http://{}:{}{}/data/testing:test/animals/animal/hamster/food/banana".format(host, port, docroot), headers=set_restconf_headers)
-    assert response.status_code == 200
+    assert response.status_code == 204
     assert len(response.content) == 0
     assert apteryx_get("/test/animals/animal/hamster/food/banana/name") == "Not found"
     assert apteryx_get("/test/animals/animal/hamster/food/banana/type") == "Not found"

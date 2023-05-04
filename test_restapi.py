@@ -1119,9 +1119,9 @@ def test_restapi_delete_single_node():
     assert response.json() == json.loads('{}')
 
 
-# Should silently ignore hidden nodes
-@pytest.mark.skip(reason="we reject this because of the readonly field")
+# Change in behavior we no longer silently ignore readonly nodes unless there is nothing in the DB
 def test_restapi_delete_trunk():
+    apteryx_set("/test/settings/readonly", "")
     response = requests.delete("{}{}/test/settings".format(server_uri, docroot), verify=False, auth=server_auth)
     assert response.status_code == 200 or response.status_code == 204
     assert len(response.content) == 0

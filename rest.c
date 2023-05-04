@@ -611,7 +611,7 @@ rest_api_delete (int flags, const char *path)
     sch_node *api_subtree = NULL;
     char *error_string = NULL;
     char *resp = NULL;
-    int rc = HTTP_CODE_OK;
+    int rc = HTTP_CODE_NO_CONTENT;
     int schflags = 0;
 
     /* Parsing options */
@@ -642,7 +642,7 @@ rest_api_delete (int flags, const char *path)
         GNode *rnode = _get_response_node (api_subtree, tree, 0/*flags*/);
         rc = set_values_to_null (rnode, api_subtree);
         if (rc == HTTP_CODE_OK)
-            rc = apteryx_set_tree (tree) ? HTTP_CODE_OK : 400;
+            rc = apteryx_set_tree (tree) ? HTTP_CODE_NO_CONTENT : 400;
         apteryx_free_tree (tree);
     }
 
