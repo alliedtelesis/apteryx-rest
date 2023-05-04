@@ -936,90 +936,163 @@ def test_restconf_query_content_nonconfig():
     """)
 
 
-@pytest.mark.skip(reason="not implemented")
 def test_restconf_query_depth_unbounded():
-    response = requests.get("http://{}:{}{}/data/test/animals?depth=unbounded".format(host, port, docroot), headers=get_restconf_headers)
+    apteryx_set("/test/settings/time/day", "5")
+    apteryx_set("/test/settings/time/hour", "12")
+    apteryx_set("/test/settings/time/active", "true")
+    apteryx_set("/test/settings/users/alfred/name", "alfred")
+    apteryx_set("/test/settings/users/alfred/age", "87")
+    apteryx_set("/test/settings/users/alfred/active", "true")
+    response = requests.get("http://{}:{}{}/data/test/settings?depth=unbounded".format(host, port, docroot), headers=get_restconf_headers)
     assert response.status_code == 200
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.json() == json.loads("""
 {
-    "animals": {
-        "animal": [
-            {"name": "cat", "type": "big"},
-            {"name": "dog", "colour": "brown"},
-            {"name": "hamster", "type": "little", "food": [
-                    {"name": "banana", "type": "fruit"},
-                    {"name": "nuts", "type": "kibble"}
-                ]
-            },
-            {"name": "mouse", "colour": "grey", "type": "little"},
-            {"name": "parrot", "type": "big", "colour": "blue", "toys": {
-                "toy": ["puzzles", "rings"]
-                }
+    "settings": {
+        "debug": "enable",
+        "enable": true,
+        "priority": 1,
+        "readonly": "yes",
+        "time": {
+            "active": true,
+            "day": 5,
+            "hour": 12
+        },
+        "users": [
+            {
+                "active": true,
+                "age": 87,
+                "name": "alfred"
             }
-        ]
+        ],
+        "volume": 1
     }
 }
     """)
 
 
-@pytest.mark.skip(reason="not implemented")
-def test_restconf_query_depth_1():
-    response = requests.get("http://{}:{}{}/data/test/animals?depth=1".format(host, port, docroot), headers=get_restconf_headers)
+def test_restconf_query_depth_1_leaf():
+    response = requests.get("http://{}:{}{}/data/test/settings/debug?depth=1".format(host, port, docroot), headers=get_restconf_headers)
     assert response.status_code == 200
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.json() == json.loads("""
 {
-    "animals": {
-    }
+    "debug": "enable"
 }
     """)
 
 
-@pytest.mark.skip(reason="not implemented")
-def test_restconf_query_depth_2():
-    response = requests.get("http://{}:{}{}/data/test/animals?depth=2".format(host, port, docroot), headers=get_restconf_headers)
+def test_restconf_query_depth_1_trunk():
+    apteryx_set("/test/settings/time/day", "5")
+    apteryx_set("/test/settings/time/hour", "12")
+    apteryx_set("/test/settings/time/active", "true")
+    apteryx_set("/test/settings/users/alfred/name", "alfred")
+    apteryx_set("/test/settings/users/alfred/age", "87")
+    apteryx_set("/test/settings/users/alfred/active", "true")
+    response = requests.get("http://{}:{}{}/data/test/settings?depth=1".format(host, port, docroot), headers=get_restconf_headers)
+    assert response.status_code == 200
+    assert len(response.content) > 0
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.json() == json.loads("""{}""")
+
+
+def test_restconf_query_depth_1_list():
+    apteryx_set("/test/settings/users/alfred/name", "alfred")
+    apteryx_set("/test/settings/users/alfred/age", "87")
+    apteryx_set("/test/settings/users/alfred/active", "true")
+    response = requests.get("http://{}:{}{}/data/test/settings/users?depth=1".format(host, port, docroot), headers=get_restconf_headers)
+    assert response.status_code == 200
+    assert len(response.content) > 0
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.json() == json.loads("""{}""")
+
+
+def test_restconf_query_depth_2_trunk():
+    apteryx_set("/test/settings/time/day", "5")
+    apteryx_set("/test/settings/time/hour", "12")
+    apteryx_set("/test/settings/time/active", "true")
+    apteryx_set("/test/settings/users/alfred/name", "alfred")
+    apteryx_set("/test/settings/users/alfred/age", "87")
+    apteryx_set("/test/settings/users/alfred/active", "true")
+    response = requests.get("http://{}:{}{}/data/test/settings?depth=2".format(host, port, docroot), headers=get_restconf_headers)
     assert response.status_code == 200
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.json() == json.loads("""
 {
-    "animals": {
-        "animal": [
-        ]
+    "settings": {
+        "debug": "enable",
+        "enable": true,
+        "priority": 1,
+        "readonly": "yes",
+        "volume": 1
     }
 }
     """)
 
 
-@pytest.mark.skip(reason="not implemented")
+def test_restconf_query_depth_2_list():
+    apteryx_set("/test/settings/time/day", "5")
+    apteryx_set("/test/settings/time/hour", "12")
+    apteryx_set("/test/settings/time/active", "true")
+    apteryx_set("/test/settings/users/alfred/name", "alfred")
+    apteryx_set("/test/settings/users/alfred/age", "87")
+    apteryx_set("/test/settings/users/alfred/active", "true")
+    response = requests.get("http://{}:{}{}/data/test/settings/users?depth=2".format(host, port, docroot), headers=get_restconf_headers)
+    assert response.status_code == 200
+    assert len(response.content) > 0
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.json() == json.loads("""
+{
+    "users": [
+        {
+            "name": "alfred",
+            "age": 87,
+            "active": true
+        }
+    ]
+}
+    """)
+
+
 def test_restconf_query_depth_3():
-    response = requests.get("http://{}:{}{}/data/test/animals?depth=3".format(host, port, docroot), headers=get_restconf_headers)
+    apteryx_set("/test/settings/time/day", "5")
+    apteryx_set("/test/settings/time/hour", "12")
+    apteryx_set("/test/settings/time/active", "true")
+    apteryx_set("/test/settings/users/alfred/name", "alfred")
+    apteryx_set("/test/settings/users/alfred/age", "87")
+    apteryx_set("/test/settings/users/alfred/active", "true")
+    response = requests.get("http://{}:{}{}/data/test/settings?depth=3".format(host, port, docroot), headers=get_restconf_headers)
     assert response.status_code == 200
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.json() == json.loads("""
 {
-    "animals": {
-        "animal": [
-            {"name": "cat", "type": "big"},
-            {"name": "dog", "colour": "brown"},
-            {"name": "hamster", "type": "little", "food": [
-                ]
-            },
-            {"name": "mouse", "colour": "grey", "type": "little"},
-            {"name": "parrot", "type": "big", "colour": "blue", "toys": {
-                }
+    "settings": {
+        "debug": "enable",
+        "enable": true,
+        "priority": 1,
+        "readonly": "yes",
+        "time": {
+            "active": true,
+            "day": 5,
+            "hour": 12
+        },
+        "users": [
+            {
+                "name": "alfred",
+                "age": 87,
+                "active": true
             }
-        ]
+        ],
+        "volume": 1
     }
 }
     """)
 
 
-@pytest.mark.skip(reason="not implemented")
 def test_restconf_query_depth_4():
     response = requests.get("http://{}:{}{}/data/test/animals?depth=4".format(host, port, docroot), headers=get_restconf_headers)
     assert response.status_code == 200
@@ -1029,17 +1102,37 @@ def test_restconf_query_depth_4():
 {
     "animals": {
         "animal": [
-            {"name": "cat", "type": "big"},
-            {"name": "dog", "colour": "brown"},
-            {"name": "hamster", "type": "little", "food": [
-                    {"name": "banana", "type": "fruit"},
-                    {"name": "nuts", "type": "kibble"}
-                ]
+            {
+                "name": "cat",
+                "type": "big"
             },
-            {"name": "mouse", "colour": "grey", "type": "little"},
-            {"name": "parrot", "type": "big", "colour": "blue", "toys": {
-                "toy": []
-                }
+            {
+                "colour": "brown",
+                "name": "dog"
+            },
+            {
+                "food": [
+                    {
+                        "name": "banana",
+                        "type": "fruit"
+                    },
+                    {
+                        "name": "nuts",
+                        "type": "kibble"
+                    }
+                ],
+                "name": "hamster",
+                "type": "little"
+            },
+            {
+                "colour": "grey",
+                "name": "mouse",
+                "type": "little"
+            },
+            {
+                "colour": "blue",
+                "name": "parrot",
+                "type": "big"
             }
         ]
     }
@@ -1047,7 +1140,6 @@ def test_restconf_query_depth_4():
     """)
 
 
-@pytest.mark.skip(reason="not implemented")
 def test_restconf_query_depth_5():
     response = requests.get("http://{}:{}{}/data/test/animals?depth=5".format(host, port, docroot), headers=get_restconf_headers)
     assert response.status_code == 200
@@ -1057,17 +1149,43 @@ def test_restconf_query_depth_5():
 {
     "animals": {
         "animal": [
-            {"name": "cat", "type": "big"},
-            {"name": "dog", "colour": "brown"},
-            {"name": "hamster", "type": "little", "food": [
-                    {"name": "banana", "type": "fruit"},
-                    {"name": "nuts", "type": "kibble"}
-                ]
+            {
+                "name": "cat",
+                "type": "big"
             },
-            {"name": "mouse", "colour": "grey", "type": "little"},
-            {"name": "parrot", "type": "big", "colour": "blue", "toys": {
-                "toy": ["puzzles", "rings"]
-                }
+            {
+                "colour": "brown",
+                "name": "dog"
+            },
+            {
+                "food": [
+                    {
+                        "name": "banana",
+                        "type": "fruit"
+                    },
+                    {
+                        "name": "nuts",
+                        "type": "kibble"
+                    }
+                ],
+                "name": "hamster",
+                "type": "little"
+            },
+            {
+                "colour": "grey",
+                "name": "mouse",
+                "type": "little"
+            },
+            {
+                "colour": "blue",
+                "name": "parrot",
+                "toys": {
+                    "toy": [
+                        "puzzles",
+                        "rings"
+                    ]
+                },
+                "type": "big"
             }
         ]
     }
