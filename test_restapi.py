@@ -1353,9 +1353,8 @@ def test_restapi_query_invalid_queries():
 
 def test_restapi_query_field_empty():
     response = requests.get("{}{}/test/state/uptime?fields=".format(server_uri, docroot), verify=False, auth=server_auth)
-    assert response.status_code == 200
-    assert response.headers["Content-Type"] == "application/json"
-    assert response.json() == json.loads("""{}""")
+    assert response.status_code == 400
+    assert len(response.content) == 0
 
 
 def test_restapi_query_field_one_node():

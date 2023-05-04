@@ -21,6 +21,26 @@
         <VALUE name="no" value="1" help="This is not read only"/>
       </NODE>
       <NODE name="hidden" mode="h" help="A hidden field"/>
+      <NODE name="time" help="time">
+        <NODE name="day" mode="rw" help="day" pattern="^[0-9]+$"/>
+        <NODE name="hour" mode="rw" help="hour" pattern="^[0-9]+$"/>
+        <NODE name="minute" mode="rw" help="minute" pattern="^[0-9]+$"/>
+        <NODE name="second" mode="rw" help="second" pattern="^[0-9]+$"/>
+        <NODE name="active" mode="r" default="false" help="boolean">
+          <VALUE name="true" value="true"/>
+          <VALUE name="false" value="false"/>
+        </NODE>
+      </NODE>
+      <NODE name="users" help="This is a list of users">
+        <NODE name="*" help="The user entry with key name">
+          <NODE name="name" mode="rw" help="This is the name of the user"/>
+          <NODE name="age" mode="rw" help="integer" pattern="^[1-99]$"/>
+          <NODE name="active" mode="r" default="false" help="boolean">
+            <VALUE name="true" value="true"/>
+            <VALUE name="false" value="false"/>
+          </NODE>
+        </NODE>
+      </NODE>
     </NODE>
     <NODE name="state" help="State">
       <NODE name="counter" mode="r" default="0" help="uint32"/>

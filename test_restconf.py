@@ -841,8 +841,13 @@ def test_restconf_query_invalid_queries():
         """)
 
 
-@pytest.mark.skip(reason="not implemented")
 def test_restconf_query_content_all():
+    apteryx_set("/test/settings/time/day", "5")
+    apteryx_set("/test/settings/time/hour", "12")
+    apteryx_set("/test/settings/time/active", "true")
+    apteryx_set("/test/settings/users/alfred/name", "alfred")
+    apteryx_set("/test/settings/users/alfred/age", "87")
+    apteryx_set("/test/settings/users/alfred/active", "true")
     response = requests.get("http://{}:{}{}/data/test/settings?content=all".format(host, port, docroot), headers=get_restconf_headers)
     assert response.status_code == 200
     assert len(response.content) > 0
@@ -854,14 +859,29 @@ def test_restconf_query_content_all():
         "enable": true,
         "priority": 1,
         "readonly": "yes",
-        "volume": 1
+        "volume": 1,
+        "time": {
+            "day": 5,
+            "hour": 12,
+            "active": true
+        },
+        "users": [{
+            "name": "alfred",
+            "age": 87,
+            "active": true
+        }]
     }
 }
     """)
 
 
-@pytest.mark.skip(reason="not implemented")
 def test_restconf_query_content_config():
+    apteryx_set("/test/settings/time/day", "5")
+    apteryx_set("/test/settings/time/hour", "12")
+    apteryx_set("/test/settings/time/active", "true")
+    apteryx_set("/test/settings/users/alfred/name", "alfred")
+    apteryx_set("/test/settings/users/alfred/age", "87")
+    apteryx_set("/test/settings/users/alfred/active", "true")
     response = requests.get("http://{}:{}{}/data/test/settings?content=config".format(host, port, docroot), headers=get_restconf_headers)
     assert response.status_code == 200
     assert len(response.content) > 0
@@ -872,14 +892,31 @@ def test_restconf_query_content_config():
         "debug": "enable",
         "enable": true,
         "priority": 1,
-        "volume": 1
+        "volume": 1,
+        "time": {
+            "day": 5,
+            "hour": 12
+        },
+        "time": {
+            "day": 5,
+            "hour": 12
+        },
+        "users": [{
+            "name": "alfred",
+            "age": 87
+        }]
     }
 }
     """)
 
 
-@pytest.mark.skip(reason="not implemented")
 def test_restconf_query_content_nonconfig():
+    apteryx_set("/test/settings/time/day", "5")
+    apteryx_set("/test/settings/time/hour", "12")
+    apteryx_set("/test/settings/time/active", "true")
+    apteryx_set("/test/settings/users/alfred/name", "alfred")
+    apteryx_set("/test/settings/users/alfred/age", "87")
+    apteryx_set("/test/settings/users/alfred/active", "true")
     response = requests.get("http://{}:{}{}/data/test/settings?content=nonconfig".format(host, port, docroot), headers=get_restconf_headers)
     assert response.status_code == 200
     assert len(response.content) > 0
@@ -887,7 +924,13 @@ def test_restconf_query_content_nonconfig():
     assert response.json() == json.loads("""
 {
     "settings": {
-        "readonly": "yes"
+        "readonly": "yes",
+        "time": {
+            "active": true
+        },
+        "users": [{
+            "active": true
+        }]
     }
 }
     """)
