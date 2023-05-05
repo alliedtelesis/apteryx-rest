@@ -71,12 +71,12 @@ add_leaf_strdup (GNode *root, const char *node_name, const char *value)
  * @param root - The node the leaf will be added to
  */
 static void
-schema_set_model_information (GNode *root)
+schema_set_model_information (sch_instance *schema, GNode *root)
 {
     GNode *gnode;
     sch_loaded_model *loaded;
     GList *list;
-    GList *loaded_models = sch_get_loaded_models ();
+    GList *loaded_models = sch_get_loaded_models (schema);
 
     for (list = g_list_first (loaded_models); list; list = g_list_next (list))
     {
@@ -108,7 +108,7 @@ schema_set_model_information (GNode *root)
  * @param g_schema - The root schema xml node
  */
 void
-yang_library_create (sch_instance *g_schema)
+yang_library_create (sch_instance *schema)
 {
     GNode *root;
     GNode *modules;
@@ -124,7 +124,7 @@ yang_library_create (sch_instance *g_schema)
     snprintf (set_id, sizeof (set_id), "%" PRIx64 "", now);
     add_leaf_strdup (root, YANGLIB_YANG_LIBRARY_CONTENT_ID, set_id);
 
-    schema_set_model_information (modules);
+    schema_set_model_information (schema, modules);
 
     apteryx_set_tree (root);
     apteryx_free_tree (root);

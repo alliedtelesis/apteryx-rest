@@ -89,6 +89,6 @@ void rest_api (req_handle handle, int flags, const char *rpath, const char *path
                const char *if_modified_since, const char *if_unmodified_since,
                const char *data, int length);
 void rest_shutdown (void);
-void yang_library_create (sch_instance *g_schema);
+void yang_library_create (sch_instance *schema);
 
 #endif /* _REST_H_ */
