@@ -18,6 +18,9 @@ APTERYX = 'LD_LIBRARY_PATH=.build/usr/lib .build/usr/bin/apteryx'
 # APTERYX_URL='tcp://192.168.6.2:9999:'
 APTERYX_URL = ''
 
+get_restconf_headers = {"Accept": "application/yang-data+json"}
+set_restconf_headers = {"Content-Type": "application/yang-data+json"}
+
 # TEST HELPERS
 
 db_default = [
