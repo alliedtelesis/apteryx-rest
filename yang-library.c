@@ -66,41 +66,37 @@ add_leaf_strdup (GNode *root, const char *node_name, const char *value)
 }
 
 /**
- * Traverse each of the top level nodes of the schema which each represent an
- * added model
+ * Add an entry to the apteryx database for each model known to resconf
  *
  * @param root - The node the leaf will be added to
- * @param node - The root schema xml node
  */
 static void
-traverse_schema_add_models (GNode *root, sch_node *node)
+schema_set_model_information (GNode *root)
 {
-    sch_node *sch_child;
     GNode *gnode;
+    sch_loaded_model *loaded;
+    GList *list;
+    GList *loaded_models = sch_get_loaded_models ();
 
-    for (sch_child = sch_node_child_first (node); sch_child;
-         sch_child = sch_node_next_sibling (sch_child))
+    for (list = g_list_first (loaded_models); list; list = g_list_next (list))
     {
-        char *model = sch_model (sch_child, true);
-        if (model && strlen (model))
-        {
-            char *revision = sch_version (sch_child);
-            char *namespace = sch_namespace (sch_child);
-            gnode = add_leaf_strdup (root, YANGLIB_YANG_LIBRARY_MODULE_SET_MODULE_PATH,
-                                     model);
+        loaded = list->data;
 
-            add_leaf_strdup (gnode, YANGLIB_MODULES_STATE_MODULE_NAME, model);
-            if (revision)
+        if (loaded->model && strlen (loaded->model))
+        {
+            gnode = add_leaf_strdup (root, YANGLIB_YANG_LIBRARY_MODULE_SET_MODULE_PATH,
+                                     loaded->model);
+
+            add_leaf_strdup (gnode, YANGLIB_MODULES_STATE_MODULE_NAME, loaded->model);
+            if (loaded->version)
             {
-                add_leaf_strdup (gnode, YANGLIB_MODULES_STATE_MODULE_REVISION, revision);
+                add_leaf_strdup (gnode, YANGLIB_MODULES_STATE_MODULE_REVISION,
+                                 loaded->version);
             }
-            if (namespace)
+            if (loaded->ns)
             {
-                add_leaf_strdup (gnode, YANGLIB_MODULES_STATE_MODULE_NAMESPACE, namespace);
+                add_leaf_strdup (gnode, YANGLIB_MODULES_STATE_MODULE_NAMESPACE, loaded->ns);
             }
-            g_free (namespace);
-            g_free (revision);
-            g_free (model);
         }
     }
 }
@@ -128,7 +124,7 @@ yang_library_create (sch_instance *g_schema)
     snprintf (set_id, sizeof (set_id), "%" PRIx64 "", now);
     add_leaf_strdup (root, YANGLIB_YANG_LIBRARY_CONTENT_ID, set_id);
 
-    traverse_schema_add_models (modules, g_schema);
+    schema_set_model_information (modules);
 
     apteryx_set_tree (root);
     apteryx_free_tree (root);
