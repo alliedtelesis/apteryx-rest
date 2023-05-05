@@ -1,92 +1,18 @@
 import json
-import os
 import pytest
 import requests
-import subprocess
 import time
+from conftest import server_uri, server_auth, docroot, apteryx_set, apteryx_get
 
-
-# TEST CONFIGURATION
-
-host = 'localhost'
-port = 8080
-docroot = '/api'
 
 get_restconf_headers = {"Accept": "application/yang-data+json"}
 set_restconf_headers = {"Content-Type": "application/yang-data+json"}
-
-APTERYX = 'LD_LIBRARY_PATH=.build/usr/lib .build/usr/bin/apteryx'
-APTERYX_URL = ''
-
-# TEST HELPERS
-
-db_default = [
-    # Default namespace
-    ('/test/settings/debug', '1'),
-    ('/test/settings/enable', 'true'),
-    ('/test/settings/priority', '1'),
-    ('/test/settings/readonly', 'yes'),
-    ('/test/settings/hidden', 'friend'),
-    ('/test/state/counter', '42'),
-    ('/test/state/uptime/days', '5'),
-    ('/test/state/uptime/hours', '50'),
-    ('/test/state/uptime/minutes', '30'),
-    ('/test/state/uptime/seconds', '20'),
-    ('/test/animals/animal/cat/name', 'cat'),
-    ('/test/animals/animal/cat/type', '1'),
-    ('/test/animals/animal/dog/name', 'dog'),
-    ('/test/animals/animal/dog/colour', 'brown'),
-    ('/test/animals/animal/mouse/name', 'mouse'),
-    ('/test/animals/animal/mouse/type', '2'),
-    ('/test/animals/animal/mouse/colour', 'grey'),
-    ('/test/animals/animal/hamster/name', 'hamster'),
-    ('/test/animals/animal/hamster/type', '2'),
-    ('/test/animals/animal/hamster/food/banana/name', 'banana'),
-    ('/test/animals/animal/hamster/food/banana/type', 'fruit'),
-    ('/test/animals/animal/hamster/food/nuts/name', 'nuts'),
-    ('/test/animals/animal/hamster/food/nuts/type', 'kibble'),
-    ('/test/animals/animal/parrot/name', 'parrot'),
-    ('/test/animals/animal/parrot/type', '1'),
-    ('/test/animals/animal/parrot/colour', 'blue'),
-    ('/test/animals/animal/parrot/toys/toy/rings', 'rings'),
-    ('/test/animals/animal/parrot/toys/toy/puzzles', 'puzzles'),
-    # Default namespace augmented path
-    ('/test/settings/volume', '1'),
-    # Non-default namespace same path as default
-    ('/t2:test/settings/priority', '2'),
-    # Non-default namespace augmented path
-    ('/t2:test/settings/speed', '2'),
-]
-
-
-def apteryx_set(path, value):
-    os.system('%s -s %s "%s"' % (APTERYX, path, value))
-
-
-def apteryx_get(path):
-    return subprocess.check_output("%s -g %s" % (APTERYX, path), shell=True).strip().decode('utf-8')
-
-
-@pytest.fixture(autouse=True)
-def run_around_tests():
-    # Before test
-    os.system("echo Before test")
-    os.system("%s -r /test" % (APTERYX))
-    assert subprocess.check_output("%s -r %s/test" % (APTERYX, APTERYX_URL), shell=True).strip().decode('utf-8') != "Failed"
-    assert subprocess.check_output("%s -r %s/t2:test" % (APTERYX, APTERYX_URL), shell=True).strip().decode('utf-8') != "Failed"
-    for path, value in db_default:
-        apteryx_set(path, value)
-    yield
-    # After test
-    os.system("echo After test")
-    assert subprocess.check_output("%s -r %s/test" % (APTERYX, APTERYX_URL), shell=True).strip().decode('utf-8') != "Failed"
-    assert subprocess.check_output("%s -r %s/t2:test" % (APTERYX, APTERYX_URL), shell=True).strip().decode('utf-8') != "Failed"
 
 
 @pytest.mark.skip(reason="requires target specific http server configuration")
 def test_restconf_root_discovery():
     # Accept: application/xrd+xml
-    response = requests.get("http://{}:{}/.well-known/host-meta".format(host, port))
+    response = requests.get("http://{}/.well-known/host-meta".format(server_uri))
     print(response)
     assert response.status_code == 200
     # assert response.headers["Content-Type"] == "application/xrd+xml"
@@ -95,7 +21,7 @@ def test_restconf_root_discovery():
 
 
 def test_restconf_root_resource():
-    response = requests.get("http://{}:{}{}".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/yang-data+json"
@@ -111,7 +37,7 @@ def test_restconf_root_resource():
 
 
 def test_restconf_operations_list_empty():
-    response = requests.get("http://{}:{}{}/operations".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/operations".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/yang-data+json"
@@ -119,7 +45,7 @@ def test_restconf_operations_list_empty():
 
 
 def test_restconf_yang_library_version():
-    response = requests.get("http://{}:{}{}/yang-library-version".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/yang-library-version".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/yang-data+json"
@@ -127,7 +53,7 @@ def test_restconf_yang_library_version():
 
 
 def test_restconf_get_timestamp_node():
-    response = requests.get("http://{}:{}{}/data/test/settings/enable".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/test/settings/enable".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     print(response.headers.get("Last-Modified"))
     assert response.status_code == 200
@@ -138,7 +64,7 @@ def test_restconf_get_timestamp_node():
 
 
 def test_restconf_get_timestamp_namespace():
-    response = requests.get("http://{}:{}{}/data/testing:test/settings/enable".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/testing:test/settings/enable".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     print(response.headers.get("Last-Modified"))
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/yang-data+json"
@@ -148,46 +74,47 @@ def test_restconf_get_timestamp_namespace():
 
 
 def test_restconf_get_timestamp_trunk():
-    response = requests.get("http://{}:{}{}/data/test/settings".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/test/settings".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     print(response.headers.get("Last-Modified"))
     assert response.headers.get("Last-Modified") is not None
     assert time.strftime("%a, %d %b", time.gmtime()) in response.headers.get("Last-Modified")
 
 
 def test_restconf_get_timestamp_config_changes():
-    response = requests.get("http://{}:{}{}/data/test/settings".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/test/settings".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     print(response.headers.get("Last-Modified"))
     timestamp = response.headers.get("Last-Modified")
     time.sleep(1)
     apteryx_set("/test/settings/enable", "false")
-    response = requests.get("http://{}:{}{}/data/test/settings".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/test/settings".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.headers.get("Last-Modified") is not None and response.headers.get("Last-Modified") != timestamp
 
 
 @pytest.mark.skip(reason="we update timestamps for all resource (config/state) changes")
 def test_restconf_get_timestamp_state_no_change():
-    response = requests.get("http://{}:{}{}/data/test/settings".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/test/settings".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     print(response.headers.get("Last-Modified"))
     timestamp = response.headers.get("Last-Modified")
     time.sleep(1)
     apteryx_set("/test/settings/readonly", "false")
-    response = requests.get("http://{}:{}{}/data/test/settings".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/test/settings".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.headers.get("Last-Modified") is not None and response.headers.get("Last-Modified") == timestamp
 
 
 def test_restconf_get_if_modified_since():
-    response = requests.get("http://{}:{}{}/data/test/settings/enable".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/test/settings/enable".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     last_modified = response.headers.get("Last-Modified")
     assert response.json() == json.loads('{ "enable": true }')
-    response = requests.get("http://{}:{}{}/data/test/settings/enable".format(host, port, docroot), headers={**get_restconf_headers, 'If-Modified-Since': last_modified})
+    headers = {**get_restconf_headers, 'If-Modified-Since': last_modified}
+    response = requests.get("{}{}/data/test/settings/enable".format(server_uri, docroot), auth=server_auth, headers=headers)
     assert response.status_code == 304
     assert len(response.content) == 0
     time.sleep(1)
     apteryx_set("/test/settings/enable", "false")
-    response = requests.get("http://{}:{}{}/data/test/settings/enable".format(host, port, docroot), headers={**get_restconf_headers, 'If-Modified-Since': last_modified})
+    response = requests.get("{}{}/data/test/settings/enable".format(server_uri, docroot), auth=server_auth, headers=headers)
     assert response.status_code == 200
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -196,18 +123,19 @@ def test_restconf_get_if_modified_since():
 
 
 def test_restconf_get_if_modified_since_namespace():
-    response = requests.get("http://{}:{}{}/data/testing:test/settings/enable".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/testing:test/settings/enable".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     last_modified = response.headers.get("Last-Modified")
     assert response.json() == json.loads('{ "enable": true }')
-    response = requests.get("http://{}:{}{}/data/testing:test/settings/enable".format(host, port, docroot), headers={**get_restconf_headers, 'If-Modified-Since': last_modified})
+    headers = {**get_restconf_headers, 'If-Modified-Since': last_modified}
+    response = requests.get("{}{}/data/testing:test/settings/enable".format(server_uri, docroot), auth=server_auth, headers=headers)
     assert response.status_code == 304
     assert len(response.content) == 0
     time.sleep(1)
     apteryx_set("/test/settings/enable", "false")
-    response = requests.get("http://{}:{}{}/data/testing:test/settings/enable".format(host, port, docroot), headers={**get_restconf_headers, 'If-Modified-Since': last_modified})
+    response = requests.get("{}{}/data/testing:test/settings/enable".format(server_uri, docroot), auth=server_auth, headers=headers)
     assert response.status_code == 200
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -216,7 +144,7 @@ def test_restconf_get_if_modified_since_namespace():
 
 
 def test_restconf_get_etag():
-    response = requests.get("http://{}:{}{}/data/test/settings/enable".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/test/settings/enable".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     print(response.headers.get("ETag"))
     assert response.status_code == 200
@@ -226,7 +154,7 @@ def test_restconf_get_etag():
 
 
 def test_restconf_get_etag_namespace():
-    response = requests.get("http://{}:{}{}/data/testing:test/settings/enable".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/testing:test/settings/enable".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     print(response.headers.get("ETag"))
     assert response.status_code == 200
@@ -236,42 +164,42 @@ def test_restconf_get_etag_namespace():
 
 
 def test_restconf_get_etag_trunk():
-    response = requests.get("http://{}:{}{}/data/test/settings".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/test/settings".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     print(response.headers.get("ETag"))
     assert response.headers.get("ETag") is not None and response.headers.get("ETag") != "0"
 
 
 def test_restconf_get_etag_config_changes():
-    response = requests.get("http://{}:{}{}/data/test/settings".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/test/settings".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     print(response.headers.get("ETag"))
     etag = response.headers.get("ETag")
     apteryx_set("/test/settings/enable", "false")
-    response = requests.get("http://{}:{}{}/data/test/settings".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/test/settings".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.headers.get("ETag") is not None and response.headers.get("ETag") != etag
 
 
 @pytest.mark.skip(reason="we update etag for all resource (config/state) changes")
 def test_restconf_get_etag_state_no_change():
-    response = requests.get("http://{}:{}{}/data/test/settings".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/test/settings".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     print(response.headers.get("ETag"))
     etag = response.headers.get("ETag")
     apteryx_set("/test/settings/readonly", "false")
-    response = requests.get("http://{}:{}{}/data/test/settings".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/test/settings".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.headers.get("ETag") is not None and response.headers.get("ETag") == etag
 
 
 def test_restconf_get_if_none_match():
-    response = requests.get("http://{}:{}{}/data/test/settings/enable".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/test/settings/enable".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     etag = response.headers.get("Etag")
     assert response.json() == json.loads('{ "enable": true }')
-    response = requests.get("http://{}:{}{}/data/test/settings/enable".format(host, port, docroot), headers={**get_restconf_headers, 'If-None-Match': etag})
+    response = requests.get("{}{}/data/test/settings/enable".format(server_uri, docroot), auth=server_auth, headers={**get_restconf_headers, 'If-None-Match': etag})
     assert response.status_code == 304
     assert len(response.content) == 0
     apteryx_set("/test/settings/enable", "false")
-    response = requests.get("http://{}:{}{}/data/test/settings/enable".format(host, port, docroot), headers={**get_restconf_headers, 'If-None-Match': etag})
+    response = requests.get("{}{}/data/test/settings/enable".format(server_uri, docroot), auth=server_auth, headers={**get_restconf_headers, 'If-None-Match': etag})
     assert response.status_code == 200
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -280,17 +208,18 @@ def test_restconf_get_if_none_match():
 
 
 def test_restconf_get_if_none_match_namespace():
-    response = requests.get("http://{}:{}{}/data/testing:test/settings/enable".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/testing:test/settings/enable".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     etag = response.headers.get("Etag")
     assert response.json() == json.loads('{ "enable": true }')
-    response = requests.get("http://{}:{}{}/data/testing:test/settings/enable".format(host, port, docroot), headers={**get_restconf_headers, 'If-None-Match': etag})
+    headers = {**get_restconf_headers, 'If-None-Match': etag}
+    response = requests.get("{}{}/data/testing:test/settings/enable".format(server_uri, docroot), auth=server_auth, headers=headers)
     assert response.status_code == 304
     assert len(response.content) == 0
     apteryx_set("/test/settings/enable", "false")
-    response = requests.get("http://{}:{}{}/data/testing:test/settings/enable".format(host, port, docroot), headers={**get_restconf_headers, 'If-None-Match': etag})
+    response = requests.get("{}{}/data/testing:test/settings/enable".format(server_uri, docroot), auth=server_auth, headers=headers)
     assert response.status_code == 200
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -327,7 +256,7 @@ def test_restconf_get_if_none_match_namespace():
 #           | malformed-message       | 400              |
 
 def test_restconf_error_not_found():
-    response = requests.get("http://{}:{}{}/data/test/settings/invalid".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/test/settings/invalid".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 404
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -348,7 +277,7 @@ def test_restconf_error_not_found():
 
 
 def test_restconf_error_hidden_node():
-    response = requests.get("http://{}:{}{}/data/test/settings/hidden".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/test/settings/hidden".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 403
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -368,7 +297,8 @@ def test_restconf_error_hidden_node():
 
 
 def test_restconf_error_read_only():
-    response = requests.post("http://{}:{}{}/data/test/state".format(host, port, docroot), headers=set_restconf_headers, data="""{"counter": "123"}""")
+    data = """{"counter": "123"}"""
+    response = requests.post("{}{}/data/test/state".format(server_uri, docroot), auth=server_auth, headers=set_restconf_headers, data=data)
     assert response.status_code == 403
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -388,7 +318,7 @@ def test_restconf_error_read_only():
 
 
 def test_restconf_error_write_only():
-    response = requests.get("http://{}:{}{}/data/test/settings/writeonly".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/test/settings/writeonly".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 403
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -408,7 +338,7 @@ def test_restconf_error_write_only():
 
 
 def test_restconf_error_unknown_namespace():
-    response = requests.get("http://{}:{}{}/data/cabbage:test/settings/writeonly".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/cabbage:test/settings/writeonly".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 400 or response.status_code == 404
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -444,28 +374,28 @@ def test_restconf_error_unknown_namespace():
 
 
 def test_restconf_unsupported_method():
-    response = requests.request("TRACE", "http://{}:{}{}/data/".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.request("TRACE", "{}{}/data/".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 405
 
 
 def test_restconf_unsupported_encoding():
-    response = requests.get("http://{}:{}{}/data/test".format(host, port, docroot), headers={"Accept": "text/html"})
+    response = requests.get("{}{}/data/test".format(server_uri, docroot), auth=server_auth, headers={"Accept": "text/html"})
     assert response.status_code == 415
-    response = requests.get("http://{}:{}{}/data/test".format(host, port, docroot), headers={"Accept": "application/xml"})
+    response = requests.get("{}{}/data/test".format(server_uri, docroot), auth=server_auth, headers={"Accept": "application/xml"})
     assert response.status_code == 415
-    response = requests.get("http://{}:{}{}/data/test".format(host, port, docroot), headers={"Accept": "application/yang.data+xml"})
+    response = requests.get("{}{}/data/test".format(server_uri, docroot), auth=server_auth, headers={"Accept": "application/yang.data+xml"})
     assert response.status_code == 415
-    response = requests.post("http://{}:{}{}/data/test".format(host, port, docroot), headers={"Content-Type": "text/html"}, data="""Hello World""")
+    response = requests.post("{}{}/data/test".format(server_uri, docroot), auth=server_auth, headers={"Content-Type": "text/html"}, data="""Hello World""")
     assert response.status_code == 415
-    response = requests.post("http://{}:{}{}/data/test".format(host, port, docroot), headers={"Content-Type": "application/xml"}, data="""<cat></cat>""")
+    response = requests.post("{}{}/data/test".format(server_uri, docroot), auth=server_auth, headers={"Content-Type": "application/xml"}, data="""<cat></cat>""")
     assert response.status_code == 415
     content = """<settings><priority>1</priority></settings>"""
-    response = requests.post("http://{}:{}{}/data/test".format(host, port, docroot), headers={"Content-Type": "application/yang.data+xml"}, data=content)
+    response = requests.post("{}{}/data/test".format(server_uri, docroot), auth=server_auth, headers={"Content-Type": "application/yang.data+xml"}, data=content)
     assert response.status_code == 415
 
 
 def test_restconf_options():
-    response = requests.options("http://{}:{}{}/data/".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.options("{}{}/data/".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
     assert len(response.content) == 0
     assert response.headers["allow"] == "GET,POST,PUT,PATCH,DELETE,HEAD,OPTIONS"
@@ -474,14 +404,14 @@ def test_restconf_options():
 
 
 def test_restconf_head():
-    response = requests.head("http://{}:{}{}/data/test/settings/priority".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.head("{}{}/data/test/settings/priority".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/yang-data+json"
     assert response.content == b''
 
 
 def test_restconf_get_single_node_ns_none():
-    response = requests.get("http://{}:{}{}/data/test/settings/priority".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/test/settings/priority".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/yang-data+json"
@@ -489,7 +419,7 @@ def test_restconf_get_single_node_ns_none():
 
 
 def test_restconf_get_single_node_ns_aug_none():
-    response = requests.get("http://{}:{}{}/data/test/settings/volume".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/test/settings/volume".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/yang-data+json"
@@ -497,7 +427,7 @@ def test_restconf_get_single_node_ns_aug_none():
 
 
 def test_restconf_get_single_node_ns_default():
-    response = requests.get("http://{}:{}{}/data/testing:test/settings/priority".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/testing:test/settings/priority".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/yang-data+json"
@@ -505,7 +435,7 @@ def test_restconf_get_single_node_ns_default():
 
 
 def test_restconf_get_single_node_ns_aug_default():
-    response = requests.get("http://{}:{}{}/data/testing:test/settings/volume".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/testing:test/settings/volume".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/yang-data+json"
@@ -513,7 +443,7 @@ def test_restconf_get_single_node_ns_aug_default():
 
 
 def test_restconf_get_single_node_ns_other():
-    response = requests.get("http://{}:{}{}/data/testing-2:test/settings/priority".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/testing-2:test/settings/priority".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/yang-data+json"
@@ -521,7 +451,7 @@ def test_restconf_get_single_node_ns_other():
 
 
 def test_restconf_get_single_node_ns_aug_other():
-    response = requests.get("http://{}:{}{}/data/testing-2:test/settings/testing2-augmented:speed".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/testing-2:test/settings/testing2-augmented:speed".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/yang-data+json"
@@ -529,13 +459,13 @@ def test_restconf_get_single_node_ns_aug_other():
 
 
 def test_restconf_get_integer():
-    response = requests.get("http://{}:{}{}/data/testing:test/settings/priority".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/testing:test/settings/priority".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/yang-data+json"
     assert response.json() == json.loads('{ "priority": 1 }')
     apteryx_set("/test/settings/priority", "2")
-    response = requests.get("http://{}:{}{}/data/testing:test/settings/priority".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/testing:test/settings/priority".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
     assert response.json() == json.loads('{ "priority": 2 }')
@@ -543,7 +473,7 @@ def test_restconf_get_integer():
 
 def test_restconf_get_string_string():
     apteryx_set("/test/settings/description", "This is a description")
-    response = requests.get("http://{}:{}{}/data/testing:test/settings/description".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/testing:test/settings/description".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
     assert response.json() == json.loads('{ "description": "This is a description" }')
@@ -551,20 +481,20 @@ def test_restconf_get_string_string():
 
 def test_restconf_get_string_number():
     apteryx_set("/test/settings/description", "123")
-    response = requests.get("http://{}:{}{}/data/testing:test/settings/description".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/testing:test/settings/description".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
     assert response.json() == json.loads('{ "description": "123" }')
 
 
 def test_restconf_get_boolean():
-    response = requests.get("http://{}:{}{}/data/testing:test/settings/enable".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/testing:test/settings/enable".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/yang-data+json"
     assert response.json() == json.loads('{ "enable": true }')
     apteryx_set("/test/settings/enable", "false")
-    response = requests.get("http://{}:{}{}/data/testing:test/settings/enable".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/testing:test/settings/enable".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/yang-data+json"
@@ -572,12 +502,12 @@ def test_restconf_get_boolean():
 
 
 def test_restconf_get_value_string():
-    response = requests.get("http://{}:{}{}/data/testing:test/settings/debug".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/testing:test/settings/debug".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/yang-data+json"
     assert response.json() == json.loads('{ "debug": "enable" }')
     apteryx_set("/test/settings/debug", "disable")
-    response = requests.get("http://{}:{}{}/data/testing:test/settings/debug".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/testing:test/settings/debug".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/yang-data+json"
     assert response.json() == json.loads('{ "debug": "disable" }')
@@ -585,14 +515,14 @@ def test_restconf_get_value_string():
 
 def test_restconf_get_node_null():
     apteryx_set("/test/settings/debug", "")
-    response = requests.get("http://{}:{}{}/data/testing:test/settings/debug".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/testing:test/settings/debug".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     if len(response.content) != 0:
         print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert (response.status_code == 204 and len(response.content) == 0) or (response.status_code == 200 and response.json() == json.loads('{}'))
 
 
 def test_restconf_get_trunk_no_namespace():
-    response = requests.get("http://{}:{}{}/data/test/settings".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/test/settings".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/yang-data+json"
@@ -610,7 +540,7 @@ def test_restconf_get_trunk_no_namespace():
 
 
 def test_restconf_get_trunk_namespace():
-    response = requests.get("http://{}:{}{}/data/testing:test/settings".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/testing:test/settings".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/yang-data+json"
@@ -628,7 +558,7 @@ def test_restconf_get_trunk_namespace():
 
 
 def test_restconf_get_list_trunk():
-    response = requests.get("http://{}:{}{}/data/testing:test/animals".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/testing:test/animals".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/yang-data+json"
@@ -655,7 +585,7 @@ def test_restconf_get_list_trunk():
 
 
 def test_restconf_get_list_trunk_no_namespace():
-    response = requests.get("http://{}:{}{}/data/test/animals".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/test/animals".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/yang-data+json"
@@ -682,7 +612,7 @@ def test_restconf_get_list_trunk_no_namespace():
 
 
 def test_restconf_get_list_select_none():
-    response = requests.get("http://{}:{}{}/data/test/animals/animal".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/test/animals/animal".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/yang-data+json"
@@ -707,7 +637,7 @@ def test_restconf_get_list_select_none():
 
 
 def test_restconf_get_list_select_one_trunk():
-    response = requests.get("http://{}:{}{}/data/testing:test/animals/animal=cat".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/testing:test/animals/animal=cat".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/yang-data+json"
@@ -724,7 +654,7 @@ def test_restconf_get_list_select_one_trunk():
 
 
 def test_restconf_get_list_select_one_by_path_trunk():
-    response = requests.get("http://{}:{}{}/data/testing:test/animals/animal/cat".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/testing:test/animals/animal/cat".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/yang-data+json"
@@ -741,7 +671,7 @@ def test_restconf_get_list_select_one_by_path_trunk():
 
 
 def test_restconf_get_list_select_two_trunk():
-    response = requests.get("http://{}:{}{}/data/testing:test/animals/animal=hamster/food=banana".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/testing:test/animals/animal=hamster/food=banana".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/yang-data+json"
@@ -758,7 +688,7 @@ def test_restconf_get_list_select_two_trunk():
 
 
 def test_restconf_get_leaf_list_node():
-    response = requests.get("http://{}:{}{}/data/testing:test/animals/animal=parrot/toys/toy".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/testing:test/animals/animal=parrot/toys/toy".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/yang-data+json"
@@ -784,7 +714,7 @@ def test_restconf_get_leaf_list_node():
 
 
 def test_restconf_query_empty():
-    response = requests.get("http://{}:{}{}/data/test/state/uptime?".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/test/state/uptime?".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -821,7 +751,7 @@ def test_restconf_query_invalid_queries():
     ]
     for query in queries:
         print("Checking " + query)
-        response = requests.get("http://{}:{}{}/data/test/settings?{}".format(host, port, docroot, query), headers=get_restconf_headers)
+        response = requests.get("{}{}/data/test/settings?{}".format(server_uri, docroot, query), headers=get_restconf_headers)
         assert response.status_code == 400
         assert len(response.content) > 0
         print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -848,7 +778,7 @@ def test_restconf_query_content_all():
     apteryx_set("/test/settings/users/alfred/name", "alfred")
     apteryx_set("/test/settings/users/alfred/age", "87")
     apteryx_set("/test/settings/users/alfred/active", "true")
-    response = requests.get("http://{}:{}{}/data/test/settings?content=all".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/test/settings?content=all".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -882,7 +812,7 @@ def test_restconf_query_content_config():
     apteryx_set("/test/settings/users/alfred/name", "alfred")
     apteryx_set("/test/settings/users/alfred/age", "87")
     apteryx_set("/test/settings/users/alfred/active", "true")
-    response = requests.get("http://{}:{}{}/data/test/settings?content=config".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/test/settings?content=config".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -917,7 +847,7 @@ def test_restconf_query_content_nonconfig():
     apteryx_set("/test/settings/users/alfred/name", "alfred")
     apteryx_set("/test/settings/users/alfred/age", "87")
     apteryx_set("/test/settings/users/alfred/active", "true")
-    response = requests.get("http://{}:{}{}/data/test/settings?content=nonconfig".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/test/settings?content=nonconfig".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -943,7 +873,7 @@ def test_restconf_query_depth_unbounded():
     apteryx_set("/test/settings/users/alfred/name", "alfred")
     apteryx_set("/test/settings/users/alfred/age", "87")
     apteryx_set("/test/settings/users/alfred/active", "true")
-    response = requests.get("http://{}:{}{}/data/test/settings?depth=unbounded".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/test/settings?depth=unbounded".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -973,7 +903,7 @@ def test_restconf_query_depth_unbounded():
 
 
 def test_restconf_query_depth_1_leaf():
-    response = requests.get("http://{}:{}{}/data/test/settings/debug?depth=1".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/test/settings/debug?depth=1".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -991,7 +921,7 @@ def test_restconf_query_depth_1_trunk():
     apteryx_set("/test/settings/users/alfred/name", "alfred")
     apteryx_set("/test/settings/users/alfred/age", "87")
     apteryx_set("/test/settings/users/alfred/active", "true")
-    response = requests.get("http://{}:{}{}/data/test/settings?depth=1".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/test/settings?depth=1".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -1002,7 +932,7 @@ def test_restconf_query_depth_1_list():
     apteryx_set("/test/settings/users/alfred/name", "alfred")
     apteryx_set("/test/settings/users/alfred/age", "87")
     apteryx_set("/test/settings/users/alfred/active", "true")
-    response = requests.get("http://{}:{}{}/data/test/settings/users?depth=1".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/test/settings/users?depth=1".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -1016,7 +946,7 @@ def test_restconf_query_depth_2_trunk():
     apteryx_set("/test/settings/users/alfred/name", "alfred")
     apteryx_set("/test/settings/users/alfred/age", "87")
     apteryx_set("/test/settings/users/alfred/active", "true")
-    response = requests.get("http://{}:{}{}/data/test/settings?depth=2".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/test/settings?depth=2".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -1040,7 +970,7 @@ def test_restconf_query_depth_2_list():
     apteryx_set("/test/settings/users/alfred/name", "alfred")
     apteryx_set("/test/settings/users/alfred/age", "87")
     apteryx_set("/test/settings/users/alfred/active", "true")
-    response = requests.get("http://{}:{}{}/data/test/settings/users?depth=2".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/test/settings/users?depth=2".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -1064,7 +994,7 @@ def test_restconf_query_depth_3():
     apteryx_set("/test/settings/users/alfred/name", "alfred")
     apteryx_set("/test/settings/users/alfred/age", "87")
     apteryx_set("/test/settings/users/alfred/active", "true")
-    response = requests.get("http://{}:{}{}/data/test/settings?depth=3".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/test/settings?depth=3".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -1094,7 +1024,7 @@ def test_restconf_query_depth_3():
 
 
 def test_restconf_query_depth_4():
-    response = requests.get("http://{}:{}{}/data/test/animals?depth=4".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/test/animals?depth=4".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -1141,7 +1071,7 @@ def test_restconf_query_depth_4():
 
 
 def test_restconf_query_depth_5():
-    response = requests.get("http://{}:{}{}/data/test/animals?depth=5".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/test/animals?depth=5".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -1194,7 +1124,7 @@ def test_restconf_query_depth_5():
 
 
 def test_restconf_query_field_one_node():
-    response = requests.get("http://{}:{}{}/data/test/state/uptime?fields=hours".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/test/state/uptime?fields=hours".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -1208,7 +1138,7 @@ def test_restconf_query_field_one_node():
 
 
 def test_restconf_query_field_two_nodes():
-    response = requests.get("http://{}:{}{}/data/test/state/uptime?fields=days;minutes".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/test/state/uptime?fields=days;minutes".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -1223,7 +1153,7 @@ def test_restconf_query_field_two_nodes():
 
 
 def test_restconf_query_field_three_nodes():
-    response = requests.get("http://{}:{}{}/data/test/state/uptime?fields=days;minutes;hours".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/test/state/uptime?fields=days;minutes;hours".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -1239,7 +1169,7 @@ def test_restconf_query_field_three_nodes():
 
 
 def test_restconf_query_field_one_path():
-    response = requests.get("http://{}:{}{}/data/test/state?fields=uptime/days".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/test/state?fields=uptime/days".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -1255,7 +1185,7 @@ def test_restconf_query_field_one_path():
 
 
 def test_restconf_query_field_two_paths():
-    response = requests.get("http://{}:{}{}/data/test/state?fields=uptime/days;uptime/seconds".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/test/state?fields=uptime/days;uptime/seconds".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -1272,7 +1202,7 @@ def test_restconf_query_field_two_paths():
 
 
 def test_restconf_query_field_three_paths():
-    response = requests.get("http://{}:{}{}/data/test/state?fields=uptime/days;uptime/seconds;uptime/hours".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/test/state?fields=uptime/days;uptime/seconds;uptime/hours".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -1290,7 +1220,7 @@ def test_restconf_query_field_three_paths():
 
 
 def test_restconf_query_field_one_path_two_nodes():
-    response = requests.get("http://{}:{}{}/data/test/state?fields=uptime(days;seconds)".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/test/state?fields=uptime(days;seconds)".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -1307,7 +1237,7 @@ def test_restconf_query_field_one_path_two_nodes():
 
 
 def test_restconf_query_field_two_paths_two_nodes():
-    response = requests.get("http://{}:{}{}/data/test/state?fields=uptime(days;seconds);uptime(hours;minutes)".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/test/state?fields=uptime(days;seconds);uptime(hours;minutes)".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -1326,7 +1256,7 @@ def test_restconf_query_field_two_paths_two_nodes():
 
 
 def test_restconf_query_field_list_one_specific_node():
-    response = requests.get("http://{}:{}{}/data/test/animals/animal=mouse?fields=type".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/test/animals/animal=mouse?fields=type".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -1340,7 +1270,7 @@ def test_restconf_query_field_list_one_specific_node():
 
 
 def test_restconf_query_field_list_two_specific_nodes():
-    response = requests.get("http://{}:{}{}/data/test/animals/animal=mouse?fields=name;type".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/test/animals/animal=mouse?fields=name;type".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -1355,7 +1285,7 @@ def test_restconf_query_field_list_two_specific_nodes():
 
 
 def test_restconf_query_field_list_all_nodes():
-    response = requests.get("http://{}:{}{}/data/test/animals/animal?fields=name".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/test/animals/animal?fields=name".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -1383,7 +1313,7 @@ def test_restconf_query_field_list_all_nodes():
 
 
 def test_restconf_query_field_list_select_two_all_nodes():
-    response = requests.get("http://{}:{}{}/data/test/animals/animal=hamster/food?fields=name".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/test/animals/animal=hamster/food?fields=name".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -1434,7 +1364,8 @@ def test_restconf_query_field_list_select_two_all_nodes():
 
 def test_restconf_create_single_node_ns_none():
     apteryx_set("/test/settings/priority", "")
-    response = requests.post("http://{}:{}{}/data/test/settings".format(host, port, docroot), headers=set_restconf_headers, data="""{"priority": "2"}""")
+    data = """{"priority": "2"}"""
+    response = requests.post("{}{}/data/test/settings".format(server_uri, docroot), auth=server_auth, headers=set_restconf_headers, data=data)
     assert response.status_code == 201
     assert len(response.content) == 0
     assert apteryx_get("/test/settings/priority") == "2"
@@ -1442,7 +1373,8 @@ def test_restconf_create_single_node_ns_none():
 
 def test_restconf_create_single_node_ns_aug_none():
     apteryx_set("/test/settings/volume", "")
-    response = requests.post("http://{}:{}{}/data/test/settings".format(host, port, docroot), headers=set_restconf_headers, data="""{"volume": "2"}""")
+    data = """{"volume": "2"}"""
+    response = requests.post("{}{}/data/test/settings".format(server_uri, docroot), auth=server_auth, headers=set_restconf_headers, data=data)
     assert response.status_code == 201
     assert len(response.content) == 0
     assert apteryx_get("/test/settings/volume") == "2"
@@ -1450,7 +1382,8 @@ def test_restconf_create_single_node_ns_aug_none():
 
 def test_restconf_create_single_node_ns_default():
     apteryx_set("/test/settings/priority", "")
-    response = requests.post("http://{}:{}{}/data/testing:test/settings".format(host, port, docroot), headers=set_restconf_headers, data="""{"priority": "2"}""")
+    data = """{"priority": "2"}"""
+    response = requests.post("{}{}/data/testing:test/settings".format(server_uri, docroot), auth=server_auth, headers=set_restconf_headers, data=data)
     assert response.status_code == 201
     assert len(response.content) == 0
     assert apteryx_get("/test/settings/priority") == "2"
@@ -1458,7 +1391,8 @@ def test_restconf_create_single_node_ns_default():
 
 def test_restconf_create_single_node_ns_aug_default():
     apteryx_set("/test/settings/volume", "")
-    response = requests.post("http://{}:{}{}/data/testing:test/settings".format(host, port, docroot), headers=set_restconf_headers, data="""{"volume": "2"}""")
+    data = """{"volume": "2"}"""
+    response = requests.post("{}{}/data/testing:test/settings".format(server_uri, docroot), auth=server_auth, headers=set_restconf_headers, data=data)
     assert response.status_code == 201
     assert len(response.content) == 0
     assert apteryx_get("/test/settings/volume") == "2"
@@ -1466,7 +1400,8 @@ def test_restconf_create_single_node_ns_aug_default():
 
 def test_restconf_create_single_node_ns_other():
     apteryx_set("/t2:test/settings/priority", "")
-    response = requests.post("http://{}:{}{}/data/testing-2:test/settings".format(host, port, docroot), headers=set_restconf_headers, data="""{"priority": "3"}""")
+    data = """{"priority": "3"}"""
+    response = requests.post("{}{}/data/testing-2:test/settings".format(server_uri, docroot), auth=server_auth, headers=set_restconf_headers, data=data)
     assert response.status_code == 201
     assert len(response.content) == 0
     assert apteryx_get("/t2:test/settings/priority") == "3"
@@ -1474,7 +1409,8 @@ def test_restconf_create_single_node_ns_other():
 
 def test_restconf_create_single_node_ns_aug_other():
     apteryx_set("/t2:test/settings/speed", "")
-    response = requests.post("http://{}:{}{}/data/testing-2:test/settings".format(host, port, docroot), headers=set_restconf_headers, data="""{"testing2-augmented:speed": "3"}""")
+    data = """{"testing2-augmented:speed": "3"}"""
+    response = requests.post("{}{}/data/testing-2:test/settings".format(server_uri, docroot), auth=server_auth, headers=set_restconf_headers, data=data)
     assert response.status_code == 201
     assert len(response.content) == 0
     assert apteryx_get("/t2:test/settings/speed") == "3"
@@ -1482,7 +1418,8 @@ def test_restconf_create_single_node_ns_aug_other():
 
 def test_restconf_create_string():
     apteryx_set("/test/settings/description", "")
-    response = requests.post("http://{}:{}{}/data/test/settings".format(host, port, docroot), headers=set_restconf_headers, data="""{"description": "this is a description"}""")
+    data = """{"description": "this is a description"}"""
+    response = requests.post("{}{}/data/test/settings".format(server_uri, docroot), auth=server_auth, headers=set_restconf_headers, data=data)
     assert response.status_code == 201
     assert len(response.content) == 0
     assert apteryx_get("/test/settings/description") == "this is a description"
@@ -1491,7 +1428,8 @@ def test_restconf_create_string():
 @pytest.mark.skip(reason="should fail to create and return (CONFLICT)")
 def test_restconf_create_existing_string():
     apteryx_set("/test/settings/description", "already set")
-    response = requests.post("http://{}:{}{}/data/test/settings".format(host, port, docroot), headers=set_restconf_headers, data="""{"description": "this is a description"}""")
+    data = """{"description": "this is a description"}"""
+    response = requests.post("{}{}/data/test/settings".format(server_uri, docroot), auth=server_auth, headers=set_restconf_headers, data=data)
     assert response.status_code == 409
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -1514,13 +1452,15 @@ def test_restconf_create_existing_string():
 
 def test_restconf_create_null():
     apteryx_set("/test/settings/description", "")
-    response = requests.post("http://{}:{}{}/data/test/settings".format(host, port, docroot), headers=set_restconf_headers, data="""{"description": ""}""")
+    data = """{"description": ""}"""
+    response = requests.post("{}{}/data/test/settings".format(server_uri, docroot), auth=server_auth, headers=set_restconf_headers, data=data)
     assert response.status_code == 201
     assert apteryx_get("/test/settings/description") == "Not found"
 
 
 def test_restconf_create_readonly():
-    response = requests.post("http://{}:{}{}/data/test/state".format(host, port, docroot), headers=set_restconf_headers, data="""{"counter": 123}""")
+    data = """{"counter": 123}"""
+    response = requests.post("{}{}/data/test/state".format(server_uri, docroot), auth=server_auth, headers=set_restconf_headers, data=data)
     assert response.status_code == 403
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -1541,7 +1481,8 @@ def test_restconf_create_readonly():
 
 
 def test_restconf_create_invalid_path():
-    response = requests.post("http://{}:{}{}/data/test/cabbage".format(host, port, docroot), headers=set_restconf_headers, data="""{"description": "this is a description"}""")
+    data = """{"description": "this is a description"}"""
+    response = requests.post("{}{}/data/test/cabbage".format(server_uri, docroot), auth=server_auth, headers=set_restconf_headers, data=data)
     assert response.status_code == 404
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -1562,7 +1503,7 @@ def test_restconf_create_invalid_path():
 
 
 def test_restconf_create_invalid_leaf():
-    response = requests.post("http://{}:{}{}/data/test/settings".format(host, port, docroot), headers=set_restconf_headers, data="""{"cabbage": "this is cabbage"}""")
+    response = requests.post("{}{}/data/test/settings".format(server_uri, docroot), auth=server_auth, headers=set_restconf_headers, data="""{"cabbage": "this is cabbage"}""")
     assert response.status_code == 404
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -1584,7 +1525,7 @@ def test_restconf_create_invalid_leaf():
 
 def test_restconf_create_invalid_json():
     apteryx_set("/test/settings/description", "")
-    response = requests.post("http://{}:{}{}/data/test/settings".format(host, port, docroot), headers=set_restconf_headers, data="""{"description":""")
+    response = requests.post("{}{}/data/test/settings".format(server_uri, docroot), auth=server_auth, headers=set_restconf_headers, data="""{"description":""")
     assert response.status_code == 400
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -1606,12 +1547,12 @@ def test_restconf_create_invalid_json():
 
 def test_restconf_create_enum():
     apteryx_set("/test/settings/debug", "")
-    response = requests.post("http://{}:{}{}/data/test/settings".format(host, port, docroot), headers=set_restconf_headers, data="""{"debug": "disable"}""")
+    response = requests.post("{}{}/data/test/settings".format(server_uri, docroot), auth=server_auth, headers=set_restconf_headers, data="""{"debug": "disable"}""")
     assert response.status_code == 201
     assert len(response.content) == 0
     assert apteryx_get("/test/settings/debug") == "0"
     apteryx_set("/test/settings/debug", "")
-    response = requests.post("http://{}:{}{}/data/test/settings".format(host, port, docroot), headers=set_restconf_headers, data="""{"debug": "enable"}""")
+    response = requests.post("{}{}/data/test/settings".format(server_uri, docroot), auth=server_auth, headers=set_restconf_headers, data="""{"debug": "enable"}""")
     assert response.status_code == 201
     assert len(response.content) == 0
     assert apteryx_get("/test/settings/debug") == "1"
@@ -1619,7 +1560,7 @@ def test_restconf_create_enum():
 
 def test_restconf_create_invalid_enum():
     apteryx_set("/test/settings/debug", "")
-    response = requests.post("http://{}:{}{}/data/test/settings".format(host, port, docroot), headers=set_restconf_headers, data="""{"debug": "cabbage"}""")
+    response = requests.post("{}{}/data/test/settings".format(server_uri, docroot), auth=server_auth, headers=set_restconf_headers, data="""{"debug": "cabbage"}""")
     assert response.status_code == 400
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -1641,7 +1582,7 @@ def test_restconf_create_invalid_enum():
 
 
 def test_restconf_create_hidden():
-    response = requests.post("http://{}:{}{}/data/test/settings".format(host, port, docroot), headers=set_restconf_headers, data="""{"hidden": "cabbage"}""")
+    response = requests.post("{}{}/data/test/settings".format(server_uri, docroot), auth=server_auth, headers=set_restconf_headers, data="""{"hidden": "cabbage"}""")
     assert response.status_code == 403
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -1663,16 +1604,16 @@ def test_restconf_create_hidden():
 
 def test_restconf_create_out_of_range_integer():
     apteryx_set("/test/settings/priority", "")
-    response = requests.post("http://{}:{}{}/data/test/settings".format(host, port, docroot), headers=set_restconf_headers, data="""{"priority": 1}""")
+    response = requests.post("{}{}/data/test/settings".format(server_uri, docroot), auth=server_auth, headers=set_restconf_headers, data="""{"priority": 1}""")
     assert response.status_code == 201
     apteryx_set("/test/settings/priority", "")
-    response = requests.post("http://{}:{}{}/data/test/settings".format(host, port, docroot), headers=set_restconf_headers, data="""{"priority": 0}""")
+    response = requests.post("{}{}/data/test/settings".format(server_uri, docroot), auth=server_auth, headers=set_restconf_headers, data="""{"priority": 0}""")
     assert response.status_code == 400
     apteryx_set("/test/settings/priority", "")
-    response = requests.post("http://{}:{}{}/data/test/settings".format(host, port, docroot), headers=set_restconf_headers, data="""{"priority": 6}""")
+    response = requests.post("{}{}/data/test/settings".format(server_uri, docroot), auth=server_auth, headers=set_restconf_headers, data="""{"priority": 6}""")
     assert response.status_code == 400
     apteryx_set("/test/settings/priority", "")
-    response = requests.post("http://{}:{}{}/data/test/settings".format(host, port, docroot), headers=set_restconf_headers, data="""{"priority": 55}""")
+    response = requests.post("{}{}/data/test/settings".format(server_uri, docroot), auth=server_auth, headers=set_restconf_headers, data="""{"priority": 55}""")
     assert response.status_code == 400
     assert apteryx_get("/test/settings/priority") == "Not found"
 
@@ -1687,7 +1628,7 @@ def test_restconf_create_list_entry_ok():
     ]
 }
 """
-    response = requests.post("http://{}:{}{}/data/test/animals".format(host, port, docroot), data=tree, headers=set_restconf_headers)
+    response = requests.post("{}{}/data/test/animals".format(server_uri, docroot), auth=server_auth, data=tree, headers=set_restconf_headers)
     assert response.status_code == 201
 
 
@@ -1703,7 +1644,7 @@ def test_restconf_create_list_entry_exists():
     ]
 }
 """
-    response = requests.post("http://{}:{}{}/data/test/animals".format(host, port, docroot), data=tree, headers=set_restconf_headers)
+    response = requests.post("{}{}/data/test/animals".format(server_uri, docroot), auth=server_auth, data=tree, headers=set_restconf_headers)
     assert response.status_code == 409
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -1735,7 +1676,7 @@ def test_restconf_replace_list_entry_new():
     ]
 }
 """
-    response = requests.put("http://{}:{}{}/data/test/animals".format(host, port, docroot), data=tree, headers=set_restconf_headers)
+    response = requests.put("{}{}/data/test/animals".format(server_uri, docroot), auth=server_auth, data=tree, headers=set_restconf_headers)
     assert response.status_code == 204
 
 
@@ -1751,7 +1692,7 @@ def test_restconf_replace_list_entry_exists():
     ]
 }
 """
-    response = requests.put("http://{}:{}{}/data/test/animals".format(host, port, docroot), data=tree, headers=set_restconf_headers)
+    response = requests.put("{}{}/data/test/animals".format(server_uri, docroot), auth=server_auth, data=tree, headers=set_restconf_headers)
     assert response.status_code == 204
     assert apteryx_get("/test/animals/animal/cat/name") == "cat"
     assert apteryx_get("/test/animals/animal/cat/colour") == "purple"
@@ -1759,13 +1700,13 @@ def test_restconf_replace_list_entry_exists():
 
 
 def test_restconf_replace_if_not_modified_since():
-    response = requests.get("http://{}:{}{}/data/test/settings/priority".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/test/settings/priority".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200 and len(response.content) > 0 and response.json() == json.loads('{ "priority": 1 }')
     last_modified = response.headers.get("Last-Modified")
     time.sleep(1)
     apteryx_set("/test/settings/priority", "2")
     headers = {**get_restconf_headers, 'If-Unmodified-Since': last_modified}
-    response = requests.put("http://{}:{}{}/data/test/settings".format(host, port, docroot), headers=headers, data="""{"priority": "3"}""")
+    response = requests.put("{}{}/data/test/settings".format(server_uri, docroot), auth=server_auth, headers=headers, data="""{"priority": "3"}""")
     assert response.status_code == 412
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -1787,13 +1728,13 @@ def test_restconf_replace_if_not_modified_since():
 
 
 def test_restconf_replace_if_not_modified_since_namespace():
-    response = requests.get("http://{}:{}{}/data/testing:test/settings/priority".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/testing:test/settings/priority".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200 and len(response.content) > 0 and response.json() == json.loads('{ "priority": 1 }')
     last_modified = response.headers.get("Last-Modified")
     time.sleep(1)
     apteryx_set("/test/settings/priority", "2")
     headers = {**get_restconf_headers, 'If-Unmodified-Since': last_modified}
-    response = requests.put("http://{}:{}{}/data/testing:test/settings".format(host, port, docroot), headers=headers, data="""{"priority": "3"}""")
+    response = requests.put("{}{}/data/testing:test/settings".format(server_uri, docroot), auth=server_auth, headers=headers, data="""{"priority": "3"}""")
     assert response.status_code == 412
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -1815,12 +1756,14 @@ def test_restconf_replace_if_not_modified_since_namespace():
 
 
 def test_restconf_replace_if_match():
-    response = requests.get("http://{}:{}{}/data/test/settings/priority".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/test/settings/priority".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200 and len(response.content) > 0 and response.json() == json.loads('{ "priority": 1 }')
     etag = response.headers.get("Etag")
     time.sleep(1)
     apteryx_set("/test/settings/priority", "2")
-    response = requests.put("http://{}:{}{}/data/test/settings".format(host, port, docroot), headers={**set_restconf_headers, 'If-Match': etag}, data="""{"priority": "3"}""")
+    data = """{"priority": "3"}"""
+    headers = {**set_restconf_headers, 'If-Match': etag}
+    response = requests.put("{}{}/data/test/settings".format(server_uri, docroot), auth=server_auth, headers=headers, data=data)
     assert response.status_code == 412
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -1842,13 +1785,13 @@ def test_restconf_replace_if_match():
 
 
 def test_restconf_replace_if_match_namespace():
-    response = requests.get("http://{}:{}{}/data/testing:test/settings/priority".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/testing:test/settings/priority".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200 and len(response.content) > 0 and response.json() == json.loads('{ "priority": 1 }')
     etag = response.headers.get("Etag")
     time.sleep(1)
     apteryx_set("/test/settings/priority", "2")
     headers = {**set_restconf_headers, 'If-Match': etag}
-    response = requests.put("http://{}:{}{}/data/testing:test/settings".format(host, port, docroot), headers=headers, data="""{"priority": "3"}""")
+    response = requests.put("{}{}/data/testing:test/settings".format(server_uri, docroot), auth=server_auth, headers=headers, data="""{"priority": "3"}""")
     assert response.status_code == 412
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -1871,7 +1814,8 @@ def test_restconf_replace_if_match_namespace():
 
 def test_restconf_update_string():
     apteryx_set("/test/settings/description", "previously set")
-    response = requests.patch("http://{}:{}{}/data/test/settings".format(host, port, docroot), headers=set_restconf_headers, data="""{"description": "this is a description"}""")
+    data = """{"description": "this is a description"}"""
+    response = requests.patch("{}{}/data/test/settings".format(server_uri, docroot), auth=server_auth, headers=set_restconf_headers, data=data)
     assert response.status_code == 204
     assert len(response.content) == 0
     assert apteryx_get("/test/settings/description") == "this is a description"
@@ -1879,7 +1823,8 @@ def test_restconf_update_string():
 
 def test_restconf_update_missing_string():
     apteryx_set("/test/settings/description", "")
-    response = requests.patch("http://{}:{}{}/data/test/settings".format(host, port, docroot), headers=set_restconf_headers, data="""{"description": "this is a description"}""")
+    data = """{"description": "this is a description"}"""
+    response = requests.patch("{}{}/data/test/settings".format(server_uri, docroot), auth=server_auth, headers=set_restconf_headers, data=data)
     assert response.status_code == 204
     assert len(response.content) == 0
     assert apteryx_get("/test/settings/description") == "this is a description"
@@ -1896,7 +1841,7 @@ def test_restconf_update_existing_list_entry():
     ]
 }
 """
-    response = requests.patch("http://{}:{}{}/data/test/animals".format(host, port, docroot), data=tree, headers=set_restconf_headers)
+    response = requests.patch("{}{}/data/test/animals".format(server_uri, docroot), auth=server_auth, data=tree, headers=set_restconf_headers)
     assert response.status_code == 204
     assert apteryx_get("/test/animals/animal/cat/name") == "cat"
     assert apteryx_get("/test/animals/animal/cat/colour") == "purple"
@@ -1915,7 +1860,7 @@ def test_restconf_update_missing_list_entry():
     ]
 }
 """
-    response = requests.patch("http://{}:{}{}/data/test/animals".format(host, port, docroot), data=tree, headers=set_restconf_headers)
+    response = requests.patch("{}{}/data/test/animals".format(server_uri, docroot), auth=server_auth, data=tree, headers=set_restconf_headers)
     assert response.status_code == 404
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -1938,35 +1883,35 @@ def test_restconf_update_missing_list_entry():
 
 
 def test_restconf_delete_single_node_ns_none():
-    response = requests.delete("http://{}:{}{}/data/test/settings/priority".format(host, port, docroot), headers=set_restconf_headers)
+    response = requests.delete("{}{}/data/test/settings/priority".format(server_uri, docroot), auth=server_auth, headers=set_restconf_headers)
     assert response.status_code == 204
     assert len(response.content) == 0
     assert apteryx_get("/test/settings/priority") == "Not found"
 
 
 def test_restconf_delete_single_node_ns_aug_none():
-    response = requests.delete("http://{}:{}{}/data/test/settings/volume".format(host, port, docroot), headers=set_restconf_headers)
+    response = requests.delete("{}{}/data/test/settings/volume".format(server_uri, docroot), auth=server_auth, headers=set_restconf_headers)
     assert response.status_code == 204
     assert len(response.content) == 0
     assert apteryx_get("/test/settings/volume") == "Not found"
 
 
 def test_restconf_delete_single_node_ns_default():
-    response = requests.delete("http://{}:{}{}/data/testing:test/settings/priority".format(host, port, docroot), headers=set_restconf_headers)
+    response = requests.delete("{}{}/data/testing:test/settings/priority".format(server_uri, docroot), auth=server_auth, headers=set_restconf_headers)
     assert response.status_code == 204
     assert len(response.content) == 0
     assert apteryx_get("/test/settings/priority") == "Not found"
 
 
 def test_restconf_delete_single_node_ns_aug_default():
-    response = requests.delete("http://{}:{}{}/data/testing:test/settings/volume".format(host, port, docroot), headers=set_restconf_headers)
+    response = requests.delete("{}{}/data/testing:test/settings/volume".format(server_uri, docroot), auth=server_auth, headers=set_restconf_headers)
     assert response.status_code == 204
     assert len(response.content) == 0
     assert apteryx_get("/test/settings/volume") == "Not found"
 
 
 def test_restconf_delete_single_node_ns_other():
-    response = requests.delete("http://{}:{}{}/data/testing-2:test/settings/priority".format(host, port, docroot), headers=set_restconf_headers)
+    response = requests.delete("{}{}/data/testing-2:test/settings/priority".format(server_uri, docroot), auth=server_auth, headers=set_restconf_headers)
     assert response.status_code == 204
     assert len(response.content) == 0
     assert apteryx_get("/t2:test/settings/volume") == "Not found"
@@ -1974,7 +1919,7 @@ def test_restconf_delete_single_node_ns_other():
 
 
 def test_restconf_delete_single_node_ns_aug_other():
-    response = requests.delete("http://{}:{}{}/data/testing-2:test/settings/testing2-augmented:speed".format(host, port, docroot), headers=set_restconf_headers)
+    response = requests.delete("{}{}/data/testing-2:test/settings/testing2-augmented:speed".format(server_uri, docroot), auth=server_auth, headers=set_restconf_headers)
     assert response.status_code == 204
     assert len(response.content) == 0
     assert apteryx_get("/t2:test/settings/speed") == "Not found"
@@ -1982,25 +1927,25 @@ def test_restconf_delete_single_node_ns_aug_other():
 
 
 def test_restconf_delete_trunk_ns_none():
-    response = requests.delete("http://{}:{}{}/data/test/animals".format(host, port, docroot), headers=set_restconf_headers)
+    response = requests.delete("{}{}/data/test/animals".format(server_uri, docroot), auth=server_auth, headers=set_restconf_headers)
     assert response.status_code == 204
     assert len(response.content) == 0
-    response = requests.get("http://{}:{}{}/data/test/animals".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/test/animals".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
     assert response.json() == json.loads('{}')
 
 
 def test_restconf_delete_trunk_ns_default():
-    response = requests.delete("http://{}:{}{}/data/testing:test/animals".format(host, port, docroot), headers=set_restconf_headers)
+    response = requests.delete("{}{}/data/testing:test/animals".format(server_uri, docroot), auth=server_auth, headers=set_restconf_headers)
     assert response.status_code == 204
     assert len(response.content) == 0
-    response = requests.get("http://{}:{}{}/data/testing:test/animals".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/testing:test/animals".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
     assert response.json() == json.loads('{}')
 
 
 def test_restconf_delete_trunk_ns_other():
-    response = requests.delete("http://{}:{}{}/data/testing-2:test/settings".format(host, port, docroot), headers=set_restconf_headers)
+    response = requests.delete("{}{}/data/testing-2:test/settings".format(server_uri, docroot), auth=server_auth, headers=set_restconf_headers)
     assert response.status_code == 204
     assert len(response.content) == 0
     assert apteryx_get("/t2:test/settings/priority") == "Not found"
@@ -2008,7 +1953,7 @@ def test_restconf_delete_trunk_ns_other():
 
 
 def test_restconf_delete_trunk_denied():
-    response = requests.delete("http://{}:{}{}/data/testing:test/settings".format(host, port, docroot), headers=set_restconf_headers)
+    response = requests.delete("{}{}/data/testing:test/settings".format(server_uri, docroot), auth=server_auth, headers=set_restconf_headers)
     assert response.status_code == 403 or response.status_code == 404
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -2030,7 +1975,7 @@ def test_restconf_delete_trunk_denied():
 def test_restconf_delete_trunk_hidden():
     # Remove the readonly field so there is nothing illiegal to delete
     apteryx_set("/test/settings/readonly", "")
-    response = requests.delete("http://{}:{}{}/data/testing:test/settings".format(host, port, docroot), headers=set_restconf_headers)
+    response = requests.delete("{}{}/data/testing:test/settings".format(server_uri, docroot), auth=server_auth, headers=set_restconf_headers)
     assert response.status_code == 204
     assert len(response.content) == 0
     assert apteryx_get("/test/settings/debug") == "Not found"
@@ -2043,7 +1988,7 @@ def test_restconf_delete_trunk_nonschema():
     # Remove the readonly field so there is nothing illiegal to delete
     apteryx_set("/test/settings/readonly", "")
     apteryx_set("/test/settings/vegetable", "cabagge")
-    response = requests.delete("http://{}:{}{}/data/testing:test/settings".format(host, port, docroot), headers=set_restconf_headers)
+    response = requests.delete("{}{}/data/testing:test/settings".format(server_uri, docroot), auth=server_auth, headers=set_restconf_headers)
     assert response.status_code == 204
     assert len(response.content) == 0
     assert apteryx_get("/test/settings/debug") == "Not found"
@@ -2054,7 +1999,7 @@ def test_restconf_delete_trunk_nonschema():
 
 
 def test_restconf_delete_list_select_one():
-    response = requests.delete("http://{}:{}{}/data/testing:test/animals/animal=cat".format(host, port, docroot), headers=set_restconf_headers)
+    response = requests.delete("{}{}/data/testing:test/animals/animal=cat".format(server_uri, docroot), auth=server_auth, headers=set_restconf_headers)
     assert response.status_code == 204
     assert len(response.content) == 0
     assert apteryx_get("/test/animals/animal/cat/name") == "Not found"
@@ -2064,7 +2009,7 @@ def test_restconf_delete_list_select_one():
 
 
 def test_restconf_delete_list_select_by_path_one():
-    response = requests.delete("http://{}:{}{}/data/testing:test/animals/animal/cat".format(host, port, docroot), headers=set_restconf_headers)
+    response = requests.delete("{}{}/data/testing:test/animals/animal/cat".format(server_uri, docroot), auth=server_auth, headers=set_restconf_headers)
     assert response.status_code == 204
     assert len(response.content) == 0
     assert apteryx_get("/test/animals/animal/cat/name") == "Not found"
@@ -2074,7 +2019,7 @@ def test_restconf_delete_list_select_by_path_one():
 
 
 def test_restconf_delete_list_select_two():
-    response = requests.delete("http://{}:{}{}/data/testing:test/animals/animal=hamster/food=banana".format(host, port, docroot), headers=set_restconf_headers)
+    response = requests.delete("{}{}/data/testing:test/animals/animal=hamster/food=banana".format(server_uri, docroot), auth=server_auth, headers=set_restconf_headers)
     assert response.status_code == 204
     assert len(response.content) == 0
     assert apteryx_get("/test/animals/animal/hamster/food/banana/name") == "Not found"
@@ -2084,7 +2029,7 @@ def test_restconf_delete_list_select_two():
 
 
 def test_restconf_delete_list_by_path_select_two():
-    response = requests.delete("http://{}:{}{}/data/testing:test/animals/animal/hamster/food/banana".format(host, port, docroot), headers=set_restconf_headers)
+    response = requests.delete("{}{}/data/testing:test/animals/animal/hamster/food/banana".format(server_uri, docroot), auth=server_auth, headers=set_restconf_headers)
     assert response.status_code == 204
     assert len(response.content) == 0
     assert apteryx_get("/test/animals/animal/hamster/food/banana/name") == "Not found"
@@ -2130,7 +2075,7 @@ def test_restconf_delete_list_by_path_select_two():
 #   |  |  +--ro schema    -> ../../schema/name
 #   |  +--ro content-id    string
 def test_restconf_yang_library_tree():
-    response = requests.get("http://{}:{}{}/data/ietf-yang-library:yang-library".format(host, port, docroot), headers=get_restconf_headers)
+    response = requests.get("{}{}/data/ietf-yang-library:yang-library".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/yang-data+json"
