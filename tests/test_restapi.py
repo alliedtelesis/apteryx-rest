@@ -391,6 +391,23 @@ def test_restapi_get_list_all_nodes():
 """)
 
 
+def test_restapi_get_two_list_all_nodes():
+    response = requests.get("{}{}/test/animals/animal/*/food/*/name".format(server_uri, docroot), verify=False, auth=server_auth)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/json"
+    assert response.json() == json.loads("""
+{
+    "banana": {
+        "name": "banana"
+    },
+    "nuts": {
+        "name": "nuts"
+    }
+}
+""")
+
+
 def test_restapi_get_etag_exists():
     response = requests.get("{}{}/test/settings/enable".format(server_uri, docroot), verify=False, auth=server_auth)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -1468,6 +1485,23 @@ def test_restapi_query_field_list_all_nodes():
     },
     "parrot": {
         "name": "parrot"
+    }
+}
+""")
+
+
+def test_restapi_query_field_two_list_all_nodes():
+    response = requests.get("{}{}/test/animals/animal/*/food/*?fields=name".format(server_uri, docroot), verify=False, auth=server_auth)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/json"
+    assert response.json() == json.loads("""
+{
+    "nuts": {
+        "name": "nuts"
+    },
+    "banana": {
+        "name": "banana"
     }
 }
 """)

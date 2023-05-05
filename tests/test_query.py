@@ -1,4 +1,5 @@
 import json
+import pytest
 import requests
 from conftest import server_uri, server_auth, docroot, apteryx_set, get_restconf_headers
 
@@ -37,7 +38,7 @@ def test_restconf_query_invalid_queries():
         # "fields=(",
         # "fields=)",
         # "fields=()",
-        "content=all&content=all"
+        "fields=all&fields=all"
     ]
     for query in queries:
         print("Checking " + query)
@@ -619,6 +620,70 @@ def test_restconf_query_field_list_select_two_all_nodes():
     ]
 }
 """)
+
+
+@pytest.mark.skip(reason="not implemented yet")
+def test_restconf_query_with_defaults_report_all_leaf():
+    apteryx_set("/test/settings/debug", "")
+    response = requests.get("{}{}/data/test/settings/debug?with-defaults=report-all".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    assert response.status_code == 200
+    assert len(response.content) > 0
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.json() == json.loads("""
+{
+    "debug": "enable",
+}
+    """)
+
+
+@pytest.mark.skip(reason="not implemented yet")
+def test_restconf_query_with_defaults_trim_leaf():
+    apteryx_set("/test/settings/debug", "disable")
+    response = requests.get("{}{}/data/test/settings/debug?with-defaults=trim".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    assert response.status_code == 200
+    assert len(response.content) > 0
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.json() == json.loads("""
+{
+}
+    """)
+
+
+@pytest.mark.skip(reason="not implemented yet")
+def test_restconf_query_with_defaults_explicit_leaf():
+    apteryx_set("/test/settings/debug", "disable")
+    response = requests.get("{}{}/data/test/settings/debug?with-defaults=explicit".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    assert response.status_code == 200
+    assert len(response.content) > 0
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.json() == json.loads("""
+{
+    "debug": "disable",
+}
+    """)
+
+
+@pytest.mark.skip(reason="not implemented yet")
+def test_restconf_query_with_defaults_report_all_tagged_not_supported():
+    response = requests.get("{}{}/data/test/settings/debug?with-defaults=report-all-tagged".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    assert response.status_code == 400
+    assert len(response.content) > 0
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.json() == json.loads("""
+{
+    "ietf-restconf:errors" : {
+        "error" : [
+        {
+            "error-type" : "application",
+            "error-tag" : "malformed-message",
+            "error-message" : "malformed request syntax"
+        }
+        ]
+    }
+}
+    """)
+
 
 # GET /restconf/data/example:interfaces/interface=eth1??with-defaults=report-all
 # GET /restconf/data/example:interfaces/interface=eth1??with-defaults=report-all-tagged
