@@ -218,6 +218,29 @@ get_response_node (sch_node *schema, json_t *root, int flags)
     return root;
 }
 
+// TODO reuse for get_response_node above
+static GNode *
+_get_response_node (sch_node *schema, GNode *root, int flags)
+{
+    int depth = 0;
+
+    schema = sch_node_parent (schema);
+    if (flags & FLAGS_RESTCONF && schema && sch_is_list (schema))
+        depth--;
+    while (schema)
+    {
+        schema = sch_node_parent (schema);
+        depth++;
+    }
+
+    while (root && depth > 1)
+    {
+        root = root->children;
+        depth--;
+    }
+    return root;
+}
+
 static char *
 get_collapsed_root (GNode *root, gboolean values)
 {
@@ -239,23 +262,26 @@ get_collapsed_root (GNode *root, gboolean values)
 static char *
 rest_api_get (int flags, const char *path, const char *if_none_match, const char *if_modified_since)
 {
+    const char *qmark;
     char *rpath = NULL;
     sch_node *api_subtree = NULL;
     char *apath = NULL;
     json_t *json = NULL;
     uint64_t ts = 0;
     int rc = HTTP_CODE_OK;
-    GNode *query, *tree;
+    GNode *query, *tree, *child;
     char *json_string = NULL;
     char *resp = NULL;
     int schflags = 0;
+    int depth;
 
-    /* Get the path without any query string */
-    rpath = strchr (path, '?');
-    if (rpath)
-        rpath = strndup (path, rpath - path);
-    else
-        rpath = strdup (path);
+    /* Separate the path from any query string */
+    qmark = strchr (path, '?');
+    if (qmark)
+    {
+        path = (const char *) (rpath = strndup (path, rpath - path));
+        qmark += 1;
+    }
 
     /* Parsing options */
     if (verbose)
@@ -267,8 +293,8 @@ rest_api_get (int flags, const char *path, const char *if_none_match, const char
     if (flags & FLAGS_RESTCONF)
         schflags |= SCH_F_NS_MODEL_NAME;
 
-    /* Generate an aperyx query from the path */
-    query = sch_path_to_query (g_schema, &api_subtree, path, schflags);
+    /* Convert the path to a GNode tree to use as the base of the apteryx query */
+    query = sch_path_to_gnode (g_schema, NULL, path, schflags, &api_subtree);
     if (!query || !api_subtree)
     {
         VERBOSE ("REST: Path \"%s\" invalid\n", path);
@@ -318,10 +344,60 @@ rest_api_get (int flags, const char *path, const char *if_none_match, const char
         }
     }
 
+    /* Parse the query if provided */
+    child = query;
+    while (child->children)
+        child = child->children;
+    depth = g_node_max_height (query);
+    if (qmark)
+    {
+        /* Parse the query and attach to the tree */
+        if (!sch_query_to_gnode (g_schema, api_subtree, child, qmark, schflags, &schflags))
+        {
+            rc = HTTP_CODE_BAD_REQUEST;
+            goto exit;
+        }
+    }
+    /* Without a query we may need to add a wildcard to get everything from here down */
+    if (!query || (depth == g_node_max_height (query) && !(schflags & SCH_F_DEPTH_ONE)))
+    {
+        if (api_subtree && sch_node_child_first (api_subtree) && !(schflags & SCH_F_STRIP_DATA))
+        {
+            /* Get everything from here down if we do not already have a star */
+            if (!g_node_first_child (child) && g_strcmp0 (APTERYX_NAME (child), "*") != 0)
+            {
+                APTERYX_NODE (child, g_strdup ("*"));
+                DEBUG ("%*s%s\n", g_node_max_height (query) * 2, " ", "*");
+            }
+        }
+    }
+
     /* Query the database */
     tree = apteryx_query (query);
+    if (schflags & SCH_F_WITH_DEFAULTS)
+    {
+        if (tree)
+        {
+            GNode *rnode = _get_response_node (api_subtree, tree, flags);
+            sch_populate_default_nodes (g_schema, api_subtree, rnode);
+        }
+        else if (!tree)
+        {
+            /* Nothing in the database, but we may have defaults! */
+            tree = query;
+            query = NULL;
+            sch_populate_default_nodes (g_schema, api_subtree, child);
+        }
+    }
     if (tree)
     {
+        /* Get rid of any unwanted nodes */
+        if (schflags & SCH_F_TRIM_DEFAULTS)
+        {
+            GNode *rnode = _get_response_node (api_subtree, tree, flags);
+            sch_trim_default_nodes (g_schema, api_subtree, rnode);
+        }
+
         /* Convert the result to JSON */
         json = sch_gnode_to_json (g_schema, NULL, tree, schflags);
         if (json)
@@ -419,7 +495,7 @@ rest_api_post (int flags, const char *path, const char *data, int length, const 
     schflags |= SCH_F_STRIP_DATA;
 
     /* Generate an aperyx tree from the path */
-    root = sch_path_to_query (g_schema, &api_subtree, path, schflags);
+    root = sch_path_to_gnode (g_schema, NULL, path, schflags, &api_subtree);
     if (!root || !api_subtree)
     {
         VERBOSE ("REST: Path \"%s\" not found\n", path);
@@ -537,29 +613,6 @@ exit:
     return resp;
 }
 
-// TODO reuse for get_response_node above
-static GNode *
-_get_response_node (sch_node *schema, GNode *root, int flags)
-{
-    int depth = 0;
-
-    schema = sch_node_parent (schema);
-    if (flags & FLAGS_RESTCONF && schema && sch_is_list (schema))
-        depth--;
-    while (schema)
-    {
-        schema = sch_node_parent (schema);
-        depth++;
-    }
-
-    while (root && depth > 1)
-    {
-        root = root->children;
-        depth--;
-    }
-    return root;
-}
-
 int
 set_values_to_null (GNode *node, sch_node *schema)
 {
@@ -625,12 +678,25 @@ rest_api_delete (int flags, const char *path)
         schflags |= SCH_F_NS_MODEL_NAME;
 
     /* Generate an aperyx query from the path */
-    GNode *query = sch_path_to_query (g_schema, &api_subtree, path, schflags);
+    GNode *query = sch_path_to_gnode (g_schema, NULL, path, schflags, &api_subtree);
     if (!query || !api_subtree)
     {
         VERBOSE ("REST: Path \"%s\" not found\n", path);
         rc = HTTP_CODE_NOT_FOUND;
         goto exit;
+    }
+    /* We may want to get everything from here down */
+    if (sch_node_child_first (api_subtree))
+    {
+        GNode *child = query;
+        while (child->children)
+            child = child->children;
+        /* Get everything from here down if we do not already have a star */
+        if (g_strcmp0 (APTERYX_NAME (child), "*") != 0)
+        {
+            DEBUG ("%*s%s\n", g_node_max_height (query) * 2, " ", "*");
+            APTERYX_NODE (child, g_strdup ("*"));
+        }
     }
 
     /* Query the database */

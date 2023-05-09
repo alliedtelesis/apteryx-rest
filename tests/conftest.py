@@ -28,7 +28,7 @@ db_default = [
     ('/test/settings/debug', '1'),
     ('/test/settings/enable', 'true'),
     ('/test/settings/priority', '1'),
-    ('/test/settings/readonly', 'yes'),
+    ('/test/settings/readonly', '0'),
     ('/test/settings/hidden', 'friend'),
     ('/test/state/counter', '42'),
     ('/test/state/uptime/days', '5'),

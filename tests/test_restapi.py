@@ -162,7 +162,7 @@ def test_restapi_get_tree_strings():
         "debug": "1",
         "enable": "true",
         "priority": "1",
-        "readonly": "yes",
+        "readonly": "0",
         "volume": "1"
     }
 }
@@ -242,7 +242,7 @@ def test_restapi_get_tree_root():
             "debug": "1",
             "enable": "true",
             "priority": "1",
-            "readonly": "yes",
+            "readonly": "0",
             "volume": "1"
         },
         "state": {
@@ -728,7 +728,7 @@ def test_restapi_set_tree_static():
         "enable": "false",
         "debug": "0",
         "priority": "5",
-        "readonly": "yes",
+        "readonly": "0",
         "volume": "1"
     }
 }
@@ -756,7 +756,7 @@ def test_restapi_set_tree_null_value():
     "settings": {
         "enable": "false",
         "priority": "5",
-        "readonly": "yes",
+        "readonly": "0",
         "volume": "1"
     }
 }

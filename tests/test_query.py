@@ -622,23 +622,21 @@ def test_restconf_query_field_list_select_two_all_nodes():
 """)
 
 
-@pytest.mark.skip(reason="not implemented yet")
-def test_restconf_query_with_defaults_report_all_leaf():
-    apteryx_set("/test/settings/debug", "")
-    response = requests.get("{}{}/data/test/settings/debug?with-defaults=report-all".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+def test_restconf_query_with_defaults_explicit_leaf():
+    apteryx_set("/test/settings/debug", "0")
+    response = requests.get("{}{}/data/test/settings/debug?with-defaults=explicit".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.json() == json.loads("""
 {
-    "debug": "enable",
+    "debug": "disable"
 }
     """)
 
 
-@pytest.mark.skip(reason="not implemented yet")
 def test_restconf_query_with_defaults_trim_leaf():
-    apteryx_set("/test/settings/debug", "disable")
+    apteryx_set("/test/settings/debug", "0")
     response = requests.get("{}{}/data/test/settings/debug?with-defaults=trim".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
     assert len(response.content) > 0
@@ -649,46 +647,225 @@ def test_restconf_query_with_defaults_trim_leaf():
     """)
 
 
-@pytest.mark.skip(reason="not implemented yet")
-def test_restconf_query_with_defaults_explicit_leaf():
-    apteryx_set("/test/settings/debug", "disable")
-    response = requests.get("{}{}/data/test/settings/debug?with-defaults=explicit".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+def test_restconf_query_with_defaults_report_all_leaf():
+    apteryx_set("/test/settings/debug", "")
+    response = requests.get("{}{}/data/test/settings/debug?with-defaults=report-all".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.json() == json.loads("""
 {
-    "debug": "disable",
+    "debug": "disable"
 }
     """)
 
 
-@pytest.mark.skip(reason="not implemented yet")
-def test_restconf_query_with_defaults_report_all_tagged_not_supported():
+@pytest.mark.skip(reason="do not support tagging of default values")
+def test_restconf_query_with_defaults_report_all_tagged():
     response = requests.get("{}{}/data/test/settings/debug?with-defaults=report-all-tagged".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
-    assert response.status_code == 400
+    assert response.status_code == 200
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.headers["Content-Type"] == "application/yang-data+json"
     assert response.json() == json.loads("""
 {
-    "ietf-restconf:errors" : {
-        "error" : [
-        {
-            "error-type" : "application",
-            "error-tag" : "malformed-message",
-            "error-message" : "malformed request syntax"
-        }
-        ]
+    "debug": "disable",
+    "@debug" : {
+        "ietf-netconf-with-defaults:default" : true
     }
 }
     """)
 
 
-# GET /restconf/data/example:interfaces/interface=eth1??with-defaults=report-all
-# GET /restconf/data/example:interfaces/interface=eth1??with-defaults=report-all-tagged
-# GET /restconf/data/example:interfaces/interface=eth1??with-defaults=trim
-# GET /restconf/data/example:interfaces/interface=eth1??with-defaults=explicit
+def test_restconf_query_with_defaults_explicit_trunk():
+    apteryx_set("/test/settings/debug", "0")
+    response = requests.get("{}{}/data/test/settings?with-defaults=explicit".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    assert response.status_code == 200
+    assert len(response.content) > 0
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.json() == json.loads("""
+{
+    "settings": {
+        "debug": "disable",
+        "enable": true,
+        "priority": 1,
+        "readonly": "yes",
+        "volume": 1
+    }
+}
+    """)
+
+
+def test_restconf_query_with_defaults_trim_trunk_data():
+    apteryx_set("/test/settings/users/alfred/name", "alfred")
+    apteryx_set("/test/settings/users/alfred/age", "87")
+    apteryx_set("/test/settings/users/alfred/active", "false")
+    apteryx_set("/test/settings/debug", "0")
+    response = requests.get("{}{}/data/test/settings?with-defaults=trim".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    assert response.status_code == 200
+    assert len(response.content) > 0
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.json() == json.loads("""
+{
+    "settings": {
+        "enable": true,
+        "priority": 1,
+        "users": [
+            {
+                "name": "alfred",
+                "age": 87
+            }
+        ],
+        "volume": 1
+    }
+}
+    """)
+
+
+def test_restconf_query_with_defaults_report_all_trunk_data():
+    apteryx_set("/test/settings/users/alfred/name", "alfred")
+    apteryx_set("/test/settings/users/alfred/age", "87")
+    apteryx_set("/test/settings/debug", "")
+    response = requests.get("{}{}/data/test/settings?with-defaults=report-all".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    assert response.status_code == 200
+    assert len(response.content) > 0
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.json() == json.loads("""
+{
+    "settings": {
+        "debug": "disable",
+        "enable": true,
+        "priority": 1,
+        "readonly": "yes",
+        "time": {
+            "active": false
+        },
+        "users": [
+            {
+                "active": false,
+                "age": 87,
+                "name": "alfred"
+            }
+        ],
+        "volume": 1
+    }
+}
+    """)
+
+
+def test_restconf_query_with_defaults_report_all_trunk_empty():
+    apteryx_set("/test/settings/debug", "")
+    apteryx_set("/test/settings/enable", "")
+    apteryx_set("/test/settings/priority", "")
+    apteryx_set("/test/settings/hidden", "")
+    apteryx_set("/test/settings/readonly", "")
+    apteryx_set("/test/settings/volume", "")
+    response = requests.get("{}{}/data/test/settings?with-defaults=report-all".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    assert response.status_code == 200
+    assert len(response.content) > 0
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.json() == json.loads("""
+{
+    "settings": {
+        "debug": "disable",
+        "enable": false,
+        "readonly": "yes",
+        "time": {
+            "active": false
+        }
+    }
+}
+    """)
+
+
+def test_restconf_query_with_defaults_explicit_list():
+    apteryx_set("/test/settings/users/alfred/name", "alfred")
+    apteryx_set("/test/settings/users/alfred/age", "87")
+    apteryx_set("/test/settings/users/alfred/active", "true")
+    apteryx_set("/test/settings/users/mildred/name", "mildred")
+    apteryx_set("/test/settings/users/mildred/age", "84")
+    apteryx_set("/test/settings/users/mildred/active", "false")
+    response = requests.get("{}{}/data/test/settings/users?with-defaults=explicit".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    assert response.status_code == 200
+    assert len(response.content) > 0
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.json() == json.loads("""
+{
+    "users": [
+        {
+            "active": true,
+            "age": 87,
+            "name": "alfred"
+        },
+        {
+            "active": false,
+            "age": 84,
+            "name": "mildred"
+        }
+    ]
+}
+    """)
+
+
+def test_restconf_query_with_defaults_trim_list():
+    apteryx_set("/test/settings/users/alfred/name", "alfred")
+    apteryx_set("/test/settings/users/alfred/age", "87")
+    apteryx_set("/test/settings/users/alfred/active", "true")
+    apteryx_set("/test/settings/users/mildred/name", "mildred")
+    apteryx_set("/test/settings/users/mildred/age", "84")
+    apteryx_set("/test/settings/users/mildred/active", "false")
+    response = requests.get("{}{}/data/test/settings/users?with-defaults=trim".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    assert response.status_code == 200
+    assert len(response.content) > 0
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.json() == json.loads("""
+{
+    "users": [
+        {
+            "active": true,
+            "age": 87,
+            "name": "alfred"
+        },
+        {
+            "age": 84,
+            "name": "mildred"
+        }
+    ]
+}
+    """)
+
+
+def test_restconf_query_with_defaults_report_all_list():
+    apteryx_set("/test/settings/users/alfred/name", "alfred")
+    apteryx_set("/test/settings/users/alfred/age", "87")
+    apteryx_set("/test/settings/users/alfred/active", "true")
+    apteryx_set("/test/settings/users/mildred/name", "mildred")
+    apteryx_set("/test/settings/users/mildred/age", "84")
+    response = requests.get("{}{}/data/test/settings/users?with-defaults=report-all".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    assert response.status_code == 200
+    assert len(response.content) > 0
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.json() == json.loads("""
+{
+    "users": [
+        {
+            "active": true,
+            "age": 87,
+            "name": "alfred"
+        },
+        {
+            "active": false,
+            "age": 84,
+            "name": "mildred"
+        }
+    ]
+}
+    """)
+
 
 # POST /restconf/data/example-jukebox:jukebox/playlist=Foo-One?insert=first
 # POST /restconf/data/example-jukebox:jukebox/playlist=Foo-One?insert=after&point=%2Fexample-jukebox%3Ajukebox%2Fplaylist%3DFoo-One%2Fsong%3D1
