@@ -74,6 +74,10 @@ def apteryx_prune(path):
     assert subprocess.check_output("%s -r %s%s" % (APTERYX, APTERYX_URL, path), shell=True).strip().decode('utf-8') != "Failed"
 
 
+def apteryx_traverse(path):
+    return subprocess.check_output("%s -t %s%s" % (APTERYX, APTERYX_URL, path), shell=True).strip().decode('utf-8')
+
+
 @pytest.fixture(autouse=True)
 def run_around_tests():
     # Before test

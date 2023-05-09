@@ -300,9 +300,6 @@ rest_api_get (int flags, const char *path, const char *if_none_match, const char
         VERBOSE ("REST: Path \"%s\" invalid\n", path);
         switch (sch_last_err ())
         {
-        case SCH_E_INVALIDQUERY:
-            rc = HTTP_CODE_BAD_REQUEST;
-            break;
         case SCH_E_NOTREADABLE:
         case SCH_E_NOTWRITABLE:
             rc = HTTP_CODE_FORBIDDEN;
@@ -374,19 +371,19 @@ rest_api_get (int flags, const char *path, const char *if_none_match, const char
 
     /* Query the database */
     tree = apteryx_query (query);
-    if (schflags & SCH_F_WITH_DEFAULTS)
+    if (schflags & SCH_F_ADD_DEFAULTS)
     {
         if (tree)
         {
             GNode *rnode = _get_response_node (api_subtree, tree, flags);
-            sch_populate_default_nodes (g_schema, api_subtree, rnode);
+            sch_traverse_tree (g_schema, api_subtree, rnode, schflags | SCH_F_ADD_DEFAULTS);
         }
         else if (!tree)
         {
             /* Nothing in the database, but we may have defaults! */
             tree = query;
             query = NULL;
-            sch_populate_default_nodes (g_schema, api_subtree, child);
+            sch_traverse_tree (g_schema, api_subtree, child, schflags | SCH_F_ADD_DEFAULTS);
         }
     }
     if (tree)
@@ -395,7 +392,7 @@ rest_api_get (int flags, const char *path, const char *if_none_match, const char
         if (schflags & SCH_F_TRIM_DEFAULTS)
         {
             GNode *rnode = _get_response_node (api_subtree, tree, flags);
-            sch_trim_default_nodes (g_schema, api_subtree, rnode);
+            sch_traverse_tree (g_schema, api_subtree, rnode, schflags | SCH_F_TRIM_DEFAULTS);
         }
 
         /* Convert the result to JSON */
@@ -483,7 +480,7 @@ rest_api_post (int flags, const char *path, const char *data, int length, const 
     char *error_string = NULL;
     int schflags = 0;
     uint64_t ts = 0;
-    
+    bool res;
     int rc;
 
     /* Parsing options - always set arrays and types */
@@ -585,11 +582,23 @@ rest_api_post (int flags, const char *path, const char *data, int length, const 
         goto exit;
     }
 
+    /* Check for replace */
+    if (flags & FLAGS_RESTCONF && flags & FLAGS_METHOD_PUT)
+        sch_traverse_tree (g_schema, api_subtree, tree, schflags | SCH_F_ADD_MISSING_NULL);
+
     /* Write the combinded tree to apteryx */
     child->children = tree->children;
-    if (apteryx_set_tree (root))
+    if (flags & FLAGS_RESTCONF && flags & FLAGS_METHOD_POST)
+        res = apteryx_cas_tree (root, 0);
+    else
+        res = apteryx_set_tree (root);
+    if (res)
     {
         rc = flags & FLAGS_METHOD_POST ? HTTP_CODE_CREATED : HTTP_CODE_NO_CONTENT;
+    }
+    else if (errno == -EBUSY)
+    {
+        rc = HTTP_CODE_CONFLICT;
     }
     else
     {
@@ -611,50 +620,6 @@ exit:
     apteryx_free_tree (tree);
     apteryx_free_tree (root);
     return resp;
-}
-
-int
-set_values_to_null (GNode *node, sch_node *schema)
-{
-    int rc = HTTP_CODE_OK;
-
-    if (sch_is_leaf (schema))
-    {
-        if (sch_is_hidden (schema))
-        {
-            // TODO Pretend it is not here rather than letting it be set again
-            return HTTP_CODE_OK;
-        }
-        else if (!sch_is_writable (schema))
-        {
-            return HTTP_CODE_FORBIDDEN;
-        }
-        /* Otherwise we can set this to null */
-        free (APTERYX_VALUE (node));
-        g_node_first_child (node)->data = strdup ("");
-    }
-    else
-    {
-        for (GNode *child = g_node_first_child (node); child; child = g_node_next_sibling (child))
-        {
-            sch_node *cschema = sch_node_child (schema, APTERYX_NAME (child));
-            if (!cschema)
-            {
-                /* Quetly ignore fields not specified in the schema */
-                if (verbose)
-                {
-                    char *path = apteryx_node_path (child);
-                    VERBOSE ("REST: Silently ignoring path \"%s\"\n", path);
-                    free (path);
-                }
-                continue;
-            }
-            rc = set_values_to_null (child, cschema);
-            if (rc != HTTP_CODE_OK)
-                break;
-        }
-    }
-    return rc;
 }
 
 /* Implemented by doing a query and setting all data to NULL */
@@ -706,8 +671,9 @@ rest_api_delete (int flags, const char *path)
     {
         /* Set all leaves to NULL if we are allowed */
         GNode *rnode = _get_response_node (api_subtree, tree, 0/*flags*/);
-        rc = set_values_to_null (rnode, api_subtree);
-        if (rc == HTTP_CODE_OK)
+        if (!sch_traverse_tree (g_schema, api_subtree, rnode, schflags | SCH_F_SET_NULL))
+            rc = HTTP_CODE_FORBIDDEN;
+        else
             rc = apteryx_set_tree (tree) ? HTTP_CODE_NO_CONTENT : 400;
         apteryx_free_tree (tree);
     }

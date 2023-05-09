@@ -1,8 +1,7 @@
 import json
-import pytest
 import requests
 import time
-from conftest import server_uri, server_auth, docroot, apteryx_set, apteryx_get, get_restconf_headers, set_restconf_headers
+from conftest import server_uri, server_auth, docroot, apteryx_set, apteryx_get, apteryx_traverse, get_restconf_headers, set_restconf_headers
 
 
 def test_restconf_replace_list_entry_new():
@@ -20,7 +19,6 @@ def test_restconf_replace_list_entry_new():
     assert response.status_code == 204
 
 
-@pytest.mark.skip(reason="should replace all existing objects")
 def test_restconf_replace_list_entry_exists():
     tree = """
 {
@@ -34,6 +32,8 @@ def test_restconf_replace_list_entry_exists():
 """
     response = requests.put("{}{}/data/test/animals".format(server_uri, docroot), auth=server_auth, data=tree, headers=set_restconf_headers)
     assert response.status_code == 204
+    print(apteryx_traverse("/test/animals/animal/cat"))
+    assert apteryx_get("/test/animals/animal/cat") == "Not found"
     assert apteryx_get("/test/animals/animal/cat/name") == "cat"
     assert apteryx_get("/test/animals/animal/cat/colour") == "purple"
     assert apteryx_get("/test/animals/animal/cat/type") == "Not found"

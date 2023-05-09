@@ -1,5 +1,4 @@
 import json
-import pytest
 import requests
 from conftest import server_uri, server_auth, docroot, apteryx_set, apteryx_get, set_restconf_headers
 
@@ -67,7 +66,6 @@ def test_restconf_create_string():
     assert apteryx_get("/test/settings/description") == "this is a description"
 
 
-@pytest.mark.skip(reason="should fail to create and return (CONFLICT)")
 def test_restconf_create_existing_string():
     apteryx_set("/test/settings/description", "already set")
     data = """{"description": "this is a description"}"""
@@ -82,7 +80,7 @@ def test_restconf_create_existing_string():
         "error" : [
         {
             "error-type" : "application",
-            "error-tag" : "data-exists"
+            "error-tag" : "data-exists",
             "error-message" : "object already exists"
         }
         ]
@@ -274,7 +272,6 @@ def test_restconf_create_list_entry_ok():
     assert response.status_code == 201
 
 
-@pytest.mark.skip(reason="should fail to create return 409(CONFLICT)")
 def test_restconf_create_list_entry_exists():
     tree = """
 {
@@ -297,7 +294,7 @@ def test_restconf_create_list_entry_exists():
         "error" : [
         {
             "error-type" : "application",
-            "error-tag" : "data-exists"
+            "error-tag" : "data-exists",
             "error-message" : "object already exists"
         }
         ]

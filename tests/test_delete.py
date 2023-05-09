@@ -1,6 +1,6 @@
 import json
 import requests
-from conftest import server_uri, server_auth, docroot, apteryx_set, apteryx_get, get_restconf_headers, set_restconf_headers
+from conftest import server_uri, server_auth, docroot, apteryx_set, apteryx_get, apteryx_traverse, get_restconf_headers, set_restconf_headers
 
 
 def test_restconf_delete_single_node_ns_none():
@@ -51,6 +51,7 @@ def test_restconf_delete_trunk_ns_none():
     response = requests.delete("{}{}/data/test/animals".format(server_uri, docroot), auth=server_auth, headers=set_restconf_headers)
     assert response.status_code == 204
     assert len(response.content) == 0
+    print(apteryx_traverse("/test/animals"))
     response = requests.get("{}{}/data/test/animals".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
     assert response.json() == json.loads('{}')
