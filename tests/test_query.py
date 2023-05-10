@@ -38,7 +38,10 @@ def test_restconf_query_invalid_queries():
         # "fields=(",
         # "fields=)",
         # "fields=()",
-        "fields=all&fields=all"
+        "depth=1&depth=100",
+        "content=config&content=nonconfig",
+        "fields=all&fields=all",
+        "with-defaults=report-all&with-defaults=trim"
     ]
     for query in queries:
         print("Checking " + query)
