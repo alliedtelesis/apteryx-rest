@@ -1,4 +1,4 @@
 bin_PROGRAMS = apteryx-rest
-apteryx_rest_SOURCES = main.c fcgi.c rest.c
+apteryx_rest_SOURCES = main.c fcgi.c rest.c yang-library.c
 apteryx_rest_CFLAGS = @LIBFCGI_CFLAGS@ @APTERYX_XML_CFLAGS@ @JANSSON_CFLAGS@ @LIBXML2_CFLAGS@ @APTERYX_CFLAGS@ @GLIB_CFLAGS@
 apteryx_rest_LDADD = @LIBFCGI_LIBS@ @APTERYX_XML_LIBS@ @JANSSON_LIBS@ @LIBXML2_LIBS@ @APTERYX_LIBS@ @GLIB_LIBS@

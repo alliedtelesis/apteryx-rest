@@ -1,0 +1,15 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<MODULE xmlns="http://test.com/ns/yang/testing-2" 
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="https://github.com/alliedtelesis/apteryx-xml https://github.com/alliedtelesis/apteryx-xml/releases/download/v1.2/apteryx.xsd"
+        xmlns:t2="http://test.com/ns/yang/testing-2" 
+        model="testing-2" organization="Test 2 Ltd" version="2023-02-01">
+  <NODE name="test" help="This is a test node">
+    <NODE name="settings" help="Settings">
+      <NODE name="priority" mode="rw" help="integer" pattern="^[1-5]$"/>
+    </NODE>
+    <NODE name="state" help="State">
+      <NODE name="priority" mode="r" help="integer"/>
+    </NODE>
+  </NODE>
+</MODULE>

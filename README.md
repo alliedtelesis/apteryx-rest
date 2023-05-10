@@ -19,6 +19,12 @@ apteryx-rest -b -m /etc/modules -p /var/run/apteryx-rest.pid -s /var/run/apteryx
 
 ```
 
+Run in with the default encoding set for restconf
+```
+apteryx-rest -b -m /etc/modules -p /var/run/apteryx-rest.pid -s /var/run/apteryx-rest.sock -e "application/yang-data+json"
+
+```
+
 Lighttpd:
 ```
 server.stream-response-body = 2
@@ -49,7 +55,10 @@ http {
             fastcgi_param QUERY_STRING       $query_string;
             fastcgi_param CONTENT_TYPE       $content_type;
             fastcgi_param CONTENT_LENGTH     $content_length;
+            fastcgi_param HTTP_IF_MATCH      $http_if_match;
             fastcgi_param HTTP_IF_NONE_MATCH $http_if_none_match;
+            fastcgi_param HTTP_IF_MODIFIED_SINCE $http_if_modified_since;
+            fastcgi_param HTTP_IF_UNMODIFIED_SINCE $http_if_unmodified_since;
         }
     }
 }
@@ -57,22 +66,23 @@ http {
 
 ## Demo and Tests
 * Requires dev packages for glib-2.0 libxml-2.0 jansson-2.12
-* buildsys apteryx, apteryx-xml, fcgi and nginx
+* builds apteryx, apteryx-xml, fcgi and lighttpd(or nginx)
 * Starts apteryxd and apteryx-rest using data models in models/
-* Starts nginx on localhost:8080
+* Starts lighttpd(or nginx) on localhost:8080
 ```
 ./run.sh
 
 curl http://localhost:8080/api.xml
 
-python3 -m pytest
-python3 -m pytest -k test_rest_get_single_node
+python3 -m pytest -v
+python3 -m pytest -k restconf
+python3 -m pytest -k test_restapi_get_single_node
 
 google-chrome .gcov/index.html
 ```
 
 ## Protocol
-* RESTful API over HTTP using HTTP GET, POST and DELETE
+* RESTful API over HTTP using HTTP GET, POST/PUT/PATCH and DELETE
 * API and data model specified using XML
 * JSON formatted content
 * Data addressed using hierarchical path
@@ -88,12 +98,14 @@ google-chrome .gcov/index.html
 | **Create**    | POST   | SET     | All nodes are considered NULL until SET (they do not need to be created). |
 | **Read**      | GET    | GET     | A NULL return implies default values.                                     |
 | **Update**    | PUT    | SET     | No difference in operation as Create.                                     |
-| **Delete**    | DELETE | PRUNE   | Traverse all nodes from the specified root path and set them to NULL.     |
+| **Delete**    | DELETE | SET     | Traverse all nodes from the specified root path and set them to NULL.     |
 
 ## HTTP Status Codes
 | Code | Description    |                                                                            |
 | ---- | -------------- | -------------------------------------------------------------------------- |
-| 200  | OK             | The request was successful. For a SET the configuration change has been applied and the HTTP BODY is empty. For a GET the path was valid and the HTTP body contains the requested data. |
+| 200  | OK             | The GET request was successful. The path was valid and the HTTP body contains the requested data. |
+| 201  | Created        | The POST request was successful. The configuration change has been applied and the HTTP BODY is empty. |
+| 204  | No Content     | The PUT/PATCH request was successful. The configuration change has been applied and the HTTP BODY is empty. |
 | 304  | Not Modified   | This status is returned if the user has requested a conditional get and the resource (path and all sub-paths) has not changed since the last retrieval. |
 | 400  | Bad Request    | The request is incorrectly formatted or contains invalid parameters that cannot be applied. To ensure compatibility with being a RESTful API, the API uses standard HTTP status codes. However, to help the user understand why the request failed, a 400 response also supplies a JSON formatted error value and message in the HTTP BODY. Error codes below 1000 refer to standard errno values from IEEE Std 1003.1-2001. Values above Bad Request 1000 are custom error codes for the specific feature and their definitions are specified in the API for that feature. Example error response: {"error":"-1004", "message":"IPv6 Address invalid for mode"} |
 | 403  | Forbidden      | The user does not have authorization to access the requested URI. Either the path does not exist or the path has permissions that prevent the operation from being completed (e.g. read-only and a SET was attempted or write-only and a GET was attempted). |

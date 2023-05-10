@@ -1,8 +1,0 @@
-<?xml version='1.0' encoding='UTF-8'?>
-<MODULE xmlns="https://github.com/alliedtelesis/apteryx" xmlns:test2="http://www.test2-namespace.com" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="https://github.com/alliedtelesis/apteryx-xml https://github.com/alliedtelesis/apteryx-xml/releases/download/v1.2/apteryx.xsd">
-  <NODE name="test2" help="This is a test node">
-    <NODE name="settings" help="Settings">
-      <NODE name="verbosity" mode="rw" help="integer" pattern="^[1-5]$"/>
-    </NODE>
-  </NODE>
-</MODULE>

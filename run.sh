@@ -2,9 +2,9 @@
 ROOT=`pwd`
 
 # Check required libraries and tools
-if ! pkg-config --exists glib-2.0 libxml-2.0 cunit; then
-        echo "Please install glib-2.0, libxml-2.0, jansson, cunit, pcre3"
-        echo "(sudo apt-get install build-essential libglib2.0-dev libxml2-dev libcunit1-dev libpcre3-dev zlib1g zlib1g-dev libssl-dev libgd-dev libxml2-dev libjansson-dev uuid-dev libbz2-dev)"
+if ! pkg-config --exists glib-2.0 libxml-2.0 cunit jansson; then
+        echo "Please install glib-2.0, libxml-2.0, jansson and cunit"
+        echo "(sudo apt-get install build-essential libglib2.0-dev libxml2-dev libcunit1-dev libjansson-dev libpcre3-dev zlib1g zlib1g-dev libssl-dev libgd-dev libxml2-dev uuid-dev libbz2-dev)"
         exit 1
 fi
 
@@ -22,19 +22,20 @@ function quit {
         killall apteryx-rest &> /dev/null
         kill `pidof valgrind.bin` &> /dev/null
         # Stop Apteryx
-        apteryx -t
-        killall -9 apteryxd
+        LD_LIBRARY_PATH=$BUILD/usr/lib $BUILD/usr/bin/apteryx -t
+        killall -9 apteryxd &> /dev/null
         rm -f /tmp/apteryx
         exit
 }
 
 # Check Apteryx install
 if [ ! -d apteryx ]; then
-        echo "Building Apteryx from source."
+        echo "Downloading Apteryx"
         git clone --depth 1 https://github.com/alliedtelesis/apteryx.git
         rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
 fi
 if [ ! -f $BUILD/usr/lib/libapteryx.so ]; then
+        echo "Building Apteryx"
         cd apteryx
         make install DESTDIR=$BUILD
         rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
@@ -43,11 +44,12 @@ fi
 
 # Check Apteryx XML Schema library
 if [ ! -d apteryx-xml ]; then
-        echo "Building apteryx-xml from source."
+        echo "Downloading apteryx-xml"
         git clone --depth 1 https://github.com/alliedtelesis/apteryx-xml.git
         rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
 fi
 if [ ! -f $BUILD/usr/lib/libapteryx-schema.so ]; then
+        echo "Building apteryx-xml"
         cd apteryx-xml
         rm -f $BUILD/usr/lib/libapteryx-xml.so
         rm -f $BUILD/usr/lib/libapteryx-schema.so
@@ -111,21 +113,27 @@ else
 fi
 
 # Build
-export CFLAGS="-g -Wall -Werror -I$BUILD/usr/include -fprofile-arcs -ftest-coverage"
-export LDFLAGS=-L$BUILD/usr/lib
-export PKG_CONFIG_PATH=$BUILD/usr/lib/pkgconfig
+echo "Building apteryx-restconf"
 if [ ! -f $BUILD/../Makefile ]; then
-    cd $BUILD/../
-    ./autogen.sh
-      LIBFCGI_CFLAGS=-I$BUILD/usr/include LIBFCGI_LIBS=-lfcgi \
-      ./configure 
-    rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
-    cd $BUILD
+        export CFLAGS="-g -Wall -Werror -I$BUILD/usr/include -fprofile-arcs -ftest-coverage"
+        export LDFLAGS=-L$BUILD/usr/lib
+        export PKG_CONFIG_PATH=$BUILD/usr/lib/pkgconfig
+        cd $BUILD/../
+        ./autogen.sh
+        ./configure \
+                LIBFCGI_CFLAGS=-I$BUILD/usr/include LIBFCGI_LIBS=-lfcgi
+        rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
+        cd $BUILD
 fi
 make -C $BUILD/../
 rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
 
-# Start Apteryx
+# Check tests
+echo Checking pytest coding style ...
+flake8 --max-line-length=180 ../tests/test*.py
+rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
+
+# Start Apteryx and populate the database
 export LD_LIBRARY_PATH=$BUILD/usr/lib
 rm -f /tmp/apteryx
 $BUILD/usr/bin/apteryxd -b
@@ -157,7 +165,10 @@ if [ "$1" == "nginx" ]; then
                 fastcgi_param QUERY_STRING       $query_string;
                 fastcgi_param CONTENT_TYPE       $content_type;
                 fastcgi_param CONTENT_LENGTH     $content_length;
+                fastcgi_param HTTP_IF_MATCH      $http_if_match;
                 fastcgi_param HTTP_IF_NONE_MATCH $http_if_none_match;
+                fastcgi_param HTTP_IF_MODIFIED_SINCE $http_if_modified_since;
+                fastcgi_param HTTP_IF_UNMODIFIED_SINCE $http_if_unmodified_since;
             }
             error_page   500 502 503 504  /50x.html;
             location = /50x.html {
@@ -211,7 +222,7 @@ rm -f $BUILD/apteryx-rest.sock
 # TEST_WRAPPER="valgrind --leak-check=full"
 # TEST_WRAPPER="valgrind --tool=cachegrind"
 G_SLICE=always-malloc LD_LIBRARY_PATH=$BUILD/usr/lib \
-  $TEST_WRAPPER ../apteryx-rest -v -m ../models/ -p apteryx-rest.pid -s apteryx-rest.sock
+        $TEST_WRAPPER ../apteryx-rest -v -m ../models/ -p apteryx-rest.pid -s apteryx-rest.sock
 rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
 sleep 0.5
 
@@ -220,7 +231,7 @@ cd $BUILD/../
 mkdir -p .gcov
 mv -f *.gcno .gcov/ 2>/dev/null || true
 mv -f *.gcda .gcov/ 2>/dev/null || true
-lcov -q --capture --directory . --output-file .gcov/coverage.info
+lcov -q --capture --directory . --output-file .gcov/coverage.info &> /dev/null
 genhtml -q .gcov/coverage.info --output-directory .gcov/
 
 # Done - cleanup

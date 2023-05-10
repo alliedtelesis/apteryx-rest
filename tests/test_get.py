@@ -1,0 +1,306 @@
+import json
+import requests
+from conftest import server_uri, server_auth, docroot, apteryx_set, get_restconf_headers
+
+
+def test_restconf_get_single_node_ns_none():
+    response = requests.get("{}{}/data/test/settings/priority".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.json() == json.loads('{ "priority": 1 }')
+
+
+def test_restconf_get_single_node_ns_aug_none():
+    response = requests.get("{}{}/data/test/settings/volume".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.json() == json.loads('{ "volume": 1 }')
+
+
+def test_restconf_get_single_node_ns_default():
+    response = requests.get("{}{}/data/testing:test/settings/priority".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.json() == json.loads('{ "priority": 1 }')
+
+
+def test_restconf_get_single_node_ns_aug_default():
+    response = requests.get("{}{}/data/testing:test/settings/volume".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.json() == json.loads('{ "volume": 1 }')
+
+
+def test_restconf_get_single_node_ns_other():
+    response = requests.get("{}{}/data/testing-2:test/settings/priority".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.json() == json.loads('{ "priority": 2 }')
+
+
+def test_restconf_get_single_node_ns_aug_other():
+    response = requests.get("{}{}/data/testing-2:test/settings/testing2-augmented:speed".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.json() == json.loads('{ "speed": 2 }')
+
+
+def test_restconf_get_integer():
+    response = requests.get("{}{}/data/testing:test/settings/priority".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.json() == json.loads('{ "priority": 1 }')
+    apteryx_set("/test/settings/priority", "2")
+    response = requests.get("{}{}/data/testing:test/settings/priority".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.json() == json.loads('{ "priority": 2 }')
+
+
+def test_restconf_get_string_string():
+    apteryx_set("/test/settings/description", "This is a description")
+    response = requests.get("{}{}/data/testing:test/settings/description".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.json() == json.loads('{ "description": "This is a description" }')
+
+
+def test_restconf_get_string_number():
+    apteryx_set("/test/settings/description", "123")
+    response = requests.get("{}{}/data/testing:test/settings/description".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.json() == json.loads('{ "description": "123" }')
+
+
+def test_restconf_get_boolean():
+    response = requests.get("{}{}/data/testing:test/settings/enable".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.json() == json.loads('{ "enable": true }')
+    apteryx_set("/test/settings/enable", "false")
+    response = requests.get("{}{}/data/testing:test/settings/enable".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.json() == json.loads('{ "enable": false }')
+
+
+def test_restconf_get_value_string():
+    response = requests.get("{}{}/data/testing:test/settings/debug".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.json() == json.loads('{ "debug": "enable" }')
+    apteryx_set("/test/settings/debug", "disable")
+    response = requests.get("{}{}/data/testing:test/settings/debug".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.json() == json.loads('{ "debug": "disable" }')
+
+
+def test_restconf_get_node_null():
+    apteryx_set("/test/settings/debug", "")
+    response = requests.get("{}{}/data/testing:test/settings/debug".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    if len(response.content) != 0:
+        print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert (response.status_code == 204 and len(response.content) == 0) or (response.status_code == 200 and response.json() == json.loads('{}'))
+
+
+def test_restconf_get_trunk_no_namespace():
+    response = requests.get("{}{}/data/test/settings".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.json() == json.loads("""
+{
+    "settings": {
+        "debug": "enable",
+        "enable": true,
+        "priority": 1,
+        "readonly": "yes",
+        "volume": 1
+    }
+}
+    """)
+
+
+def test_restconf_get_trunk_namespace():
+    response = requests.get("{}{}/data/testing:test/settings".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.json() == json.loads("""
+{
+    "settings": {
+        "debug": "enable",
+        "enable": true,
+        "priority": 1,
+        "readonly": "yes",
+        "volume": 1
+    }
+}
+    """)
+
+
+def test_restconf_get_list_trunk():
+    response = requests.get("{}{}/data/testing:test/animals".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.json() == json.loads("""
+{
+    "animals": {
+        "animal": [
+            {"name": "cat", "type": "big"},
+            {"name": "dog", "colour": "brown"},
+            {"name": "hamster", "type": "little", "food": [
+                    {"name": "banana", "type": "fruit"},
+                    {"name": "nuts", "type": "kibble"}
+                ]
+            },
+            {"name": "mouse", "colour": "grey", "type": "little"},
+            {"name": "parrot", "type": "big", "colour": "blue", "toys": {
+                "toy": ["puzzles", "rings"]
+                }
+            }
+        ]
+    }
+}
+    """)
+
+
+def test_restconf_get_list_trunk_no_namespace():
+    response = requests.get("{}{}/data/test/animals".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.json() == json.loads("""
+{
+    "animals": {
+        "animal": [
+            {"name": "cat", "type": "big"},
+            {"name": "dog", "colour": "brown"},
+            {"name": "hamster", "type": "little", "food": [
+                    {"name": "banana", "type": "fruit"},
+                    {"name": "nuts", "type": "kibble"}
+                ]
+            },
+            {"name": "mouse", "colour": "grey", "type": "little"},
+            {"name": "parrot", "type": "big", "colour": "blue", "toys": {
+                "toy": ["puzzles", "rings"]
+                }
+            }
+        ]
+    }
+}
+    """)
+
+
+def test_restconf_get_list_select_none():
+    response = requests.get("{}{}/data/test/animals/animal".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.json() == json.loads("""
+{
+    "animal": [
+        {"name": "cat", "type": "big"},
+        {"name": "dog", "colour": "brown"},
+        {"name": "hamster", "type": "little", "food": [
+                {"name": "banana", "type": "fruit"},
+                {"name": "nuts", "type": "kibble"}
+            ]
+        },
+        {"name": "mouse", "colour": "grey", "type": "little"},
+        {"name": "parrot", "type": "big", "colour": "blue", "toys": {
+            "toy": ["puzzles", "rings"]
+            }
+        }
+    ]
+}
+    """)
+
+
+def test_restconf_get_list_select_one_trunk():
+    response = requests.get("{}{}/data/testing:test/animals/animal=cat".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.json() == json.loads("""
+{
+    "animal": [
+        {
+            "name": "cat",
+            "type": "big"
+        }
+    ]
+}
+    """)
+
+
+def test_restconf_get_list_select_one_by_path_trunk():
+    response = requests.get("{}{}/data/testing:test/animals/animal/cat".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.json() == json.loads("""
+{
+    "animal": [
+        {
+            "name": "cat",
+            "type": "big"
+        }
+    ]
+}
+    """)
+
+
+def test_restconf_get_list_select_two_trunk():
+    response = requests.get("{}{}/data/testing:test/animals/animal=hamster/food=banana".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.json() == json.loads("""
+{
+    "food": [
+        {
+            "name": "banana",
+            "type": "fruit"
+        }
+    ]
+}
+    """)
+
+
+def test_restconf_get_leaf_list_node():
+    response = requests.get("{}{}/data/testing:test/animals/animal=parrot/toys/toy".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.json() == json.loads("""
+{
+    "toy": [
+        "puzzles",
+        "rings"
+    ]
+}
+    """)
+
+
+# TODO multiple keys
+#  /restconf/data/ietf-yang-library:modules-state/module=ietf-interfaces,2014-05-08
+#  Missing key values are not allowed, so two consecutive commas are
+#   interpreted as a comma, followed by a zero-length string, followed
+#   by a comma.  For example, "list1=foo,,baz" would be interpreted as
+#   a list named "list1" with three key values, and the second key
+#   value is a zero-length string.
+#  Note that non-configuration lists are not required to define keys.
+#   In this case, a single list instance cannot be accessed.
