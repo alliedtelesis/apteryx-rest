@@ -1034,7 +1034,7 @@ def test_restapi_delete_not_found():
     assert len(response.content) == 0
 
 
-def test_restapi_delete_read_only():
+def test_restapi_delete_read_only_node():
     response = requests.delete("{}{}/test/state/counter".format(server_uri, docroot), verify=False, auth=server_auth)
     assert response.status_code == 403 or response.status_code == 404
     assert len(response.content) == 0
@@ -1067,15 +1067,10 @@ def test_restapi_delete_single_node():
     assert response.json() == json.loads('{}')
 
 
-# Change in behavior we no longer silently ignore readonly nodes unless there is nothing in the DB
 def test_restapi_delete_trunk():
-    apteryx_set("/test/settings/readonly", "")
     response = requests.delete("{}{}/test/settings".format(server_uri, docroot), verify=False, auth=server_auth)
     assert response.status_code == 200 or response.status_code == 204
-    assert len(response.content) == 0
-    response = requests.get("{}{}/test/settings".format(server_uri, docroot), verify=False, auth=server_auth)
-    assert response.status_code == 200 or response.status_code == 204
-    assert response.json() == json.loads('{}')
+    assert apteryx_get("/test/settings/readonly") == "0"
     assert apteryx_get("/test/settings/hidden") == "friend"
 
 

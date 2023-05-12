@@ -641,6 +641,8 @@ rest_api_delete (int flags, const char *path)
         schflags |= SCH_F_JSON_TYPES;
     if (flags & FLAGS_RESTCONF)
         schflags |= SCH_F_NS_MODEL_NAME;
+    else
+        schflags |= SCH_F_CONFIG; /* We only want to delete config-nodes */
 
     /* Generate an aperyx query from the path */
     GNode *query = sch_path_to_gnode (g_schema, NULL, path, schflags, &api_subtree);
@@ -650,6 +652,7 @@ rest_api_delete (int flags, const char *path)
         rc = HTTP_CODE_NOT_FOUND;
         goto exit;
     }
+    int query_depth = g_node_max_height (query);
     /* We may want to get everything from here down */
     if (sch_node_child_first (api_subtree))
     {
@@ -670,11 +673,15 @@ rest_api_delete (int flags, const char *path)
     if (tree)
     {
         /* Set all leaves to NULL if we are allowed */
+        // int depth = g_node_max_height (tree);
         GNode *rnode = _get_response_node (api_subtree, tree, 0/*flags*/);
         if (!sch_traverse_tree (g_schema, api_subtree, rnode, schflags | SCH_F_SET_NULL))
             rc = HTTP_CODE_FORBIDDEN;
+        else if (g_node_max_height (tree) <= query_depth)
+             rc = HTTP_CODE_NOT_FOUND;
         else
             rc = apteryx_set_tree (tree) ? HTTP_CODE_NO_CONTENT : 400;
+
         apteryx_free_tree (tree);
     }
 
