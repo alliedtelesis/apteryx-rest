@@ -10,9 +10,5 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-    - name: autogen
-      run: ./autogen.sh
-    - name: configure
-      run: ./configure
-    - name: make
-      run: make
+    - name: Build and run
+      run: ./run.sh
