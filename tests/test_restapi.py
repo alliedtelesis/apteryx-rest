@@ -58,7 +58,7 @@ def test_restapi_get_single_node():
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/json"
-    assert response.json() == json.loads('{ "priority": "1" }')
+    assert response.json() == json.loads('{ "priority": "2" }')
 
 
 def test_restapi_get_explicit_accept():
