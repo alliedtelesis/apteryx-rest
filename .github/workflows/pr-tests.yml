@@ -10,7 +10,12 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+
     - name: Install dependencies
-      run: sudo apt-get install -y build-essential libglib2.0-dev libxml2-dev libcunit1-dev libjansson-dev libpcre3-dev zlib1g zlib1g-dev libssl-dev libgd-dev libxml2-dev uuid-dev libbz2-dev liblua5.2-dev flake8
-    - name: Build and run
-      run: ./run.sh
+      run: sudo apt-get install -y build-essential libglib2.0-dev libxml2-dev libcunit1-dev libjansson-dev libpcre3-dev zlib1g zlib1g-dev libssl-dev libgd-dev libxml2-dev uuid-dev libbz2-dev liblua5.2-dev flake8 python3-pytest
+    
+    - name: Build and in background
+      run: ./run.sh &
+
+    - name: Run tests
+      run: python3 -m pytest -v
