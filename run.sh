@@ -1,5 +1,6 @@
 #!/bin/bash
 ROOT=`pwd`
+ACTION=$1
 
 # Check required libraries and tools
 if ! pkg-config --exists glib-2.0 libxml-2.0 cunit jansson; then
@@ -216,18 +217,29 @@ else
     rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
 fi
 
+# Parameters
+if [ $ACTION == "test" ]; then
+        PARAM="-b"
+else
+        PARAM="-v"
+fi
+
 # Start apteryx-rest
 rm -f $BUILD/apteryx-rest.sock
 # TEST_WRAPPER="gdb -ex run --args"
 # TEST_WRAPPER="valgrind --leak-check=full"
 # TEST_WRAPPER="valgrind --tool=cachegrind"
 G_SLICE=always-malloc LD_LIBRARY_PATH=$BUILD/usr/lib \
-        $TEST_WRAPPER ../apteryx-rest -v -m ../models/ -p apteryx-rest.pid -s apteryx-rest.sock
+        $TEST_WRAPPER ../apteryx-rest $PARAM -m ../models/ -p apteryx-rest.pid -s apteryx-rest.sock
 rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
 sleep 0.5
+cd $BUILD/../
+
+if [ $ACTION == "test" ]; then
+        python3 -m pytest -v
+fi
 
 # Gcov
-cd $BUILD/../
 mkdir -p .gcov
 mv -f *.gcno .gcov/ 2>/dev/null || true
 mv -f *.gcda .gcov/ 2>/dev/null || true
