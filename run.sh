@@ -16,6 +16,7 @@ cd $BUILD
 
 # Generic cleanup
 function quit {
+        RC=$1
         # Stop lighttpd
         killall lighttpd &> /dev/null
         killall nginx &> /dev/null
@@ -26,7 +27,7 @@ function quit {
         LD_LIBRARY_PATH=$BUILD/usr/lib $BUILD/usr/bin/apteryx -t
         killall -9 apteryxd &> /dev/null
         rm -f /tmp/apteryx
-        exit
+        exit $RC
 }
 
 # Check Apteryx install
@@ -237,6 +238,7 @@ cd $BUILD/../
 
 if [ $ACTION == "test" ]; then
         python3 -m pytest -v
+        rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
 fi
 
 # Gcov
