@@ -16,6 +16,7 @@ cd $BUILD
 
 # Generic cleanup
 function quit {
+        RC=$1
         # Stop lighttpd
         killall lighttpd &> /dev/null
         killall nginx &> /dev/null
@@ -25,7 +26,7 @@ function quit {
         # Stop Apteryx
         killall -9 apteryxd &> /dev/null
         rm -f /tmp/apteryx
-        exit
+        exit $RC
 }
 
 # Check Apteryx install
@@ -236,6 +237,7 @@ cd $BUILD/../
 
 if [ $ACTION == "test" ]; then
         python3 -m pytest -v
+        rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
 fi
 
 # Gcov
@@ -246,4 +248,4 @@ lcov -q --capture --directory . --output-file .gcov/coverage.info &> /dev/null
 genhtml -q .gcov/coverage.info --output-directory .gcov/
 
 # Done - cleanup
-quit
+quit 0
