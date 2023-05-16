@@ -506,6 +506,18 @@ def test_restapi_get_drop_root_string():
     assert response.json() == json.loads('"This is a description"')
 
 
+# FLAGS_JSON_FORMAT_ROOT=off
+def test_restapi_get_drop_root_writeonly():
+    response = requests.get("{}{}/test/settings/writeonly".format(server_uri, docroot), verify=False, auth=server_auth, headers={"X-JSON-Root": "off"})
+    assert response.status_code == 403
+
+
+# FLAGS_JSON_FORMAT_ROOT=off
+def test_restapi_get_drop_root_hidden():
+    response = requests.get("{}{}/test/settings/hidden".format(server_uri, docroot), verify=False, auth=server_auth, headers={"X-JSON-Root": "off"})
+    assert response.status_code == 403
+
+
 def test_restapi_get_drop_root_integer_string():
     response = requests.get("{}{}/test/settings/priority".format(server_uri, docroot), verify=False, auth=server_auth, headers={"X-JSON-Root": "off"})
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -605,6 +617,20 @@ def test_restapi_set_nonjson_value_quoted():
     assert apteryx_get("/test/settings/debug") == "0"
 
 
+def test_restapi_set_nonjson_writeonly():
+    response = requests.post("{}{}/test/settings/writeonly".format(server_uri, docroot), verify=False, auth=server_auth, data='"123"')
+    assert response.status_code == 200 or response.status_code == 201
+    assert len(response.content) == 0
+    assert apteryx_get("/test/settings/writeonly") == "123"
+
+
+def test_restapi_set_nonjson_readonly():
+    response = requests.post("{}{}/test/state/counter".format(server_uri, docroot), verify=False, auth=server_auth, data='"123"')
+    assert response.status_code == 403
+    assert len(response.content) == 0
+    assert apteryx_get("/test/state/counter") == "42"
+
+
 def test_restapi_set_single_node():
     response = requests.post("{}{}/test/settings".format(server_uri, docroot), verify=False, auth=server_auth, data="""{"priority": "5"}""")
     assert response.status_code == 200 or response.status_code == 201
@@ -671,6 +697,13 @@ def test_restapi_set_readonly():
     assert response.status_code == 403
     assert len(response.content) == 0
     assert apteryx_get("/test/state/counter") == "42"
+
+
+def test_restapi_set_writeonly():
+    response = requests.post("{}{}/test/settings".format(server_uri, docroot), verify=False, auth=server_auth, data="""{"writeonly": "123"}""")
+    assert response.status_code == 200 or response.status_code == 201
+    assert len(response.content) == 0
+    assert apteryx_get("/test/settings/writeonly") == "123"
 
 
 def test_restapi_set_hidden():

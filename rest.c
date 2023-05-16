@@ -310,6 +310,12 @@ rest_api_get (int flags, const char *path, const char *if_none_match, const char
         }
         goto exit;
     }
+    if (sch_is_leaf (api_subtree) && !sch_is_readable (api_subtree))
+    {
+        VERBOSE ("REST: Path \"%s\" not readable\n", path);
+        rc = HTTP_CODE_FORBIDDEN;
+        goto exit;
+    }
 
     /* Get a timestamp for the apteryx path */
     apath = get_collapsed_root (query, true);
@@ -499,6 +505,12 @@ rest_api_post (int flags, const char *path, const char *data, int length, const 
         rc = HTTP_CODE_NOT_FOUND;
         goto exit;
     }
+    if (sch_is_leaf (api_subtree) && !sch_is_writable (api_subtree))
+    {
+        VERBOSE ("REST: Path \"%s\" not writable\n", path);
+        rc = HTTP_CODE_FORBIDDEN;
+        goto exit;
+    }
 
     /* Find the end of the path node */
     child = root;
@@ -652,6 +664,14 @@ rest_api_delete (int flags, const char *path)
         rc = HTTP_CODE_NOT_FOUND;
         goto exit;
     }
+    if (sch_is_leaf (api_subtree) && !sch_is_writable (api_subtree))
+    {
+        VERBOSE ("REST: Path \"%s\" not writable\n", path);
+        apteryx_free_tree (query);
+        rc = HTTP_CODE_FORBIDDEN;
+        goto exit;
+    }
+
     int query_depth = g_node_max_height (query);
     /* We may want to get everything from here down */
     if (sch_node_child_first (api_subtree))
