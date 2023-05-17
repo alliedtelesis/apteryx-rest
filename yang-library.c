@@ -93,9 +93,9 @@ schema_set_model_information (sch_instance *schema, GNode *root)
                 add_leaf_strdup (gnode, YANGLIB_MODULES_STATE_MODULE_REVISION,
                                  loaded->version);
             }
-            if (loaded->ns)
+            if (loaded->ns_href)
             {
-                add_leaf_strdup (gnode, YANGLIB_MODULES_STATE_MODULE_NAMESPACE, loaded->ns);
+                add_leaf_strdup (gnode, YANGLIB_MODULES_STATE_MODULE_NAMESPACE, loaded->ns_href);
             }
         }
     }
