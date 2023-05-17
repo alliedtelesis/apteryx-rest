@@ -57,7 +57,7 @@ def test_restconf_yang_library_tree():
                     },
                     {
                         "name": "testing",
-                        "namespace": "https://github.com/alliedtelesis/apteryx",
+                        "namespace": "http://test.com/ns/yang/testing",
                         "revision": "2023-01-01"
                     },
                     {

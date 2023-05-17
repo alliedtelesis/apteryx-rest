@@ -46,7 +46,7 @@ def test_restapi_ns_api_xml():
     assert ns_t2 == ['test', 'settings', 'priority', 'state', 'priority']
     ns_aug = [e.attrib['name'] for e in xml.findall('.//{http://test.com/ns/yang/testing2-augmented}NODE')]
     assert ns_aug == ['speed', 'speed']
-    ns_default = [e.attrib['name'] for e in xml.findall('.//{https://github.com/alliedtelesis/apteryx}NODE')]
+    ns_default = [e.attrib['name'] for e in xml.findall('.//{http://test.com/ns/yang/testing}NODE')]
     for node in ['test', 'settings', 'debug', 'enable', 'priority', 'writeonly']:
         assert node in ns_default
     for node in ['hidden', 'speed']:

@@ -1,5 +1,6 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<MODULE xmlns="https://github.com/alliedtelesis/apteryx"
+<MODULE xmlns="http://test.com/ns/yang/testing"
+        xmlns:test="http://test.com/ns/yang/testing"
         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:schemaLocation="https://github.com/alliedtelesis/apteryx-xml https://github.com/alliedtelesis/apteryx-xml/releases/download/v1.2/apteryx.xsd"
         model="testing" organization="Test Ltd" version="2023-01-01">
