@@ -58,6 +58,9 @@ if [ ! -f $BUILD/usr/lib/libapteryx-schema.so ]; then
         rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
         cd $BUILD
 fi
+rm -f $BUILD/etc/apteryx/schema/*
+cp $BUILD/apteryx-xml/models/*.xml $BUILD/etc/apteryx/schema/
+cp $BUILD/apteryx-xml/models/*.map $BUILD/etc/apteryx/schema/
 
 # Check fcgi
 if [ ! -d fcgi-2.4.0 ]; then
@@ -128,6 +131,8 @@ if [ ! -f $BUILD/../Makefile ]; then
 fi
 make -C $BUILD/../
 rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
+cp $BUILD/../models/*.xml $BUILD/etc/apteryx/schema/
+cp $BUILD/../models/*.map $BUILD/etc/apteryx/schema/
 
 # Check tests
 echo Checking pytest coding style ...
@@ -230,7 +235,7 @@ rm -f $BUILD/apteryx-rest.sock
 # TEST_WRAPPER="valgrind --leak-check=full"
 # TEST_WRAPPER="valgrind --tool=cachegrind"
 G_SLICE=always-malloc LD_LIBRARY_PATH=$BUILD/usr/lib \
-        $TEST_WRAPPER ../apteryx-rest $PARAM -m ../models/ -p apteryx-rest.pid -s apteryx-rest.sock
+        $TEST_WRAPPER ../apteryx-rest $PARAM -m $BUILD/etc/apteryx/schema/ -p apteryx-rest.pid -s apteryx-rest.sock
 rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
 sleep 0.5
 cd $BUILD/../
