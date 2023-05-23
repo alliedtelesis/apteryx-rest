@@ -350,6 +350,23 @@ def test_restapi_get_list_select_one_strings():
 """)
 
 
+def test_restapi_get_list_select_one_with_colon():
+    apteryx_set("/test/animals/animal/cat:ty/name", "cat:ty")
+    apteryx_set("/test/animals/animal/cat:ty/type", "1")
+    response = requests.get("{}{}/test/animals/animal/cat:ty".format(server_uri, docroot), verify=False, auth=server_auth)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/json"
+    assert response.json() == json.loads("""
+{
+    "cat:ty": {
+        "name": "cat:ty",
+        "type": "1"
+    }
+}
+""")
+
+
 def test_restapi_get_list_select_one_array():
     response = requests.get("{}{}/test/animals/animal/cat".format(server_uri, docroot), verify=False, auth=server_auth, headers={"X-JSON-Array": "on"})
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -924,6 +941,29 @@ def test_restapi_set_tree_list_single_strings():
 {
     "frog": {
         "name": "frog",
+        "type": "2"
+    }
+}
+""")
+
+
+def test_restapi_set_tree_list_key_colon():
+    tree = """
+{
+    "name": "frog:y",
+    "type": "2"
+}
+"""
+    response = requests.post("{}{}/test/animals/animal/frog:y".format(server_uri, docroot), verify=False, auth=server_auth, data=tree)
+    assert response.status_code == 200 or response.status_code == 201
+    response = requests.get("{}{}/test/animals/animal/frog:y".format(server_uri, docroot), verify=False, auth=server_auth)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200 or response.status_code == 201
+    assert response.headers["Content-Type"] == "application/json"
+    assert response.json() == json.loads("""
+{
+    "frog:y": {
+        "name": "frog:y",
         "type": "2"
     }
 }
