@@ -43,7 +43,7 @@ def test_restapi_ns_api_xml():
     assert response.headers["Content-Type"] == "text/xml"
     print(xml.findall('.//{*}NODE'))
     ns_t2 = [e.attrib['name'] for e in xml.findall('.//{http://test.com/ns/yang/testing-2}NODE')]
-    assert ns_t2 == ['test', 'settings', 'priority', 'state', 'priority']
+    assert ns_t2 == ['test', 'settings', 'priority', 'users', "*", 'name', 'state', 'priority']
     ns_aug = [e.attrib['name'] for e in xml.findall('.//{http://test.com/ns/yang/testing2-augmented}NODE')]
     assert ns_aug == ['speed', 'speed']
     ns_default = [e.attrib['name'] for e in xml.findall('.//{http://test.com/ns/yang/testing}NODE')]
@@ -362,6 +362,21 @@ def test_restapi_get_list_select_one_with_colon():
     "cat:ty": {
         "name": "cat:ty",
         "type": "1"
+    }
+}
+""")
+
+
+def test_restapi_get_list_select_one_ns_with_colon():
+    apteryx_set("/t2:test/settings/users/fre:dy/name", "fre:dy")
+    response = requests.get("{}{}/t2:test/settings/users/fre:dy".format(server_uri, docroot), verify=False, auth=server_auth)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/json"
+    assert response.json() == json.loads("""
+{
+    "fre:dy": {
+        "name": "fre:dy"
     }
 }
 """)
@@ -965,6 +980,27 @@ def test_restapi_set_tree_list_key_colon():
     "frog:y": {
         "name": "frog:y",
         "type": "2"
+    }
+}
+""")
+
+
+def test_restapi_set_tree_list_key_ns_colon():
+    tree = """
+{
+    "name": "fre:dy"
+}
+"""
+    response = requests.post("{}{}/t2:test/settings/users/fre:dy".format(server_uri, docroot), verify=False, auth=server_auth, data=tree)
+    assert response.status_code == 200 or response.status_code == 201
+    response = requests.get("{}{}/t2:test/settings/users/fre:dy".format(server_uri, docroot), verify=False, auth=server_auth)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200 or response.status_code == 201
+    assert response.headers["Content-Type"] == "application/json"
+    assert response.json() == json.loads("""
+{
+    "fre:dy": {
+        "name": "fre:dy"
     }
 }
 """)
