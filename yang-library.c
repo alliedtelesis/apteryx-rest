@@ -18,9 +18,30 @@
  */
 #include "internal.h"
 #include "models/ietf-yang-library.h"
+#include "models/ietf-restconf-monitoring.h"
 
 /* Name for the set of modules */
 #define MODULES_STR "modules"
+
+/* List of supported capabilities. This is hard-coded for now, if we add a
+ * capability in the code, we need to update this table. Null terminate it
+ * for ease of traversal.
+ * Ref: http://www.iana.org/assignments/restconf-capability-urns/restconf-capability-urns.xhtml
+ * Commented capabilities are those defined but not yet supported.
+ */
+char *restconf_capabilities[] =
+{
+    "urn:ietf:params:restconf:capability:defaults:1.0",
+    "urn:ietf:params:restconf:capability:depth:1.0",
+    "urn:ietf:params:restconf:capability:fields:1.0",
+    "urn:ietf:params:restconf:capability:filter:1.0",
+    // "urn:ietf:params:restconf:capability:replay:1.0",
+    "urn:ietf:params:restconf:capability:with-defaults:1.0",
+    // "urn:ietf:params:restconf:capability:yang-patch:1.0",    /* [RFC8072] */
+    // "urn:ietf:params:restconf:capability:with-origin:1.0",   /* [RFC8527] */
+    // "urn:ietf:params:restconf:capability:with-operational-defaults:1.0",    /* [RFC8527] */
+    NULL
+};
 
 /*
  * A wrapper for APTERYX_LEAF.
@@ -84,18 +105,18 @@ schema_set_model_information (sch_instance *schema, GNode *root)
 
         if (loaded->model && strlen (loaded->model))
         {
-            gnode = add_leaf_strdup (root, YANGLIB_YANG_LIBRARY_MODULE_SET_MODULE_PATH,
+            gnode = add_leaf_strdup (root, YANG_LIBRARY_MODULE_SET_MODULE_PATH,
                                      loaded->model);
 
-            add_leaf_strdup (gnode, YANGLIB_MODULES_STATE_MODULE_NAME, loaded->model);
+            add_leaf_strdup (gnode, MODULES_STATE_MODULE_NAME, loaded->model);
             if (loaded->version)
             {
-                add_leaf_strdup (gnode, YANGLIB_MODULES_STATE_MODULE_REVISION,
+                add_leaf_strdup (gnode, MODULES_STATE_MODULE_REVISION,
                                  loaded->version);
             }
             if (loaded->ns_href)
             {
-                add_leaf_strdup (gnode, YANGLIB_MODULES_STATE_MODULE_NAMESPACE, loaded->ns_href);
+                add_leaf_strdup (gnode, MODULES_STATE_MODULE_NAMESPACE, loaded->ns_href);
             }
         }
     }
@@ -115,16 +136,36 @@ yang_library_create (sch_instance *schema)
     time_t now = time (NULL);
     char set_id[24];
 
-    root = APTERYX_NODE (NULL, g_strdup (YANGLIB_YANG_LIBRARY_PATH));
-    modules = add_leaf_strdup (root, YANGLIB_YANG_LIBRARY_SCHEMA_MODULE_SET, MODULES_STR);
-    add_leaf_strdup (modules, YANGLIB_YANG_LIBRARY_MODULE_SET_NAME, MODULES_STR);
+    root = APTERYX_NODE (NULL, g_strdup (YANG_LIBRARY_PATH));
+    modules = add_leaf_strdup (root, YANG_LIBRARY_SCHEMA_MODULE_SET, MODULES_STR);
+    add_leaf_strdup (modules, YANG_LIBRARY_MODULE_SET_NAME, MODULES_STR);
+    schema_set_model_information (schema, modules);
+
+    apteryx_set_tree (root);
+    apteryx_free_tree (root);
 
     /* Each time this routine is run the content-id will be set to a unique id based
      * on the clock */
     snprintf (set_id, sizeof (set_id), "%" PRIx64 "", now);
-    add_leaf_strdup (root, YANGLIB_YANG_LIBRARY_CONTENT_ID, set_id);
+    apteryx_set (YANG_LIBRARY_CONTENT_ID, set_id);
+}
 
-    schema_set_model_information (schema, modules);
+/**
+ * Create the Apteryx data for the ietf-restconf-monitoring model required by restconf.
+ *
+ * @param g_schema - The root schema xml node
+ */
+void
+restconf_monitoring_create (sch_instance *schema)
+{
+    GNode *root;
+    char **cap = restconf_capabilities;
+
+    root = APTERYX_NODE (NULL, g_strdup (RESTCONF_STATE_CAPABILITIES_CAPABILITY));
+    for (; *cap != NULL; cap++)
+    {
+        add_leaf_strdup (root, *cap, *cap);
+    }
 
     apteryx_set_tree (root);
     apteryx_free_tree (root);

@@ -41,15 +41,20 @@ def test_restconf_yang_library_tree():
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/yang-data+json"
     tree = response.json()
-    contentid = tree['yanglib:yang-library']['content-id']
+    contentid = tree['yang-library']['content-id']
     assert contentid is not None
     assert tree == json.loads("""
 {
-    "yanglib:yang-library": {
+    "yang-library": {
         "content-id": "%s",
         "module-set": [
             {
                 "module": [
+                    {
+                        "name": "ietf-restconf-monitoring",
+                        "namespace": "urn:ietf:params:xml:ns:yang:ietf-restconf-monitoring",
+                        "revision": "2017-01-26"
+                    },
                     {
                         "name": "ietf-yang-library",
                         "namespace": "urn:ietf:params:xml:ns:yang:ietf-yang-library",
@@ -78,7 +83,7 @@ def test_restconf_yang_library_tree():
 }
 """ % (contentid))
 
-# TODO 9.  RESTCONF Monitoring
+
 # module: ietf-restconf-monitoring
 #   +--ro restconf-state
 #      +--ro capabilities
@@ -92,3 +97,13 @@ def test_restconf_yang_library_tree():
 #            +--ro access* [encoding]
 #               +--ro encoding  string
 #               +--ro location  inet:uri
+def test_restconf_monitoring_tree():
+    response = requests.get("{}{}/data/ietf-restconf-monitoring:restconf-state".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    tree = response.json()
+    assert 'restconf-state' in tree
+    assert 'capabilities' in tree['restconf-state']
+    assert 'capability' in tree['restconf-state']['capabilities']
+    assert len(tree['restconf-state']['capabilities']['capability']) > 0
