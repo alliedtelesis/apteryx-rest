@@ -125,7 +125,8 @@ if [ ! -f $BUILD/../Makefile ]; then
         cd $BUILD/../
         ./autogen.sh
         ./configure \
-                LIBFCGI_CFLAGS=-I$BUILD/usr/include LIBFCGI_LIBS=-lfcgi
+                LIBFCGI_CFLAGS=-I$BUILD/usr/include LIBFCGI_LIBS=-lfcgi \
+                --with-pyang="pyang --plugindir $BUILD/apteryx-xml/ -p $BUILD/../models"
         rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
         cd $BUILD
 fi
