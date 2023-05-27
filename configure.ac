@@ -15,5 +15,11 @@ PKG_CHECK_MODULES([JANSSON],[jansson])
 PKG_CHECK_MODULES([APTERYX_XML],[apteryx-xml])
 PKG_CHECK_MODULES([LIBFCGI],[libfcgi])
 
+AC_ARG_WITH([pyang],
+  [AS_HELP_STRING([--with-pyang], [path to pyang])],
+  [use_pyang=$withval],
+  [use_pyang="pyang"])
+AC_SUBST(PYANG, $use_pyang)
+
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT

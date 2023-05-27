@@ -955,6 +955,7 @@ rest_init (const char *path)
     }
 
     yang_library_create (g_schema);
+    restconf_monitoring_create (g_schema);
 
     return true;
 }
