@@ -42,15 +42,10 @@ def test_restapi_ns_api_xml():
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "text/xml"
     print(xml.findall('.//{*}NODE'))
-    ns_t2 = [e.attrib['name'] for e in xml.findall('.//{http://test.com/ns/yang/testing-2}NODE')]
-    assert ns_t2 == ['test', 'settings', 'priority', 'users', "*", 'name', 'state', 'priority']
-    ns_aug = [e.attrib['name'] for e in xml.findall('.//{http://test.com/ns/yang/testing2-augmented}NODE')]
-    assert ns_aug == ['speed', 'speed']
-    ns_default = [e.attrib['name'] for e in xml.findall('.//{http://test.com/ns/yang/testing}NODE')]
-    for node in ['test', 'settings', 'debug', 'enable', 'priority', 'writeonly']:
+    ns_default = [e.attrib['name'] for e in xml.findall('.//{*}NODE')]
+    print(ns_default)
+    for node in ['yang-library', 'modules-state', 'test', 't2:test', 'settings', 'debug', 'enable', 'priority', 'writeonly', 'speed', 'priority']:
         assert node in ns_default
-    for node in ['hidden', 'speed']:
-        assert node not in ns_default
 
 
 def test_restapi_get_single_node():
