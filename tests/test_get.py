@@ -114,6 +114,14 @@ def test_restconf_get_node_null():
     assert (response.status_code == 204 and len(response.content) == 0) or (response.status_code == 200 and response.json() == json.loads('{}'))
 
 
+def test_restconf_get_node_empty():
+    apteryx_set("/test/settings/empty", "empty")
+    response = requests.get("{}{}/data/testing:test/settings/empty".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    if len(response.content) != 0:
+        print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert (response.status_code == 204 and len(response.content) == 0) or (response.status_code == 200 and response.json() == json.loads('{}'))
+
+
 def test_restconf_get_trunk_no_namespace():
     response = requests.get("{}{}/data/test/settings".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))

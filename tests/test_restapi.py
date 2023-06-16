@@ -146,6 +146,15 @@ def test_restapi_get_node_null():
     assert response.json() == json.loads('{}')
 
 
+def test_restapi_get_node_empty():
+    apteryx_set("/test/settings/empty", "empty")
+    response = requests.get("{}{}/test/settings/empty".format(server_uri, docroot), verify=False, auth=server_auth, headers=json_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/json"
+    assert response.json() == json.loads('{}')
+
+
 def test_restapi_get_tree_strings():
     response = requests.get("{}{}/test/settings".format(server_uri, docroot), verify=False, auth=server_auth)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
