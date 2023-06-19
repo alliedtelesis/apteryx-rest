@@ -243,19 +243,54 @@ def test_restconf_create_hidden():
 
 
 def test_restconf_create_out_of_range_integer():
-    apteryx_set("/test/settings/priority", "")
-    response = requests.post("{}{}/data/test/settings".format(server_uri, docroot), auth=server_auth, headers=set_restconf_headers, data="""{"priority": 1}""")
-    assert response.status_code == 201
-    apteryx_set("/test/settings/priority", "")
-    response = requests.post("{}{}/data/test/settings".format(server_uri, docroot), auth=server_auth, headers=set_restconf_headers, data="""{"priority": 0}""")
-    assert response.status_code == 400
-    apteryx_set("/test/settings/priority", "")
-    response = requests.post("{}{}/data/test/settings".format(server_uri, docroot), auth=server_auth, headers=set_restconf_headers, data="""{"priority": 6}""")
-    assert response.status_code == 400
-    apteryx_set("/test/settings/priority", "")
-    response = requests.post("{}{}/data/test/settings".format(server_uri, docroot), auth=server_auth, headers=set_restconf_headers, data="""{"priority": 55}""")
-    assert response.status_code == 400
-    assert apteryx_get("/test/settings/priority") == "Not found"
+    # /test/settings/priority range="-5..-1|1..5|99"
+    tests = [
+        ("""{"priority": -9223372036854775808}""", 400),
+        ("""{"priority": -55}""", 400),
+        ("""{"priority": -6}""", 400),
+        ("""{"priority": -5}""", 201),
+        ("""{"priority": -1}""", 201),
+        ("""{"priority": 0}""", 400),
+        ("""{"priority": -1}""", 201),
+        ("""{"priority": 5}""", 201),
+        ("""{"priority": 6}""", 400),
+        ("""{"priority": 55}""", 400),
+        ("""{"priority": 99}""", 201),
+        ("""{"priority": 18446744073709551615}""", 400)
+    ]
+    for data, rc in tests:
+        apteryx_set("/test/settings/priority", "")
+        response = requests.post("{}{}/data/test/settings".format(server_uri, docroot), auth=server_auth, headers=set_restconf_headers, data=data)
+        assert response.status_code == rc
+
+
+def test_restconf_create_out_of_range_uint64():
+    # /test/settings/volume uint64 range="0..18446744073709551615"
+    tests = [
+        ("""{"volume": -1}""", 400),
+        ("""{"volume": 0}""", 201),
+        ("""{"volume": "18446744073709551615"}""", 201),
+        ("""{"volume": "28446744073709551615"}""", 400)
+    ]
+    for data, rc in tests:
+        apteryx_set("/test/settings/volume", "")
+        response = requests.post("{}{}/data/test/settings".format(server_uri, docroot), auth=server_auth, headers=set_restconf_headers, data=data)
+        assert response.status_code == rc
+
+
+def test_restconf_create_out_of_range_int64():
+    # /t2:test/settings/speed int64 range="-9223372036854775808..9223372036854775807"
+    tests = [
+        ("""{"speed": -18446744073709551615}""", 400),
+        ("""{"speed": -9223372036854775808}""", 201),
+        ("""{"speed": 0}""", 201),
+        ("""{"speed": 9223372036854775807}""", 201),
+        ("""{"speed": "18446744073709551615"}""", 400)
+    ]
+    for data, rc in tests:
+        apteryx_set("/t2:test/settings/speed", "")
+        response = requests.post("{}{}/data/testing-2:test/settings".format(server_uri, docroot), auth=server_auth, headers=set_restconf_headers, data=data)
+        assert response.status_code == rc
 
 
 def test_restconf_create_list_entry_ok():
