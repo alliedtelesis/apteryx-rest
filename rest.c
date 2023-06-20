@@ -187,76 +187,13 @@ rest_api_search (const char *path, const char *if_none_match, const char *if_mod
     return resp;
 }
 
-static json_t *
-get_response_node (sch_node *schema, json_t *root, int flags)
+static GNode*
+get_response_node (GNode *tree, int rdepth)
 {
-    int depth = 0;
-
-    schema = sch_node_parent (schema);
-    if (flags & FLAGS_RESTCONF && schema && sch_is_list (schema))
-        depth--;
-    while (schema)
-    {
-        schema = sch_node_parent (schema);
-        depth++;
-    }
-
-    while (root && depth > 1)
-    {
-        if (json_is_array (root))
-            root = json_array_get(root, 0);
-        else
-        {
-            void *iter = json_object_iter (root);
-            /* May have asked for a wildcard list in the path */
-            if (json_object_iter_next (root, iter))
-                break;
-            root = json_object_iter_value (iter);
-        }
-        depth--;
-    }
-    return root;
-}
-
-// TODO reuse for get_response_node above
-static GNode *
-_get_response_node (sch_node *schema, GNode *root, int flags)
-{
-    int depth = 0;
-
-    schema = sch_node_parent (schema);
-    if (flags & FLAGS_RESTCONF && schema && sch_is_list (schema))
-        depth--;
-    while (schema)
-    {
-        schema = sch_node_parent (schema);
-        depth++;
-    }
-
-    while (root && depth > 1)
-    {
-        root = root->children;
-        depth--;
-    }
-    return root;
-}
-
-static char *
-get_collapsed_root (GNode *root, gboolean values)
-{
-    gchar *compressed_path = root ? g_strdup (APTERYX_NAME(root)) : NULL;
-    while (root &&
-           (values || !APTERYX_HAS_VALUE (root)) &&
-           g_node_n_children (root) == 1 &&
-           g_strcmp0 (APTERYX_NAME (g_node_first_child (root)), "*") != 0)
-    {
-        GNode *child = g_node_first_child (root);
-        gchar *cpath = g_strdup_printf ("%s/%s", compressed_path ?: "", APTERYX_NAME (child));
-        g_free (compressed_path);
-        compressed_path = cpath;
-        root = child;
-    }
-    return compressed_path;
+    GNode *rnode = tree;
+    while (--rdepth && rnode)
+        rnode = rnode->children;
+    return rnode;
 }
 
 static char *
@@ -264,16 +201,17 @@ rest_api_get (int flags, const char *path, const char *if_none_match, const char
 {
     const char *qmark;
     char *rpath = NULL;
-    sch_node *api_subtree = NULL;
+    sch_node *qschema = NULL;
     char *apath = NULL;
     json_t *json = NULL;
     uint64_t ts = 0;
     int rc = HTTP_CODE_OK;
-    GNode *query, *tree, *child;
+    GNode *query, *tree;
     char *json_string = NULL;
     char *resp = NULL;
     int schflags = 0;
-    int depth;
+    int qdepth, rdepth;
+    int diff;
 
     /* Separate the path from any query string */
     qmark = strchr (path, '?');
@@ -294,8 +232,8 @@ rest_api_get (int flags, const char *path, const char *if_none_match, const char
         schflags |= SCH_F_NS_MODEL_NAME;
 
     /* Convert the path to a GNode tree to use as the base of the apteryx query */
-    query = sch_path_to_gnode (g_schema, NULL, path, schflags, &api_subtree);
-    if (!query || !api_subtree)
+    query = sch_path_to_gnode (g_schema, NULL, path, schflags, &qschema);
+    if (!query || !qschema)
     {
         VERBOSE ("REST: Path \"%s\" invalid\n", path);
         switch (sch_last_err ())
@@ -310,15 +248,41 @@ rest_api_get (int flags, const char *path, const char *if_none_match, const char
         }
         goto exit;
     }
-    if (sch_is_leaf (api_subtree) && !sch_is_readable (api_subtree))
+    if (sch_is_leaf (qschema) && !sch_is_readable (qschema))
     {
         VERBOSE ("REST: Path \"%s\" not readable\n", path);
         rc = HTTP_CODE_FORBIDDEN;
         goto exit;
     }
 
-    /* Get a timestamp for the apteryx path */
-    apath = get_collapsed_root (query, true);
+    /* Get the depth of the response which is the depth of the query
+       OR the up until the first path wildcard */
+    qdepth = g_node_max_height (query);
+    rdepth = 1;
+    GNode *rnode = query;
+    while (rnode &&
+           g_node_n_children (rnode) == 1 &&
+           g_strcmp0 (APTERYX_NAME (g_node_first_child (rnode)), "*") != 0)
+    {
+        rnode = g_node_first_child (rnode);
+        rdepth++;
+    }
+    sch_node *rschema = qschema;
+    diff = qdepth - rdepth;
+    while (diff--)
+        rschema = sch_node_parent (rschema);
+    if (sch_node_parent (rschema) && sch_is_list (sch_node_parent (rschema)))
+    {
+        /* We need to present the list rather than the key */
+        rschema = sch_node_parent (rschema);
+        rdepth--;
+    }
+    GNode *qnode = rnode;
+    while (qnode->children)
+        qnode = qnode->children;
+
+    /* Get a timestamp for the root of the query path */
+    apath = apteryx_node_path (rnode);
     ts = apteryx_timestamp (apath);
     free (apath);
     if (if_none_match && if_none_match[0] != '\0' &&
@@ -348,29 +312,25 @@ rest_api_get (int flags, const char *path, const char *if_none_match, const char
     }
 
     /* Parse the query if provided */
-    child = query;
-    while (child->children)
-        child = child->children;
-    depth = g_node_max_height (query);
     if (qmark)
     {
         /* Parse the query and attach to the tree */
-        if (!sch_query_to_gnode (g_schema, api_subtree, child, qmark, schflags, &schflags))
+        if (!sch_query_to_gnode (g_schema, qschema, qnode, qmark, schflags, &schflags))
         {
             rc = HTTP_CODE_BAD_REQUEST;
             goto exit;
         }
     }
     /* Without a query we may need to add a wildcard to get everything from here down */
-    if (!query || (depth == g_node_max_height (query) && !(schflags & SCH_F_DEPTH_ONE)))
+    if (!query || (qdepth == g_node_max_height (query) && !(schflags & SCH_F_DEPTH_ONE)))
     {
-        if (api_subtree && sch_node_child_first (api_subtree) && !(schflags & SCH_F_STRIP_DATA))
+        if (qschema && sch_node_child_first (qschema) && !(schflags & SCH_F_STRIP_DATA))
         {
             /* Get everything from here down if we do not already have a star */
-            if (!g_node_first_child (child) && g_strcmp0 (APTERYX_NAME (child), "*") != 0)
+            if (!g_node_first_child (qnode) && g_strcmp0 (APTERYX_NAME (qnode), "*") != 0)
             {
-                APTERYX_NODE (child, g_strdup ("*"));
-                DEBUG ("%*s%s\n", g_node_max_height (query) * 2, " ", "*");
+                APTERYX_NODE (qnode, g_strdup ("*"));
+                DEBUG ("%*s%s\n", qdepth * 2, " ", "*");
             }
         }
     }
@@ -381,15 +341,15 @@ rest_api_get (int flags, const char *path, const char *if_none_match, const char
     {
         if (tree)
         {
-            GNode *rnode = _get_response_node (api_subtree, tree, flags);
-            sch_traverse_tree (g_schema, api_subtree, rnode, schflags | SCH_F_ADD_DEFAULTS);
+            rnode = get_response_node (tree, rdepth);
+            sch_traverse_tree (g_schema, rschema, rnode, schflags | SCH_F_ADD_DEFAULTS);
         }
         else if (!tree)
         {
             /* Nothing in the database, but we may have defaults! */
             tree = query;
             query = NULL;
-            sch_traverse_tree (g_schema, api_subtree, child, schflags | SCH_F_ADD_DEFAULTS);
+            sch_traverse_tree (g_schema, rschema, qnode, schflags | SCH_F_ADD_DEFAULTS);
         }
     }
     if (tree)
@@ -397,27 +357,36 @@ rest_api_get (int flags, const char *path, const char *if_none_match, const char
         /* Get rid of any unwanted nodes */
         if (schflags & SCH_F_TRIM_DEFAULTS)
         {
-            GNode *rnode = _get_response_node (api_subtree, tree, flags);
-            sch_traverse_tree (g_schema, api_subtree, rnode, schflags | SCH_F_TRIM_DEFAULTS);
+            rnode = get_response_node (tree, rdepth);
+            sch_traverse_tree (g_schema, rschema, rnode, schflags | SCH_F_TRIM_DEFAULTS);
         }
 
         /* Convert the result to JSON */
-        json = sch_gnode_to_json (g_schema, NULL, tree, schflags);
+        rnode = get_response_node (tree, rdepth);
+        if (rnode)
+            json = sch_gnode_to_json (g_schema, rschema, rnode, schflags);
         if (json)
         {
-            json_t *json_new = get_response_node (api_subtree, json, flags);
             if (!(flags & FLAGS_JSON_FORMAT_ROOT) && !json_is_string (json))
             {
                 /* Chop off the root node */
-                json_new = json_object_iter_value (json_object_iter (json_new));
+                json_t *json_new = json_object_iter_value (json_object_iter (json));
+                json_incref (json_new);
+                json_decref (json);
+                json = json_new;
             }
-            json_incref (json_new);
-            json_decref (json);
-            json = json_new;
+            if (!(flags & FLAGS_RESTCONF) && qschema != rschema && sch_is_list (rschema))
+            {
+                /* Provide the list array object */
+                json_t *json_new = json_object_iter_value (json_object_iter (json));
+                json_incref (json_new);
+                json_decref (json);
+                json = json_new;
+            }
             if (flags & FLAGS_JSON_FORMAT_MULTI)
             {
                 /* Top level array */
-                json_new = json_array ();
+                json_t *json_new = json_array ();
                 json_array_append_new (json_new, json);
                 json = json_new;
             }
@@ -693,8 +662,7 @@ rest_api_delete (int flags, const char *path)
     if (tree)
     {
         /* Set all leaves to NULL if we are allowed */
-        // int depth = g_node_max_height (tree);
-        GNode *rnode = _get_response_node (api_subtree, tree, 0/*flags*/);
+        GNode *rnode = get_response_node (tree, query_depth);
         if (!sch_traverse_tree (g_schema, api_subtree, rnode, schflags | SCH_F_SET_NULL))
             rc = HTTP_CODE_FORBIDDEN;
         else if (g_node_max_height (tree) <= query_depth)
