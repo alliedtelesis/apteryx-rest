@@ -434,11 +434,15 @@ def test_restapi_get_two_list_all_nodes():
     assert response.headers["Content-Type"] == "application/json"
     assert response.json() == json.loads("""
 {
-    "banana": {
-        "name": "banana"
-    },
-    "nuts": {
-        "name": "nuts"
+    "hamster": {
+        "food": {
+            "banana": {
+                "name": "banana"
+            },
+            "nuts": {
+                "name": "nuts"
+            }
+        }
     }
 }
 """)
@@ -1605,11 +1609,15 @@ def test_restapi_query_field_two_list_all_nodes():
     assert response.headers["Content-Type"] == "application/json"
     assert response.json() == json.loads("""
 {
-    "nuts": {
-        "name": "nuts"
-    },
-    "banana": {
-        "name": "banana"
+    "hamster": {
+        "food": {
+            "banana": {
+                "name": "banana"
+            },
+            "nuts": {
+                "name": "nuts"
+            }
+        }
     }
 }
 """)
