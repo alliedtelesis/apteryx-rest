@@ -197,6 +197,7 @@ else
     killall lighttpd &> /dev/null
     echo '
     server.document-root = "./"
+    index-file.names = ( "index.html" )
     server.port = 8080
     server.modules += ("mod_fastcgi")
     mimetype.assign = (
@@ -204,7 +205,8 @@ else
     ".txt" => "text/plain",
     ".xml" => "text/xml",
     ".jpg" => "image/jpeg",
-    ".png" => "image/png"
+    ".png" => "image/png",
+    ".css" => "text/css",
     )
     server.stream-response-body = 2
     fastcgi.debug = 1
