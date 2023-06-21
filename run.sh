@@ -54,6 +54,8 @@ if [ ! -f $BUILD/usr/lib/libapteryx-schema.so ]; then
         cd apteryx-xml
         rm -f $BUILD/usr/lib/libapteryx-xml.so
         rm -f $BUILD/usr/lib/libapteryx-schema.so
+        export EXTRA_CFLAGS="-fprofile-arcs -ftest-coverage"
+        export EXTRA_LDFLAGS="-fprofile-arcs -ftest-coverage"
         make install DESTDIR=$BUILD APTERYX_PATH=$BUILD/apteryx
         rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
         cd $BUILD
@@ -252,6 +254,8 @@ fi
 mkdir -p .gcov
 mv -f *.gcno .gcov/ 2>/dev/null || true
 mv -f *.gcda .gcov/ 2>/dev/null || true
+mv -f $BUILD/apteryx-xml/*.gcno .gcov/ 2>/dev/null || true
+mv -f $BUILD/apteryx-xml/*.gcda .gcov/ 2>/dev/null || true
 lcov -q --capture --directory . --output-file .gcov/coverage.info &> /dev/null
 genhtml -q .gcov/coverage.info --output-directory .gcov/
 
