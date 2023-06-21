@@ -318,6 +318,27 @@ def test_restconf_get_leaf_list_node():
     """)
 
 
+def test_restconf_get_leaf_list_integers():
+    apteryx_set("/test/settings/users/alfred/name", "alfred")
+    apteryx_set("/test/settings/users/alfred/age", "87")
+    apteryx_set("/test/settings/users/alfred/groups/1", "1")
+    apteryx_set("/test/settings/users/alfred/groups/5", "5")
+    apteryx_set("/test/settings/users/alfred/groups/9", "9")
+    response = requests.get("{}{}/data/testing:test/settings/users=alfred/groups".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.json() == json.loads("""
+{
+    "testing:groups": [
+        1,
+        5,
+        9
+    ]
+}
+    """)
+
+
 # TODO multiple keys
 #  /restconf/data/ietf-yang-library:modules-state/module=ietf-interfaces,2014-05-08
 #  Missing key values are not allowed, so two consecutive commas are
