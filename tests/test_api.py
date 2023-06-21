@@ -66,7 +66,7 @@ def test_restconf_get_timestamp_namespace():
     assert response.headers["Content-Type"] == "application/yang-data+json"
     assert response.headers.get("Last-Modified") is not None
     assert time.strftime("%a, %d %b", time.gmtime()) in response.headers.get("Last-Modified")
-    assert response.json() == json.loads('{ "enable": true }')
+    assert response.json() == json.loads('{ "testing:enable": true }')
 
 
 def test_restconf_get_timestamp_trunk():
@@ -124,7 +124,7 @@ def test_restconf_get_if_modified_since_namespace():
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     last_modified = response.headers.get("Last-Modified")
-    assert response.json() == json.loads('{ "enable": true }')
+    assert response.json() == json.loads('{ "testing:enable": true }')
     headers = {**get_restconf_headers, 'If-Modified-Since': last_modified}
     response = requests.get("{}{}/data/testing:test/settings/enable".format(server_uri, docroot), auth=server_auth, headers=headers)
     assert response.status_code == 304
@@ -136,7 +136,7 @@ def test_restconf_get_if_modified_since_namespace():
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.headers.get("Last-Modified") is not None and response.headers.get("Last-Modified") != last_modified
-    assert response.json() == json.loads('{ "enable": false }')
+    assert response.json() == json.loads('{ "testing:enable": false }')
 
 
 def test_restconf_get_etag():
@@ -156,7 +156,7 @@ def test_restconf_get_etag_namespace():
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/yang-data+json"
     assert response.headers.get("ETag") is not None and response.headers.get("ETag") != "0"
-    assert response.json() == json.loads('{ "enable": true }')
+    assert response.json() == json.loads('{ "testing:enable": true }')
 
 
 def test_restconf_get_etag_trunk():
@@ -209,7 +209,7 @@ def test_restconf_get_if_none_match_namespace():
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     etag = response.headers.get("Etag")
-    assert response.json() == json.loads('{ "enable": true }')
+    assert response.json() == json.loads('{ "testing:enable": true }')
     headers = {**get_restconf_headers, 'If-None-Match': etag}
     response = requests.get("{}{}/data/testing:test/settings/enable".format(server_uri, docroot), auth=server_auth, headers=headers)
     assert response.status_code == 304
@@ -220,7 +220,7 @@ def test_restconf_get_if_none_match_namespace():
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.headers.get("Etag") is not None and response.headers.get("Etag") != etag
-    assert response.json() == json.loads('{ "enable": false }')
+    assert response.json() == json.loads('{ "testing:enable": false }')
 
 
 # TODO 3.5.3. Any reserved characters MUST be percent-encoded, according to Sections 2.1 and 2.5 of [RFC3986].

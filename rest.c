@@ -229,7 +229,17 @@ rest_api_get (int flags, const char *path, const char *if_none_match, const char
     if (flags & FLAGS_JSON_FORMAT_TYPES)
         schflags |= SCH_F_JSON_TYPES;
     if (flags & FLAGS_RESTCONF)
+    {
         schflags |= SCH_F_NS_MODEL_NAME;
+        /* If the prefix/model name is not specified in the request
+           then dont include it in the reply */
+        char *colon = strchr (path, ':');
+        char *slash = strchr (path, '/');
+        if (slash)
+            slash = strchr (slash + 1, '/');
+        if (colon && (!slash || colon < slash))
+            schflags |= SCH_F_NS_PREFIX;
+    }
 
     /* Convert the path to a GNode tree to use as the base of the apteryx query */
     query = sch_path_to_gnode (g_schema, NULL, path, schflags, &qschema);

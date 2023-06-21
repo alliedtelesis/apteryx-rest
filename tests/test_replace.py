@@ -69,12 +69,12 @@ def test_restconf_replace_if_not_modified_since():
 
 def test_restconf_replace_if_not_modified_since_namespace():
     response = requests.get("{}{}/data/testing:test/settings/priority".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
-    assert response.status_code == 200 and len(response.content) > 0 and response.json() == json.loads('{ "priority": 1 }')
+    assert response.status_code == 200 and len(response.content) > 0 and response.json() == json.loads('{ "testing:priority": 1 }')
     last_modified = response.headers.get("Last-Modified")
     time.sleep(1)
     apteryx_set("/test/settings/priority", "2")
     headers = {**get_restconf_headers, 'If-Unmodified-Since': last_modified}
-    response = requests.put("{}{}/data/testing:test/settings".format(server_uri, docroot), auth=server_auth, headers=headers, data="""{"priority": "3"}""")
+    response = requests.put("{}{}/data/testing:test/settings".format(server_uri, docroot), auth=server_auth, headers=headers, data="""{"testing:priority": "3"}""")
     assert response.status_code == 412
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -126,12 +126,12 @@ def test_restconf_replace_if_match():
 
 def test_restconf_replace_if_match_namespace():
     response = requests.get("{}{}/data/testing:test/settings/priority".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
-    assert response.status_code == 200 and len(response.content) > 0 and response.json() == json.loads('{ "priority": 1 }')
+    assert response.status_code == 200 and len(response.content) > 0 and response.json() == json.loads('{ "testing:priority": 1 }')
     etag = response.headers.get("Etag")
     time.sleep(1)
     apteryx_set("/test/settings/priority", "2")
     headers = {**set_restconf_headers, 'If-Match': etag}
-    response = requests.put("{}{}/data/testing:test/settings".format(server_uri, docroot), auth=server_auth, headers=headers, data="""{"priority": "3"}""")
+    response = requests.put("{}{}/data/testing:test/settings".format(server_uri, docroot), auth=server_auth, headers=headers, data="""{"testing:priority": "3"}""")
     assert response.status_code == 412
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))

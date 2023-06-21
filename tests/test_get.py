@@ -24,7 +24,7 @@ def test_restconf_get_single_node_ns_default():
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/yang-data+json"
-    assert response.json() == json.loads('{ "priority": 1 }')
+    assert response.json() == json.loads('{ "testing:priority": 1 }')
 
 
 def test_restconf_get_single_node_ns_aug_default():
@@ -32,7 +32,7 @@ def test_restconf_get_single_node_ns_aug_default():
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/yang-data+json"
-    assert response.json() == json.loads('{ "volume": 1 }')
+    assert response.json() == json.loads('{ "testing:volume": 1 }')
 
 
 def test_restconf_get_single_node_ns_other():
@@ -40,7 +40,7 @@ def test_restconf_get_single_node_ns_other():
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/yang-data+json"
-    assert response.json() == json.loads('{ "priority": 2 }')
+    assert response.json() == json.loads('{ "testing-2:priority": 2 }')
 
 
 def test_restconf_get_single_node_ns_aug_other():
@@ -48,7 +48,7 @@ def test_restconf_get_single_node_ns_aug_other():
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/yang-data+json"
-    assert response.json() == json.loads('{ "speed": 2 }')
+    assert response.json() == json.loads('{ "testing2-augmented:speed": 2 }')
 
 
 def test_restconf_get_integer():
@@ -56,12 +56,12 @@ def test_restconf_get_integer():
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/yang-data+json"
-    assert response.json() == json.loads('{ "priority": 1 }')
+    assert response.json() == json.loads('{ "testing:priority": 1 }')
     apteryx_set("/test/settings/priority", "2")
     response = requests.get("{}{}/data/testing:test/settings/priority".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
-    assert response.json() == json.loads('{ "priority": 2 }')
+    assert response.json() == json.loads('{ "testing:priority": 2 }')
 
 
 def test_restconf_get_string_string():
@@ -69,7 +69,7 @@ def test_restconf_get_string_string():
     response = requests.get("{}{}/data/testing:test/settings/description".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
-    assert response.json() == json.loads('{ "description": "This is a description" }')
+    assert response.json() == json.loads('{ "testing:description": "This is a description" }')
 
 
 def test_restconf_get_string_number():
@@ -77,7 +77,7 @@ def test_restconf_get_string_number():
     response = requests.get("{}{}/data/testing:test/settings/description".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
-    assert response.json() == json.loads('{ "description": "123" }')
+    assert response.json() == json.loads('{ "testing:description": "123" }')
 
 
 def test_restconf_get_boolean():
@@ -85,25 +85,25 @@ def test_restconf_get_boolean():
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/yang-data+json"
-    assert response.json() == json.loads('{ "enable": true }')
+    assert response.json() == json.loads('{ "testing:enable": true }')
     apteryx_set("/test/settings/enable", "false")
     response = requests.get("{}{}/data/testing:test/settings/enable".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/yang-data+json"
-    assert response.json() == json.loads('{ "enable": false }')
+    assert response.json() == json.loads('{ "testing:enable": false }')
 
 
 def test_restconf_get_value_string():
     response = requests.get("{}{}/data/testing:test/settings/debug".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/yang-data+json"
-    assert response.json() == json.loads('{ "debug": "enable" }')
+    assert response.json() == json.loads('{ "testing:debug": "enable" }')
     apteryx_set("/test/settings/debug", "disable")
     response = requests.get("{}{}/data/testing:test/settings/debug".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/yang-data+json"
-    assert response.json() == json.loads('{ "debug": "disable" }')
+    assert response.json() == json.loads('{ "testing:debug": "disable" }')
 
 
 def test_restconf_get_node_null():
@@ -147,12 +147,27 @@ def test_restconf_get_trunk_namespace():
     assert response.headers["Content-Type"] == "application/yang-data+json"
     assert response.json() == json.loads("""
 {
-    "settings": {
+    "testing:settings": {
         "debug": "enable",
         "enable": true,
         "priority": 1,
         "readonly": "yes",
         "volume": 1
+    }
+}
+    """)
+
+
+def test_restconf_get_trunk_other_namespace():
+    response = requests.get("{}{}/data/testing-2:test/settings".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.json() == json.loads("""
+{
+    "testing-2:settings": {
+        "priority": 2,
+        "testing2-augmented:speed": 2
     }
 }
     """)
@@ -165,7 +180,7 @@ def test_restconf_get_list_trunk():
     assert response.headers["Content-Type"] == "application/yang-data+json"
     assert response.json() == json.loads("""
 {
-    "animals": {
+    "testing:animals": {
         "animal": [
             {"name": "cat", "type": "big"},
             {"name": "dog", "colour": "brown"},
@@ -244,7 +259,7 @@ def test_restconf_get_list_select_one_trunk():
     assert response.headers["Content-Type"] == "application/yang-data+json"
     assert response.json() == json.loads("""
 {
-    "animal": [
+    "testing:animal": [
         {
             "name": "cat",
             "type": "big"
@@ -261,7 +276,7 @@ def test_restconf_get_list_select_one_by_path_trunk():
     assert response.headers["Content-Type"] == "application/yang-data+json"
     assert response.json() == json.loads("""
 {
-    "animal": [
+    "testing:animal": [
         {
             "name": "cat",
             "type": "big"
@@ -278,7 +293,7 @@ def test_restconf_get_list_select_two_trunk():
     assert response.headers["Content-Type"] == "application/yang-data+json"
     assert response.json() == json.loads("""
 {
-    "food": [
+    "testing:food": [
         {
             "name": "banana",
             "type": "fruit"
@@ -295,7 +310,7 @@ def test_restconf_get_leaf_list_node():
     assert response.headers["Content-Type"] == "application/yang-data+json"
     assert response.json() == json.loads("""
 {
-    "toy": [
+    "testing:toy": [
         "puzzles",
         "rings"
     ]
