@@ -41,11 +41,11 @@ def test_restconf_yang_library_tree():
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/yang-data+json"
     tree = response.json()
-    contentid = tree['yang-library']['content-id']
+    contentid = tree['ietf-yang-library:yang-library']['content-id']
     assert contentid is not None
     assert tree == json.loads("""
 {
-    "yang-library": {
+    "ietf-yang-library:yang-library": {
         "content-id": "%s",
         "module-set": [
             {
@@ -103,7 +103,7 @@ def test_restconf_monitoring_tree():
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/yang-data+json"
     tree = response.json()
-    assert 'restconf-state' in tree
-    assert 'capabilities' in tree['restconf-state']
-    assert 'capability' in tree['restconf-state']['capabilities']
-    assert len(tree['restconf-state']['capabilities']['capability']) > 0
+    assert 'ietf-restconf-monitoring:restconf-state' in tree
+    assert 'capabilities' in tree['ietf-restconf-monitoring:restconf-state']
+    assert 'capability' in tree['ietf-restconf-monitoring:restconf-state']['capabilities']
+    assert len(tree['ietf-restconf-monitoring:restconf-state']['capabilities']['capability']) > 0
