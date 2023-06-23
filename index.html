@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>TreeView</title>
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.0/dist/jquery.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@3.4.1/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@3.4.1/dist/css/bootstrap-theme.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@3.4.1/dist/js/bootstrap.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jstree@3.3.15/dist/jstree.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/jstree@3.3.15/dist/themes/default/style.min.css" rel="stylesheet">
+</head>
+
+<body>
+    <div class="row col-sm-1"></div>
+    <div class="row col-sm-10">
+        <div id="jstree" class="col-sm-3"></div>
+        <div id="data" class="col-sm-6">
+            <div id="status">/</div>
+            <pre id="json"></pre>
+            <button id="update" type="button" class="btn btn-primary" disabled>Update</button>
+        </div>
+        <div id="docs" class="col-sm-3"></div>
+    </div>
+    <div class="row col-sm-1"></div>
+    <script type="module">
+        import { JSONEditor } from 'https://cdn.jsdelivr.net/npm/vanilla-jsoneditor@0.17.8/index.min.js'
+        const jeditor = new JSONEditor({
+            target: document.getElementById("json"),
+            props: {
+                mainMenuBar: false,
+                navigationBar: false,
+                statusBar: false,
+                mode: 'text',
+                content: {
+                    text: '"Select nodes on the tree view"',
+                },
+            }
+        });
+        function strip_xml(parent, nodes) {
+            var to_remove = [];
+            for (var i = 0; nodes && i < nodes.length; i++) {
+                if (nodes[i].nodeName == "NODE" || nodes[i].nodeName == "VALUE") {
+                    strip_xml(nodes[i], nodes[i].childNodes);
+                }
+                else {
+                    to_remove.push(nodes[i]);
+                }
+            }
+            for (var i = 0; i < to_remove.length; i++) {
+                parent.removeChild(to_remove[i]);
+            }
+        }
+        function xmlPath(node) {
+            if (node.parentNode && node.parentNode.getAttribute("name") != null) {
+                return xmlPath(node.parentNode) + "/" + node.getAttribute("name");
+            }
+            return node.getAttribute("name");
+        }
+        function traverse(xmlDoc, nodes) {
+            var txt = "";
+            var list_entry = false;
+            for (var i = 0; nodes && i < nodes.length; i++) {
+                if (nodes[i].nodeName == "NODE") {
+                    var name = nodes[i].getAttribute("name");
+                    txt += "<ul>";
+                    txt += "<li ";
+                    var data = {}
+                    if (nodes[i].hasChildNodes() && nodes[i].childNodes[0].getAttribute("name") == "*") {
+                        data.icon = "glyphicon glyphicon-th-list";
+                    }
+                    else if (list_entry) {
+                        data.icon = "glyphicon glyphicon-file";
+                    }
+                    else if (!nodes[i].hasChildNodes() || nodes[i].childNodes[0].nodeName == "VALUE") {
+                        data.icon = "glyphicon glyphicon-leaf";
+                    }
+                    else {
+                        data.icon = "glyphicon glyphicon-folder-open";
+                    }
+                    // data.disabled = true;
+                    if (data.length != 0) {
+                        txt += " data-jstree='" + JSON.stringify(data) + "'";
+                    }
+                    var mode = nodes[i].getAttribute("mode");
+                    if (mode) {
+                        txt += " mode=\"" + mode + "\"";
+                    }
+                    var help = nodes[i].getAttribute("help");
+                    if (help) {
+                        txt += " title=\"" + help + "\"";
+                    }
+                    var pattern = nodes[i].getAttribute("pattern");
+                    if (pattern) {
+                        txt += " pattern=\"" + pattern + "\"";
+                    }
+                    var range = nodes[i].getAttribute("range");
+                    if (range) {
+                        txt += " range=\"" + range + "\"";
+                    }
+                    var children = nodes[i].childNodes;
+                    var values = "";
+                    for (var j = 0; j < children.length; j++) {
+                        var child = children[j];
+                        if (child.nodeName == "VALUE") {
+                            var cname = child.getAttribute("name");
+                            if (values != "")
+                                values += ",";
+                            values += cname;
+                        }
+                    }
+                    if (values != "") {
+                        txt += " values=\"" + values + "\"";
+                    }
+                    txt += ">";
+                    txt += name;
+                    if (nodes[i].hasChildNodes()) {
+                        txt += traverse(xmlDoc, nodes[i].childNodes);
+                    }
+                    txt += "</li>";
+                    txt += "</ul>";
+                }
+            }
+            return txt;
+        }
+        function node_contains_config(node) {
+            var mode = node.li_attr.mode;
+            if (mode == "w" || mode == "rw") {
+                return true;
+            }
+            for (var i = 0; i < node.children.length; i++) {
+                if (node_contains_config($('#jstree').jstree(true).get_json(node.children[i])))
+                    return true;
+            }
+            return false;
+        }
+        function action_get(node) {
+            var path = "/" + $('#jstree').jstree(true).get_path(node, "/");
+            var json = $.ajax({
+                headers: {
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Accept': 'application/json',
+                    'X-JSON-Types': 'on',
+                    'X-JSON-Array': 'on',
+                },
+                url: 'api' + path + '?with-defaults=report-all',
+                async: false
+            }).responseJSON;
+            if (json == undefined) {
+                jeditor.set({text: '"Not found"'})
+            }
+            else {
+                var data = JSON.stringify(json, null, "  ")
+                jeditor.set({text: data})
+                jeditor.path = path;
+                if (node_contains_config(node)) {
+                    jeditor.updateProps({readOnly: false});
+                    document.getElementById("update").disabled = false;
+                } else {
+                    jeditor.updateProps({readOnly: true});
+                    document.getElementById("update").disabled = true;
+                }
+            }
+        }
+        $(function () {
+            $.ajax({
+                url: 'api.xml',
+                success: function (xml) {
+                    if (xml.documentElement.childNodes) {
+                        strip_xml(xml.documentElement, xml.documentElement.childNodes)
+                        document.getElementById("jstree").innerHTML = traverse(xml, xml.documentElement.childNodes);
+                        $('#jstree').jstree({
+                            "core" : {
+                                "check_callback": true,
+                            },
+                        }).on('changed.jstree', function (e, data) {
+                            if (data.action == "select_node") {
+                                var path = "/" + $('#jstree').jstree(true).get_path(data.node, "/");
+                                document.getElementById("status").innerHTML = path;
+                                var html = '';
+                                html += '<div class="p-5 text-center bg-light">'
+                                html += '<h2 class="mb-2">' + data.node.text + '</h2>'
+                                if (data.node.li_attr.title != undefined)
+                                    html += '<p>' + data.node.li_attr.title + '</p>'
+                                if (data.node.li_attr.pattern != undefined)
+                                    html += '<p>pattern = ' + data.node.li_attr.pattern + '</p>'
+                                if (data.node.li_attr.range != undefined)
+                                    html += '<p>range = ' + data.node.li_attr.range + '</p>'
+                                if (data.node.li_attr.values != undefined)
+                                    html += '<p>values = ' + data.node.li_attr.values + '</p>'
+                                html += '</div>'
+                                document.getElementById("docs").innerHTML = html;
+                                action_get(data.node);
+                            }
+                        }).on('before_open.jstree', function (e, data) {
+                            var child = $('#jstree').jstree(true).get_node(data.node.children[0]);
+                            if (child.text == "*") {
+                                $('#jstree').jstree(true).hide_node(child);
+                            }
+                        }).on('open_node.jstree', function (e, data) {
+                            var child = $('#jstree').jstree(true).get_node(data.node.children[0]);
+                            if (child.text == "*") {
+                                var name = $('#jstree').jstree(true).get_text(data.node);
+                                var path = $('#jstree').jstree(true).get_path(data.node, "/");
+                                var json = $.ajax({
+                                    url: 'api/' + path + "/",
+                                    async: false,
+                                }).responseJSON;
+                                var entries = json[name];
+                                if (entries.length > 0) {
+                                    for (var i = 0; i < entries.length; i++) {
+                                        var config = {text: entries[i], icon: "glyphicon glyphicon-file"};
+                                        var node = $('#jstree').jstree(true).create_node(data.node, config);
+                                        $('#jstree').jstree(true).copy_node(child.children, node);
+                                    }
+                                } else {
+                                    $('#jstree').jstree(true).show_node(data.node.children[0]);
+                                }
+                            }
+                            return true;
+                        }).on('after_close.jstree', function (e, data) {
+                            var child = $('#jstree').jstree(true).get_node(data.node.children[0]);
+                            if (child.text == "*") {
+                                for (var i = 1; i < data.node.children.length; i++) {
+                                    $('#jstree').jstree(true).delete_node(data.node.children[i]);
+                                }
+                                $('#jstree').jstree(true).show_node(data.node.children[0]);
+                            }
+                        })
+                    }
+                }
+            });
+        });
+        $('#update').on('click', function(event) {
+            this.blur();
+            const path = jeditor.path;
+            var url = 'api' + path.substring(0, path.lastIndexOf('/'));
+            var json = JSON.parse(jeditor.get().text);
+            var data = JSON.stringify(json, null, "  ");
+            $.ajax({
+                type: "POST",
+                url: url,
+                dataType: "json",
+                contentType: "application/json",
+                data: data,
+                error: function(e) {
+                    if (e.status != 200 && e.status != 201)
+                    {
+                        alert(e.statusText);
+                    }
+                },
+            })
+        });
+    </script>
+</body>
+
+</html>

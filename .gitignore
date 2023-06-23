@@ -5,6 +5,9 @@ apteryx-rest
 .build/
 __pycache__/
 sse
+index_html.c
+models/*.xml
+models/*.h
 
 # Autotools
 m4/

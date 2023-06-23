@@ -105,6 +105,18 @@ rest_api_xml (void)
     return resp;
 }
 
+static void
+rest_api_html (req_handle handle)
+{
+    extern unsigned char index_html[];
+    char *resp = g_strdup_printf ("Status: 200\r\n"
+                                  "Content-Type: text/html\r\n" "\r\n");
+    send_response (handle, resp, false);
+    free (resp);
+    send_response (handle, (char *)index_html, true);
+    return;
+}
+
 static int
 apteryx_json_search (const char *path, char **data)
 {
@@ -881,6 +893,11 @@ rest_api (req_handle handle, int flags, const char *rpath, const char *path,
     {
         if (strcmp (path, ".xml") == 0)
             resp = rest_api_xml ();
+        else if (strcmp (path, ".html") == 0)
+        {
+            rest_api_html (handle);
+            return;
+        }
         else if (flags & (FLAGS_EVENT_STREAM | FLAGS_APPLICATION_STREAM))
         {
             rest_api_watch (handle, flags, path);

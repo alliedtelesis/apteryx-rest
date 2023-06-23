@@ -198,7 +198,7 @@ else
     echo Running lighttpd ...
     killall lighttpd &> /dev/null
     echo '
-    server.document-root = "./"
+    server.document-root = "'$BUILD'/../"
     index-file.names = ( "index.html" )
     server.port = 8080
     server.modules += ("mod_fastcgi")
@@ -228,7 +228,7 @@ else
 fi
 
 # Parameters
-if [ $ACTION == "test" ]; then
+if [ "$ACTION" == "test" ]; then
         PARAM="-b"
 else
         PARAM="-v"
@@ -245,7 +245,7 @@ rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
 sleep 0.5
 cd $BUILD/../
 
-if [ $ACTION == "test" ]; then
+if [ "$ACTION" == "test" ]; then
         python3 -m pytest -v
         rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
 fi
