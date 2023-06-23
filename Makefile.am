@@ -1,5 +1,5 @@
 bin_PROGRAMS = apteryx-rest
-apteryx_rest_SOURCES = main.c fcgi.c rest.c yang-library.c index_html.c
+apteryx_rest_SOURCES = main.c fcgi.c rest.c yang-library.c
 apteryx_rest_CFLAGS = @LIBFCGI_CFLAGS@ @APTERYX_XML_CFLAGS@ @JANSSON_CFLAGS@ @LIBXML2_CFLAGS@ @APTERYX_CFLAGS@ @GLIB_CFLAGS@
 apteryx_rest_LDADD = @LIBFCGI_LIBS@ @APTERYX_XML_LIBS@ @JANSSON_LIBS@ @LIBXML2_LIBS@ @APTERYX_LIBS@ @GLIB_LIBS@
 
@@ -10,10 +10,6 @@ CLEANFILES = $(BUILT_SOURCES)
 include_HEADERS = models/ietf-yang-library.h models/ietf-restconf-monitoring.h
 schemadir = $(destdir)/etc/apteryx/schema
 schema_DATA = models/ietf-yang-library.xml models/ietf-restconf-monitoring.xml
-
-index_html.c: index.html
-	xxd -i index.html index_html.c
-	sed -i 's/\};/,0x00\};/g' index_html.c
 
 models/ietf-yang-library.h: models/ietf-yang-library.yang
 	$(PYANG) -p . -f cpaths -o $@ $<

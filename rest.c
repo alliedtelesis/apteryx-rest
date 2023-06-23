@@ -105,10 +105,14 @@ rest_api_xml (void)
     return resp;
 }
 
+__asm__(
+    ".align 8;"
+    "index_html: .incbin \"index.html\";"
+    ".byte 0;");
+extern char index_html[];
 static void
 rest_api_html (req_handle handle)
 {
-    extern unsigned char index_html[];
     char *resp = g_strdup_printf ("Status: 200\r\n"
                                   "Content-Type: text/html\r\n" "\r\n");
     send_response (handle, resp, false);
