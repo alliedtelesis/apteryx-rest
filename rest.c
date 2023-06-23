@@ -354,11 +354,18 @@ rest_api_get (int flags, const char *path, const char *if_none_match, const char
             rnode = get_response_node (tree, rdepth);
             sch_traverse_tree (g_schema, rschema, rnode, schflags | SCH_F_ADD_DEFAULTS);
         }
-        else if (!tree)
+        else if (qdepth == rdepth)
         {
             /* Nothing in the database, but we may have defaults! */
             tree = query;
             query = NULL;
+            if ((g_node_max_height (tree) - 1) > qdepth)
+            {
+                GNode *child = g_node_first_child (qnode);
+                qnode->children = NULL;
+                if (child)
+                    apteryx_free_tree (child);
+            }
             sch_traverse_tree (g_schema, rschema, qnode, schflags | SCH_F_ADD_DEFAULTS);
         }
     }
