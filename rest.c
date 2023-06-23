@@ -105,11 +105,7 @@ rest_api_xml (void)
     return resp;
 }
 
-__asm__(
-    ".align 8;"
-    "index_html: .incbin \"index.html\";"
-    ".byte 0;");
-extern char index_html[];
+extern char api_html[];
 static void
 rest_api_html (req_handle handle)
 {
@@ -117,7 +113,7 @@ rest_api_html (req_handle handle)
                                   "Content-Type: text/html\r\n" "\r\n");
     send_response (handle, resp, false);
     free (resp);
-    send_response (handle, (char *)index_html, true);
+    send_response (handle, api_html, true);
     return;
 }
 

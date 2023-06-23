@@ -136,6 +136,7 @@
         }
         function action_get(node) {
             var path = "/" + $('#jstree').jstree(true).get_path(node, "/");
+            var base = document.location.pathname.substring(0, document.location.pathname.lastIndexOf('.'))
             var json = $.ajax({
                 headers: {
                     'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -143,7 +144,7 @@
                     'X-JSON-Types': 'on',
                     'X-JSON-Array': 'on',
                 },
-                url: 'api' + path + '?with-defaults=report-all',
+                url: base + path + '?with-defaults=report-all',
                 async: false
             }).responseJSON;
             if (json == undefined) {
@@ -163,8 +164,9 @@
             }
         }
         $(function () {
+            var base = document.location.pathname.substring(0, document.location.pathname.lastIndexOf('.'))
             $.ajax({
-                url: 'api.xml',
+                url: base + '.xml',
                 success: function (xml) {
                     if (xml.documentElement.childNodes) {
                         strip_xml(xml.documentElement, xml.documentElement.childNodes)
@@ -202,8 +204,9 @@
                             if (child.text == "*") {
                                 var name = $('#jstree').jstree(true).get_text(data.node);
                                 var path = $('#jstree').jstree(true).get_path(data.node, "/");
+                                var base = document.location.pathname.substring(0, document.location.pathname.lastIndexOf('.'))
                                 var json = $.ajax({
-                                    url: 'api/' + path + "/",
+                                    url: base + '/' + path + "/",
                                     async: false,
                                 }).responseJSON;
                                 var entries = json[name];
@@ -234,7 +237,8 @@
         $('#update').on('click', function(event) {
             this.blur();
             const path = jeditor.path;
-            var url = 'api' + path.substring(0, path.lastIndexOf('/'));
+            var base = document.location.pathname.substring(0, document.location.pathname.lastIndexOf('.'))
+            var url = base + path.substring(0, path.lastIndexOf('/'));
             var json = JSON.parse(jeditor.get().text);
             var data = JSON.stringify(json, null, "  ");
             $.ajax({
