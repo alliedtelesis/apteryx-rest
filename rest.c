@@ -354,7 +354,7 @@ rest_api_get (int flags, const char *path, const char *if_none_match, const char
             rnode = get_response_node (tree, rdepth);
             sch_traverse_tree (g_schema, rschema, rnode, schflags | SCH_F_ADD_DEFAULTS);
         }
-        else if (qdepth == rdepth)
+        else if (qdepth == rdepth && (sch_node_child_first (rschema) || sch_is_leaf (rschema)))
         {
             /* Nothing in the database, but we may have defaults! */
             tree = query;

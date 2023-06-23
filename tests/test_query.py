@@ -783,6 +783,13 @@ def test_restconf_query_with_defaults_report_all_trunk_empty():
     """)
 
 
+def test_restconf_query_with_defaults_empty_node():
+    response = requests.get("{}{}/data/testing:test/settings/empty?with-defaults=report-all".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    if len(response.content) != 0:
+        print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert (response.status_code == 204 and len(response.content) == 0) or (response.status_code == 200 and response.json() == json.loads('{}'))
+
+
 def test_restconf_query_with_defaults_empty_list():
     response = requests.get("{}{}/data/test/settings/users?with-defaults=report-all".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
