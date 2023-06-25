@@ -33,6 +33,10 @@ def test_restapi_api_xml():
     assert xml.findall('.//*[@mode="rh"]') == []
     assert xml.findall('.//*[@mode="wh"]') == []
     assert xml.findall('.//*[@mode="hw"]') == []
+    assert xml.findall('.//{*}WATCH') == []
+    assert xml.findall('.//{*}PROVIDE') == []
+    assert xml.findall('.//{*}INDEX') == []
+    assert xml.findall('.//{*}REFRESH') == []
 
 
 def test_restapi_ns_api_xml():
