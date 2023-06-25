@@ -396,17 +396,11 @@ rest_api_get (int flags, const char *path, const char *if_none_match, const char
             json = sch_gnode_to_json (g_schema, rschema, rnode, schflags);
         if (json)
         {
-            if (!(flags & FLAGS_JSON_FORMAT_ROOT) && !json_is_string (json))
+            if ((!(flags & FLAGS_JSON_FORMAT_ROOT) ||
+                 (!(flags & FLAGS_RESTCONF) && qschema != rschema && sch_is_list (rschema)))
+                && !json_is_string (json))
             {
                 /* Chop off the root node */
-                json_t *json_new = json_object_iter_value (json_object_iter (json));
-                json_incref (json_new);
-                json_decref (json);
-                json = json_new;
-            }
-            if (!(flags & FLAGS_RESTCONF) && qschema != rschema && sch_is_list (rschema))
-            {
-                /* Provide the list array object */
                 json_t *json_new = json_object_iter_value (json_object_iter (json));
                 json_incref (json_new);
                 json_decref (json);
