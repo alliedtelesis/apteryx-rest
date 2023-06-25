@@ -4,27 +4,27 @@
     <meta charset="utf-8">
     <title>TreeView</title>
     <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.0/dist/jquery.min.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@3.4.1/dist/css/bootstrap.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@3.4.1/dist/css/bootstrap-theme.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@3.4.1/dist/js/bootstrap.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/jstree@3.3.15/dist/jstree.min.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/jstree@3.3.15/dist/themes/default/style.min.css" rel="stylesheet">
 </head>
 
 <body>
-    <div class="row col-sm-1"></div>
-    <div class="row col-sm-10">
-        <div class="col-sm-3" style="height: 800px; overflow-y: scroll;">
-            <div id="jstree"></div>
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-3 vh-100 overflow-auto">
+                <div id="jstree"></div>
+            </div>
+            <div id="data" class="col-5 vh-100 overflow-auto">
+                <div id="status">/</div>
+                <pre id="json"></pre>
+                <button id="update" type="button" class="btn btn-primary" disabled>Update</button>
+            </div>
+            <div id="docs" class="col-4 vh-100 overflow-auto"></div>
         </div>
-        <div id="data" class="col-sm-6">
-            <div id="status">/</div>
-            <pre id="json"></pre>
-            <button id="update" type="button" class="btn btn-primary" disabled>Update</button>
-        </div>
-        <div id="docs" class="col-sm-3"></div>
     </div>
-    <div class="row col-sm-1"></div>
     <script type="module">
         import { JSONEditor } from 'https://cdn.jsdelivr.net/npm/vanilla-jsoneditor@0.17.8/index.min.js'
         const jeditor = new JSONEditor({
@@ -65,26 +65,29 @@
             for (var i = 0; nodes && i < nodes.length; i++) {
                 if (nodes[i].nodeName == "NODE") {
                     var name = nodes[i].getAttribute("name");
+                    var mode = nodes[i].getAttribute("mode");
                     txt += "<ul>";
                     txt += "<li ";
                     var data = {}
                     if (nodes[i].hasChildNodes() && nodes[i].childNodes[0].getAttribute("name") == "*") {
-                        data.icon = "glyphicon glyphicon-th-list";
+                        data.icon = "fa fa-list";
                     }
                     else if (list_entry) {
-                        data.icon = "glyphicon glyphicon-file";
+                        data.icon = "fa fa-file";
                     }
                     else if (!nodes[i].hasChildNodes() || nodes[i].childNodes[0].nodeName == "VALUE") {
-                        data.icon = "glyphicon glyphicon-leaf";
+                        if (mode == "w" || mode == "rw")
+                            data.icon = "fa fa-leaf text-success";
+                        else
+                            data.icon = "fa fa-leaf text-secondary";
                     }
                     else {
-                        data.icon = "glyphicon glyphicon-folder-open";
+                        data.icon = "fa fa-folder";
                     }
                     // data.disabled = true;
                     if (data.length != 0) {
                         txt += " data-jstree='" + JSON.stringify(data) + "'";
                     }
-                    var mode = nodes[i].getAttribute("mode");
                     if (mode) {
                         txt += " mode=\"" + mode + "\"";
                     }
@@ -182,7 +185,7 @@
                                 var path = "/" + $('#jstree').jstree(true).get_path(data.node, "/");
                                 document.getElementById("status").innerHTML = path;
                                 var html = '';
-                                html += '<div class="p-5 text-center bg-light">'
+                                html += '<div class="p-5 text-center">'
                                 html += '<h2 class="mb-2">' + data.node.text + '</h2>'
                                 if (data.node.li_attr.title != undefined)
                                     html += '<p>' + data.node.li_attr.title + '</p>'
@@ -202,6 +205,9 @@
                                 $('#jstree').jstree(true).hide_node(child);
                             }
                         }).on('open_node.jstree', function (e, data) {
+                            var icon = $('#' + data.node.id).find('i.jstree-icon.jstree-themeicon').first();
+                            if (icon && icon[0].classList.contains('fa-folder'))
+                                icon.removeClass('fa-folder').addClass('fa-folder-open');
                             var child = $('#jstree').jstree(true).get_node(data.node.children[0]);
                             if (child.text == "*") {
                                 var name = $('#jstree').jstree(true).get_text(data.node);
@@ -214,7 +220,7 @@
                                 var entries = json[name];
                                 if (entries.length > 0) {
                                     for (var i = 0; i < entries.length; i++) {
-                                        var config = {text: entries[i], icon: "glyphicon glyphicon-file"};
+                                        var config = {text: entries[i], icon: "fa fa-file"};
                                         var node = $('#jstree').jstree(true).create_node(data.node, config);
                                         $('#jstree').jstree(true).copy_node(child.children, node);
                                     }
@@ -224,6 +230,9 @@
                             }
                             return true;
                         }).on('after_close.jstree', function (e, data) {
+                            var icon = $('#' + data.node.id).find('i.jstree-icon.jstree-themeicon').first();
+                            if (icon && icon[0].classList.contains('fa-folder-open'))
+                                icon.removeClass('fa-folder-open').addClass('fa-folder');
                             var child = $('#jstree').jstree(true).get_node(data.node.children[0]);
                             if (child.text == "*") {
                                 for (var i = 1; i < data.node.children.length; i++) {
