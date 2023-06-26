@@ -240,7 +240,7 @@ rest_api_get (int flags, const char *path, const char *if_none_match, const char
         schflags |= SCH_F_JSON_ARRAYS;
     if (flags & FLAGS_JSON_FORMAT_TYPES)
         schflags |= SCH_F_JSON_TYPES;
-    if (flags & FLAGS_RESTCONF)
+    if (flags & FLAGS_JSON_FORMAT_NS)
     {
         schflags |= SCH_F_NS_MODEL_NAME;
         /* If the prefix/model name is not specified in the request
@@ -488,7 +488,7 @@ rest_api_post (int flags, const char *path, const char *data, int length, const 
     schflags = SCH_F_JSON_ARRAYS | SCH_F_JSON_TYPES;
     if (verbose)
         schflags |= SCH_F_DEBUG;
-    if (flags & FLAGS_RESTCONF)
+    if (flags & FLAGS_JSON_FORMAT_NS)
         schflags |= SCH_F_NS_MODEL_NAME;
     schflags |= SCH_F_STRIP_DATA;
 
@@ -646,7 +646,7 @@ rest_api_delete (int flags, const char *path)
         schflags |= SCH_F_JSON_ARRAYS;
     if (flags & FLAGS_JSON_FORMAT_TYPES)
         schflags |= SCH_F_JSON_TYPES;
-    if (flags & FLAGS_RESTCONF)
+    if (flags & FLAGS_JSON_FORMAT_NS)
         schflags |= SCH_F_NS_MODEL_NAME;
     else
         schflags |= SCH_F_CONFIG; /* We only want to delete config-nodes */
@@ -760,6 +760,9 @@ watch_callback (GNode * root, void *arg)
         schflags |= SCH_F_JSON_ARRAYS;
     if (req->flags & FLAGS_JSON_FORMAT_TYPES)
         schflags |= SCH_F_JSON_TYPES;
+    if (req->flags & FLAGS_JSON_FORMAT_NS)
+        schflags |= (SCH_F_NS_MODEL_NAME|SCH_F_NS_PREFIX);
+
     json = sch_gnode_to_json (g_schema, req->api, node, schflags);
     if (!json || (data = json_dumps (json, JSON_ENCODE_ANY)) == NULL)
     {
@@ -862,25 +865,35 @@ rest_api (req_handle handle, int flags, const char *rpath, const char *path,
             path += strlen ("/data");
         else if (flags & FLAGS_METHOD_GET)
         {
-            json_t *json = json_object();
-            json_t *obj = json;
-            if (path[0] == 0)
+            if (g_strcmp0 (path, ".xml") == 0)
+                resp = rest_api_xml ();
+            else if (g_strcmp0 (path, ".html") == 0)
             {
-                obj = json_object();
-                json_object_set_new (json, "ietf-restconf:restconf", obj);
-                json_object_set_new (obj, "data", json_object ());
+                rest_api_html (handle);
+                return;
             }
-            if (path[0] == 0 || g_strcmp0 (path, "/operations") == 0)
-                json_object_set_new (obj, "operations", json_object ());
-            if (path[0] == 0 || g_strcmp0 (path, "/yang-library-version") == 0)
-                json_object_set_new (obj, "yang-library-version", json_string ("2019-01-04"));
-            char *json_string = json_dumps (json, 0);
-            resp = g_strdup_printf ("Status: 200\r\n"
-                    "Content-Type: application/yang-data+json\r\n"
-                    "\r\n" "%s",
-                    json_string ? : "");
-            free (json_string);
-            json_decref (json);
+            else
+            {
+                json_t *json = json_object();
+                json_t *obj = json;
+                if (path[0] == 0)
+                {
+                    obj = json_object();
+                    json_object_set_new (json, "ietf-restconf:restconf", obj);
+                    json_object_set_new (obj, "data", json_object ());
+                }
+                if (path[0] == 0 || g_strcmp0 (path, "/operations") == 0)
+                    json_object_set_new (obj, "operations", json_object ());
+                if (path[0] == 0 || g_strcmp0 (path, "/yang-library-version") == 0)
+                    json_object_set_new (obj, "yang-library-version", json_string ("2019-01-04"));
+                char *json_string = json_dumps (json, 0);
+                resp = g_strdup_printf ("Status: 200\r\n"
+                        "Content-Type: application/yang-data+json\r\n"
+                        "\r\n" "%s",
+                        json_string ? : "");
+                free (json_string);
+                json_decref (json);
+            }
             send_response (handle, resp, false);
             g_free (resp);
             return;

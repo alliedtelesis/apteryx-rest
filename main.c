@@ -133,6 +133,9 @@ main (int argc, char *argv[])
         return 0;
     }
 
+    /* Don't buffer stout */
+    setvbuf (stdout, NULL, _IONBF, BUFSIZ);
+
     /* Create GLib loop early */
     g_loop = g_main_loop_new (NULL, true);
 
