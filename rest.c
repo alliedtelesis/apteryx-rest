@@ -393,7 +393,10 @@ rest_api_get (int flags, const char *path, const char *if_none_match, const char
         /* Convert the result to JSON */
         rnode = get_response_node (tree, rdepth);
         if (rnode)
+        {
+            VERBOSE ("JSON:\n");
             json = sch_gnode_to_json (g_schema, rschema, rnode, schflags);
+        }
         if (json)
         {
             if ((!(flags & FLAGS_JSON_FORMAT_ROOT) ||
