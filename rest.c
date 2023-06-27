@@ -540,17 +540,29 @@ rest_api_post (int flags, const char *path, const char *data, int length, const 
     /* Parse the JSON data (support full path to leaf value) */
     if (sch_is_leaf (api_subtree))
     {
-        char *name = sch_name (api_subtree);
+        char *name;
+        sch_node *pschema = sch_node_parent (api_subtree);
         json_t *value = json_loadb (data, strlen (data), JSON_DECODE_ANY, &error);
         if (!value && data && data[0] != '{' && data[0] != '[')
         {
             value = json_stringn (data, strlen (data));
         }
+        if (sch_is_leaf_list (pschema))
+        {
+            if (json_is_integer (value))
+                name = g_strdup_printf ("%" JSON_INTEGER_FORMAT, json_integer_value (value));
+            else if (json_is_boolean (value))
+                name = g_strdup_printf ("%s", json_is_true (value) ? "true" : "false");
+            else
+                name = g_strdup_printf ("%s", json_string_value (value));
+        }
+        else
+            name = sch_name (api_subtree);
         json = json_object ();
         json_object_set_new (json, name, value);
         free (name);
         /* Jump back node */
-        api_subtree = sch_node_parent (api_subtree);
+        api_subtree = pschema;
         node = child;
         child = child->parent;
         g_node_unlink (node);
