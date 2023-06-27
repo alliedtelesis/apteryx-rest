@@ -1027,6 +1027,25 @@ def test_restapi_set_tree_list_key_ns_colon():
 """)
 
 
+def test_restapi_set_leaf_list_string():
+    response = requests.post("{}{}/test/animals/animal/cat/toys/toy/ball".format(server_uri, docroot), verify=False, auth=server_auth, data="ball")
+    assert response.status_code == 201
+    assert apteryx_get("/test/animals/animal/cat/toys/toy/ball") == "ball"
+
+
+def test_restapi_set_leaf_list_integer():
+    apteryx_set("/test/settings/users/fred/name", "fred")
+    response = requests.post("{}{}/test/settings/users/fred/groups/1".format(server_uri, docroot), verify=False, auth=server_auth, data="1")
+    assert response.status_code == 201
+    assert apteryx_get("/test/settings/users/fred/groups/1") == "1"
+
+
+def test_restapi_set_leaf_list_invalid():
+    apteryx_set("/test/settings/users/fred/name", "fred")
+    response = requests.post("{}{}/test/settings/users/fred/groups/1".format(server_uri, docroot), verify=False, auth=server_auth, data="cat")
+    assert response.status_code == 400
+
+
 def test_restapi_set_tree_list_full_arrays():
     tree = """
 {

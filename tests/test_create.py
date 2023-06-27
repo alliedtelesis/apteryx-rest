@@ -1,6 +1,6 @@
 import json
 import requests
-from conftest import server_uri, server_auth, docroot, apteryx_set, apteryx_get, set_restconf_headers
+from conftest import server_uri, server_auth, docroot, apteryx_set, apteryx_get, apteryx_traverse, set_restconf_headers
 
 
 def test_restconf_create_single_node_ns_none():
@@ -305,6 +305,98 @@ def test_restconf_create_list_entry_ok():
 """
     response = requests.post("{}{}/data/test/animals".format(server_uri, docroot), auth=server_auth, data=tree, headers=set_restconf_headers)
     assert response.status_code == 201
+    print(apteryx_traverse("/test/animals/animal/frog"))
+    assert apteryx_get("/test/animals/animal/frog/name") == "frog"
+
+
+def test_restconf_create_list_leaf_string_ok():
+    tree = """
+{
+    "toy": [
+        "ball",
+        "mouse"
+    ]
+}
+"""
+    response = requests.post("{}{}/data/test/animals/animal=cat/toys".format(server_uri, docroot), auth=server_auth, data=tree, headers=set_restconf_headers)
+    assert response.status_code == 201
+    print(apteryx_traverse("/test/animals/animal/cat"))
+    assert apteryx_get("/test/animals/animal/cat/toys/toy/ball") == "ball"
+    assert apteryx_get("/test/animals/animal/cat/toys/toy/mouse") == "mouse"
+
+
+def test_restconf_create_list_leaf_integer_ok():
+    tree = """
+{
+    "groups": [
+        1,
+        5
+    ]
+}
+"""
+    apteryx_set("/test/settings/users/fred/name", "fred")
+    response = requests.post("{}{}/data/test/settings/users=fred".format(server_uri, docroot), auth=server_auth, data=tree, headers=set_restconf_headers)
+    assert response.status_code == 201
+    print(apteryx_traverse("/test/settings/users"))
+    assert apteryx_get("/test/settings/users/fred/groups/1") == "1"
+    assert apteryx_get("/test/settings/users/fred/groups/5") == "5"
+
+
+def test_restconf_create_list_leaf_integer_invalid():
+    tree = """
+{
+    "groups": [
+        "cat",
+        5
+    ]
+}
+"""
+    apteryx_set("/test/settings/users/fred/name", "fred")
+    response = requests.post("{}{}/data/test/settings/users=fred".format(server_uri, docroot), auth=server_auth, data=tree, headers=set_restconf_headers)
+    assert response.status_code == 400
+    assert len(response.content) > 0
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.json() == json.loads("""
+{
+    "ietf-restconf:errors" : {
+        "error" : [
+        {
+            "error-type" : "application",
+            "error-tag" : "malformed-message",
+            "error-message" : "malformed request syntax"
+        }
+        ]
+    }
+}
+    """)
+    print(apteryx_traverse("/test/settings/users"))
+    assert apteryx_get("/test/settings/users/fred/groups/cat") != "cat"
+    assert apteryx_get("/test/settings/users/fred/groups/5") != "5"
+
+
+def test_restconf_create_complex_ok():
+    tree = """
+{
+    "users" : [
+        {
+            "name": "fred",
+            "age": 99,
+            "groups": [
+                1,
+                5
+            ]
+        }
+    ]
+}
+"""
+    response = requests.post("{}{}/data/test/settings".format(server_uri, docroot), auth=server_auth, data=tree, headers=set_restconf_headers)
+    assert response.status_code == 201
+    print(apteryx_traverse("/test/settings/users"))
+    assert apteryx_get("/test/settings/users/fred/name") == "fred"
+    assert apteryx_get("/test/settings/users/fred/age") == "99"
+    assert apteryx_get("/test/settings/users/fred/groups/1") == "1"
+    assert apteryx_get("/test/settings/users/fred/groups/5") == "5"
 
 
 def test_restconf_create_list_entry_exists():

@@ -806,6 +806,21 @@ def test_restconf_query_with_defaults_empty_list():
     """)
 
 
+def test_restconf_query_with_defaults_empty_leaf_list():
+    apteryx_set("/test/settings/users/fred/name", "fred")
+    response = requests.get("{}{}/data/test/settings/users=fred/groups?with-defaults=report-all".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    assert response.status_code == 200
+    assert len(response.content) > 0
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.json() == json.loads("""
+{
+    "groups": [
+    ]
+}
+    """)
+
+
 def test_restconf_query_with_defaults_explicit_list():
     apteryx_set("/test/settings/users/alfred/name", "alfred")
     apteryx_set("/test/settings/users/alfred/age", "87")
