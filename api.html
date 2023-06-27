@@ -40,6 +40,12 @@
                 content: {
                     text: '"Select nodes on the tree view"',
                 },
+                onChange: function (update) {
+                    var node = $("#jstree").jstree("get_selected", true);
+                    if (node.length == 1 && node_contains_config(node[0])) {
+                        document.getElementById("update").disabled = false;
+                    }
+                }
             }
         });
         function strip_xml(parent, nodes) {
@@ -62,6 +68,28 @@
             }
             return node.getAttribute("name");
         }
+        function create_template(node) {
+            if (node.childNodes && node.childNodes.length > 0) {
+                var template = {};
+                var children = node.childNodes;
+                for (var i = 0; i < children.length; i++) {
+                    var child = children[i];
+                    var name = child.getAttribute("name");
+                    var mode = child.getAttribute("mode");
+                    var def = child.getAttribute("default");
+                    if (name && (mode == "w" || mode == "rw")) {
+                        if (def) {
+                            template[name] = def;
+                        } else {
+                            template[name] = "";
+                        }
+                    }
+                }
+            } else {
+                template = "";
+            }
+            return template;
+        }
         function traverse(xmlDoc, nodes) {
             var txt = "";
             var list_entry = false;
@@ -72,8 +100,11 @@
                     txt += "<ul>";
                     txt += "<li ";
                     var data = {}
+                    data.list = false;
                     if (nodes[i].hasChildNodes() && nodes[i].childNodes[0].getAttribute("name") == "*") {
                         data.icon = "fa fa-list";
+                        data.list = true;
+                        data.template = create_template(nodes[i].childNodes[0]);
                     }
                     else if (list_entry) {
                         data.icon = "fa fa-file";
@@ -131,6 +162,14 @@
             }
             return txt;
         }
+        function node_is_list(node) {
+            if (node && node.li_attr && node.li_attr["data-jstree"]) {
+                var json = JSON.parse(node.li_attr["data-jstree"]);
+                if (json && json.list)
+                    return true;
+            }
+            return false;
+        }
         function node_contains_config(node) {
             var mode = node.li_attr.mode;
             if (mode == "w" || mode == "rw") {
@@ -163,12 +202,56 @@
                 jeditor.path = path;
                 if (node_contains_config(node)) {
                     jeditor.updateProps({readOnly: false});
-                    document.getElementById("update").disabled = false;
                 } else {
                     jeditor.updateProps({readOnly: true});
-                    document.getElementById("update").disabled = true;
                 }
             }
+        }
+        function generate_docs(node, depth) {
+            var html = '';
+            html += '<div class="text-left">'
+            html += '<div class="ms-' + depth + '">'
+            html += '<h4>' + node.text + '</h4>'
+            if (node.li_attr.title != undefined)
+                html += '<p>' + node.li_attr.title + '</p>'
+            if (node.li_attr.pattern != undefined)
+                html += '<p>pattern = ' + node.li_attr.pattern + '</p>'
+            if (node.li_attr.range != undefined)
+                html += '<p>range = ' + node.li_attr.range + '</p>'
+            if (node.li_attr.values != undefined)
+                html += '<p>values = ' + node.li_attr.values + '</p>'
+            html += '</div>'
+            html += '</div>'
+            for (var i = 0; i < node.children.length; i++) {
+                var child = $('#jstree').jstree(true).get_node(node.children[i]);
+                html += generate_docs(child, depth + 1);
+            }
+            return html;
+        }
+        function custom_menu(node) {
+            var items = {};
+            if (node_is_list(node) && node_contains_config(node)) {
+                items['newItem'] = {
+                    label: "New Entry",
+                    icon: "fa fa-plus",
+                    action: function () {
+                        var path = "/" + $('#jstree').jstree(true).get_path(node, "/") + '/*';
+                        jeditor.path = path;
+                        document.getElementById("status").innerHTML = path;
+                        document.getElementById("docs").innerHTML = generate_docs(node, 0);
+                        var json = JSON.parse(node.li_attr["data-jstree"]);
+                        if (json && json.template) {
+                            var data = JSON.stringify(json.template, null, "  ")
+                            jeditor.set({text: data})
+                        } else {
+                            jeditor.set({text: "\"\""})
+                        }
+                        jeditor.updateProps({readOnly: false});
+                        document.getElementById("update").disabled = false;
+                    }
+                }
+            }
+            return items;
         }
         $(function () {
             $.ajax({
@@ -178,39 +261,33 @@
                         strip_xml(xml.documentElement, xml.documentElement.childNodes)
                         document.getElementById("jstree").innerHTML = traverse(xml, xml.documentElement.childNodes);
                         $('#jstree').jstree({
-                            "core" : {
+                            core : {
                                 "check_callback": true,
                             },
+                            plugins: [
+                                "contextmenu"
+                            ],
+                            contextmenu: {
+                                items: custom_menu,
+                                select_node: false
+                            }
                         }).on('changed.jstree', function (e, data) {
                             if (data.action == "select_node") {
                                 var path = "/" + $('#jstree').jstree(true).get_path(data.node, "/");
                                 document.getElementById("status").innerHTML = path;
-                                var html = '';
-                                html += '<div class="p-5 text-center">'
-                                html += '<h2 class="mb-2">' + data.node.text + '</h2>'
-                                if (data.node.li_attr.title != undefined)
-                                    html += '<p>' + data.node.li_attr.title + '</p>'
-                                if (data.node.li_attr.pattern != undefined)
-                                    html += '<p>pattern = ' + data.node.li_attr.pattern + '</p>'
-                                if (data.node.li_attr.range != undefined)
-                                    html += '<p>range = ' + data.node.li_attr.range + '</p>'
-                                if (data.node.li_attr.values != undefined)
-                                    html += '<p>values = ' + data.node.li_attr.values + '</p>'
-                                html += '</div>'
-                                document.getElementById("docs").innerHTML = html;
+                                document.getElementById("docs").innerHTML = generate_docs(data.node, 0);
                                 action_get(data.node);
                             }
                         }).on('before_open.jstree', function (e, data) {
-                            var child = $('#jstree').jstree(true).get_node(data.node.children[0]);
-                            if (child.text == "*") {
+                            if (node_is_list(data.node)) {
+                                var child = $('#jstree').jstree(true).get_node(data.node.children[0]);
                                 $('#jstree').jstree(true).hide_node(child);
                             }
                         }).on('open_node.jstree', function (e, data) {
                             var icon = $('#' + data.node.id).find('i.jstree-icon.jstree-themeicon').first();
-                            if (icon && icon[0].classList.contains('fa-folder'))
+                            if (icon && icon.length > 0 && icon[0].classList.contains('fa-folder'))
                                 icon.removeClass('fa-folder').addClass('fa-folder-open');
-                            var child = $('#jstree').jstree(true).get_node(data.node.children[0]);
-                            if (child.text == "*") {
+                            if (node_is_list(data.node)) {
                                 var name = $('#jstree').jstree(true).get_text(data.node);
                                 var path = $('#jstree').jstree(true).get_path(data.node, "/");
                                 var json = $.ajax({
@@ -225,6 +302,7 @@
                                 }).responseJSON;
                                 var entries = json[name];
                                 if (entries.length > 0) {
+                                    var child = $('#jstree').jstree(true).get_node(data.node.children[0]);
                                     for (var i = 0; i < entries.length; i++) {
                                         var config = {text: entries[i], icon: "fa fa-file"};
                                         var node = $('#jstree').jstree(true).create_node(data.node, config);
@@ -239,8 +317,7 @@
                             var icon = $('#' + data.node.id).find('i.jstree-icon.jstree-themeicon').first();
                             if (icon && icon[0].classList.contains('fa-folder-open'))
                                 icon.removeClass('fa-folder-open').addClass('fa-folder');
-                            var child = $('#jstree').jstree(true).get_node(data.node.children[0]);
-                            if (child.text == "*") {
+                            if (node_is_list(data.node)) {
                                 for (var i = 1; i < data.node.children.length; i++) {
                                     $('#jstree').jstree(true).delete_node(data.node.children[i]);
                                 }
@@ -253,9 +330,15 @@
         });
         $('#update').on('click', function(event) {
             this.blur();
-            const path = jeditor.path;
-            var url = api_base + path.substring(0, path.lastIndexOf('/'));
             var json = JSON.parse(jeditor.get().text);
+            var url = api_base;
+            const path = jeditor.path;
+            if (path.endsWith("/*")) {
+                var key = json[Object.keys(json)[0]];
+                url += path.substring(0, path.lastIndexOf('*')) + key;
+            } else {
+                url += path.substring(0, path.lastIndexOf('/'));
+            }
             var data = JSON.stringify(json, null, "  ");
             $.ajax({
                 type: "POST",
@@ -264,8 +347,10 @@
                 contentType: "application/json",
                 data: data,
                 error: function(e) {
-                    if (e.status != 200 && e.status != 201)
-                    {
+                    if (e.status == 200 || e.status == 201) {
+                        document.getElementById("update").disabled = true;
+                        $('#jstree').jstree("refresh");
+                    } else {
                         alert(e.statusText);
                     }
                 },
