@@ -239,6 +239,7 @@ rm -f $BUILD/apteryx-rest.sock
 # TEST_WRAPPER="gdb -ex run --args"
 # TEST_WRAPPER="valgrind --leak-check=full"
 # TEST_WRAPPER="valgrind --tool=cachegrind"
+# TEST_WRAPPER="valgrind --tool=callgrind"
 G_SLICE=always-malloc LD_LIBRARY_PATH=$BUILD/usr/lib \
         $TEST_WRAPPER ../apteryx-rest $PARAM -m $BUILD/etc/apteryx/schema/ -p apteryx-rest.pid -s apteryx-rest.sock
 rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
@@ -252,8 +253,8 @@ fi
 
 # Gcov
 mkdir -p .gcov
-mv -f *.gcno .gcov/ 2>/dev/null || true
-mv -f *.gcda .gcov/ 2>/dev/null || true
+find . -path ./.gcov -prune -o -name '*.gcno' -exec mv {} .gcov/ \;
+find . -path ./.gcov -prune -o -name '*.gcda' -exec mv {} .gcov/ \;
 mv -f $BUILD/apteryx-xml/*.gcno .gcov/ 2>/dev/null || true
 mv -f $BUILD/apteryx-xml/*.gcda .gcov/ 2>/dev/null || true
 lcov -q --capture --directory . --output-file .gcov/coverage.info &> /dev/null
