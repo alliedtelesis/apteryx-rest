@@ -16,7 +16,7 @@ def test_restconf_get_single_node_ns_aug_none():
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/yang-data+json"
-    assert response.json() == json.loads('{ "volume": 1 }')
+    assert response.json() == json.loads('{ "volume": "1" }')
 
 
 def test_restconf_get_single_node_ns_default():
@@ -32,7 +32,7 @@ def test_restconf_get_single_node_ns_aug_default():
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/yang-data+json"
-    assert response.json() == json.loads('{ "testing:volume": 1 }')
+    assert response.json() == json.loads('{ "testing:volume": "1" }')
 
 
 def test_restconf_get_single_node_ns_other():
@@ -48,7 +48,7 @@ def test_restconf_get_single_node_ns_aug_other():
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/yang-data+json"
-    assert response.json() == json.loads('{ "testing2-augmented:speed": 2 }')
+    assert response.json() == json.loads('{ "testing2-augmented:speed": "2" }')
 
 
 def test_restconf_get_integer():
@@ -62,6 +62,34 @@ def test_restconf_get_integer():
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
     assert response.json() == json.loads('{ "testing:priority": 2 }')
+
+
+def test_restconf_get_uint64():
+    # /test/settings/volume uint64 range="0..18446744073709551615"
+    apteryx_set("/test/settings/volume", "0")
+    response = requests.get("{}{}/data/test/settings/volume".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.json() == json.loads('{ "volume": "0" }')
+    apteryx_set("/test/settings/volume", "18446744073709551615")
+    response = requests.get("{}{}/data/test/settings/volume".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.json() == json.loads('{ "volume": "18446744073709551615" }')
+
+
+def test_restconf_get_int64():
+    # /t2:test/settings/speed int64 range="-9223372036854775808..9223372036854775807"
+    apteryx_set("/t2:test/settings/speed", "-9223372036854775808")
+    response = requests.get("{}{}/data/testing-2:test/settings/speed".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.json() == json.loads('{ "testing2-augmented:speed": "-9223372036854775808" }')
+    apteryx_set("/t2:test/settings/speed", "0")
+    response = requests.get("{}{}/data/testing-2:test/settings/speed".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.json() == json.loads('{ "testing2-augmented:speed": "0" }')
+    apteryx_set("/t2:test/settings/speed", "9223372036854775807")
+    response = requests.get("{}{}/data/testing-2:test/settings/speed".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.json() == json.loads('{ "testing2-augmented:speed": "9223372036854775807" }')
 
 
 def test_restconf_get_string_string():
@@ -142,7 +170,7 @@ def test_restconf_get_trunk_no_namespace():
         "enable": true,
         "priority": 1,
         "readonly": "yes",
-        "volume": 1
+        "volume": "1"
     }
 }
     """)
@@ -160,7 +188,7 @@ def test_restconf_get_trunk_namespace():
         "enable": true,
         "priority": 1,
         "readonly": "yes",
-        "volume": 1
+        "volume": "1"
     }
 }
     """)
@@ -175,7 +203,7 @@ def test_restconf_get_trunk_other_namespace():
 {
     "testing-2:settings": {
         "priority": 2,
-        "testing2-augmented:speed": 2
+        "testing2-augmented:speed": "2"
     }
 }
     """)

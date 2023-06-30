@@ -199,7 +199,7 @@ def test_restapi_get_tree_json_types():
         "debug": "enable",
         "priority": 1,
         "readonly": "yes",
-        "volume": 1
+        "volume": "1"
     }
 }
 """)

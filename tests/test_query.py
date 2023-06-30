@@ -83,7 +83,7 @@ def test_restconf_query_content_all():
         "enable": true,
         "priority": 1,
         "readonly": "yes",
-        "volume": 1,
+        "volume": "1",
         "time": {
             "day": 5,
             "hour": 12,
@@ -116,7 +116,7 @@ def test_restconf_query_content_config():
         "debug": "enable",
         "enable": true,
         "priority": 1,
-        "volume": 1,
+        "volume": "1",
         "time": {
             "day": 5,
             "hour": 12
@@ -190,7 +190,7 @@ def test_restconf_query_depth_unbounded():
                 "name": "alfred"
             }
         ],
-        "volume": 1
+        "volume": "1"
     }
 }
     """)
@@ -251,7 +251,7 @@ def test_restconf_query_depth_2_trunk():
         "enable": true,
         "priority": 1,
         "readonly": "yes",
-        "volume": 1
+        "volume": "1"
     }
 }
     """)
@@ -311,7 +311,7 @@ def test_restconf_query_depth_3():
                 "active": true
             }
         ],
-        "volume": 1
+        "volume": "1"
     }
 }
     """)
@@ -694,7 +694,7 @@ def test_restconf_query_with_defaults_explicit_trunk():
         "enable": true,
         "priority": 1,
         "readonly": "yes",
-        "volume": 1
+        "volume": "1"
     }
 }
     """)
@@ -721,7 +721,7 @@ def test_restconf_query_with_defaults_trim_trunk_data():
                 "age": 87
             }
         ],
-        "volume": 1
+        "volume": "1"
     }
 }
     """)
@@ -753,7 +753,7 @@ def test_restconf_query_with_defaults_report_all_trunk_data():
                 "name": "alfred"
             }
         ],
-        "volume": 1
+        "volume": "1"
     }
 }
     """)
