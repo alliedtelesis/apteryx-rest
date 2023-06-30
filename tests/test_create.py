@@ -267,8 +267,8 @@ def test_restconf_create_out_of_range_integer():
 def test_restconf_create_out_of_range_uint64():
     # /test/settings/volume uint64 range="0..18446744073709551615"
     tests = [
-        ("""{"volume": -1}""", 400),
-        ("""{"volume": 0}""", 201),
+        ("""{"volume": "-1"}""", 400),
+        ("""{"volume": "0"}""", 201),
         ("""{"volume": "18446744073709551615"}""", 201),
         ("""{"volume": "28446744073709551615"}""", 400)
     ]
@@ -281,10 +281,10 @@ def test_restconf_create_out_of_range_uint64():
 def test_restconf_create_out_of_range_int64():
     # /t2:test/settings/speed int64 range="-9223372036854775808..9223372036854775807"
     tests = [
-        ("""{"speed": -18446744073709551615}""", 400),
-        ("""{"speed": -9223372036854775808}""", 201),
-        ("""{"speed": 0}""", 201),
-        ("""{"speed": 9223372036854775807}""", 201),
+        ("""{"speed": "-18446744073709551615"}""", 400),
+        ("""{"speed": "-9223372036854775808"}""", 201),
+        ("""{"speed": "0"}""", 201),
+        ("""{"speed": "9223372036854775807"}""", 201),
         ("""{"speed": "18446744073709551615"}""", 400)
     ]
     for data, rc in tests:
