@@ -1,0 +1,29 @@
+module user-example-deviation {
+  yang-version 1;
+  namespace "http://dummy.com/ns/yang/user-example-deviation";
+  prefix user-exam;
+
+  import example {
+    prefix exam;
+  }
+
+  organization
+    "Another Dummy Organization";
+
+  description
+    "This module contains deviation statements for the example module.";
+
+  revision 2023-07-02 {
+    description
+      "Initial revision";
+    reference
+      "RFC 6020: YANG - A Data Modeling Language for the
+       Network Configuration Protocol (NETCONF)";
+  }
+
+  deviation "/exam:interfaces/exam:interface/exam:dummy" {
+    deviate not-supported;
+    description
+      "Dummy leaf not supported";
+  }
+}

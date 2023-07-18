@@ -51,6 +51,18 @@ def test_restconf_yang_library_tree():
             {
                 "module": [
                     {
+                        "deviation": [
+                            "user-example-deviation"
+                        ],
+                        "feature": [
+                            "ether",
+                            "fast"
+                        ],
+                        "name": "example",
+                        "namespace": "http://example.com/ns/interfaces",
+                        "revision": "2023-04-04"
+                    },
+                    {
                         "name": "ietf-restconf-monitoring",
                         "namespace": "urn:ietf:params:xml:ns:yang:ietf-restconf-monitoring",
                         "revision": "2017-01-26"
