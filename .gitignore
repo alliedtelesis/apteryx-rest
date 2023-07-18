@@ -6,7 +6,8 @@ apteryx-rest
 __pycache__/
 sse
 index_html.c
-models/*.xml
+models/ietf-yang-library.xml
+models/ietf-restconf-monitoring.xml
 models/*.h
 
 # Autotools

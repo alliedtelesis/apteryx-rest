@@ -118,6 +118,42 @@ schema_set_model_information (sch_instance *schema, GNode *root)
             {
                 add_leaf_strdup (gnode, MODULES_STATE_MODULE_NAMESPACE, loaded->ns_href);
             }
+            if (loaded->features)
+            {
+                gchar **split;
+                int count;
+                int i;
+
+                split = g_strsplit (loaded->features, ",", 0);
+                count = g_strv_length (split);
+                for (i = 0; i < count; i++)
+                {
+                    char *feature_path;
+                    feature_path =
+                        g_strdup_printf ("%s/%s", YANG_LIBRARY_MODULE_SET_MODULE_FEATURE, split[i]);
+                    add_leaf_strdup (gnode, feature_path, split[i]);
+                    g_free (feature_path);
+                }
+                g_strfreev (split);
+            }
+            if (loaded->deviations)
+            {
+                gchar **split;
+                int count;
+                int i;
+
+                split = g_strsplit (loaded->deviations, ",", 0);
+                count = g_strv_length (split);
+                for (i = 0; i < count; i++)
+                {
+                    char *deviation_path;
+                    deviation_path =
+                        g_strdup_printf ("%s/%s", YANG_LIBRARY_MODULE_SET_MODULE_DEVIATION, split[i]);
+                    add_leaf_strdup (gnode, deviation_path, split[i]);
+                    g_free (deviation_path);
+                }
+                g_strfreev (split);
+            }
         }
     }
 }

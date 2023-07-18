@@ -1,0 +1,18 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<MODULE xmlns="http://example.com/ns/interfaces" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="https://github.com/alliedtelesis/apteryx-xml https://github.com/alliedtelesis/apteryx-xml/releases/download/v1.2/apteryx.xsd" model="example" namespace="http://example.com/ns/interfaces" prefix="exam" organization="Dummy Organization" version="2023-04-04" features="ether,fast" deviations="user-example-deviation">
+  <NODE name="interfaces" help="Example interfaces group">
+    <NODE name="interface" help="Example interface entry">
+      <NODE name="*" help="The interface entry with key name">
+        <NODE name="name" mode="rw" help="The administrative name of the interface. This is an identifier that is only unique within the scope of this list, and only within a specific server."/>
+        <NODE name="mtu" mode="rw" default="1500" help="The maximum transmission unit (MTU) value assigned to this interface." range="0..4294967295"/>
+        <NODE name="status" mode="r" default="up" help="The current status of this interface.">
+          <VALUE name="up" value="up"/>
+          <VALUE name="waking up" value="waking up"/>
+          <VALUE name="not feeling so good" value="not feeling so good"/>
+          <VALUE name="better check it out" value="better check it out"/>
+          <VALUE name="better call for help" value="better call for help"/>
+        </NODE>
+      </NODE>
+    </NODE>
+  </NODE>
+</MODULE>

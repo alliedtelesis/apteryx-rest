@@ -1,0 +1,78 @@
+module example {
+
+     namespace "http://example.com/ns/interfaces";
+
+     prefix exam;
+
+     organization
+        "Dummy Organization";
+
+     revision 2023-04-04 {
+        description
+           "Initial revision";
+     }
+
+     feature ether {
+        description
+          "Interface has attribute ether";
+     }
+
+     feature fast {
+        description
+          "Interface has attribute fast";
+     }
+
+     typedef status-type {
+        description "Interface status";
+        type enumeration {
+          enum up;
+          enum 'waking up';
+          enum 'not feeling so good';
+          enum 'better check it out';
+          enum 'better call for help';
+        }
+        default up;
+     }
+
+     container interfaces {
+         description "Example interfaces group";
+
+         list interface {
+           description "Example interface entry";
+           key name;
+
+           leaf name {
+             description
+               "The administrative name of the interface.
+                This is an identifier that is only unique
+                within the scope of this list, and only
+                within a specific server.";
+             type string {
+               length "1 .. max";
+             }
+           }
+
+           leaf mtu {
+             description
+               "The maximum transmission unit (MTU) value assigned to
+                this interface.";
+             type uint32;
+             default 1500;
+           }
+
+           leaf dummy {
+             description
+               "Dummy field to test a deviation.";
+             type uint32;
+             default 10;
+           }
+
+           leaf status {
+             description
+               "The current status of this interface.";
+             type status-type;
+             config false;
+           }
+         }
+       }
+     }
