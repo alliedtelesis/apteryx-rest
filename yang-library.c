@@ -31,10 +31,10 @@
  */
 char *restconf_capabilities[] =
 {
-    "urn:ietf:params:restconf:capability:defaults:1.0",
+    "urn:ietf:params:restconf:capability:defaults:1.0?basic-mode=explicit",
     "urn:ietf:params:restconf:capability:depth:1.0",
     "urn:ietf:params:restconf:capability:fields:1.0",
-    "urn:ietf:params:restconf:capability:filter:1.0",
+    // "urn:ietf:params:restconf:capability:filter:1.0",
     // "urn:ietf:params:restconf:capability:replay:1.0",
     "urn:ietf:params:restconf:capability:with-defaults:1.0",
     // "urn:ietf:params:restconf:capability:yang-patch:1.0",    /* [RFC8072] */
