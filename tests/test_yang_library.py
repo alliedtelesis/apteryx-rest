@@ -96,6 +96,67 @@ def test_restconf_yang_library_tree():
 """ % (contentid))
 
 
+def test_restconf_yang_library_data():
+    response = requests.get("{}{}/data".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    tree = response.json()
+    contentid = tree['ietf-yang-library:yang-library']['content-id']
+    assert contentid is not None
+    assert tree == json.loads("""
+{
+    "ietf-yang-library:yang-library": {
+        "content-id": "%s",
+        "module-set": [
+            {
+                "module": [
+                    {
+                        "deviation": [
+                            "user-example-deviation"
+                        ],
+                        "feature": [
+                            "ether",
+                            "fast"
+                        ],
+                        "name": "example",
+                        "namespace": "http://example.com/ns/interfaces",
+                        "revision": "2023-04-04"
+                    },
+                    {
+                        "name": "ietf-restconf-monitoring",
+                        "namespace": "urn:ietf:params:xml:ns:yang:ietf-restconf-monitoring",
+                        "revision": "2017-01-26"
+                    },
+                    {
+                        "name": "ietf-yang-library",
+                        "namespace": "urn:ietf:params:xml:ns:yang:ietf-yang-library",
+                        "revision": "2019-01-04"
+                    },
+                    {
+                        "name": "testing",
+                        "namespace": "http://test.com/ns/yang/testing",
+                        "revision": "2023-01-01"
+                    },
+                    {
+                        "name": "testing-2",
+                        "namespace": "http://test.com/ns/yang/testing-2",
+                        "revision": "2023-02-01"
+                    },
+                    {
+                        "name": "testing2-augmented",
+                        "namespace": "http://test.com/ns/yang/testing2-augmented",
+                        "revision": "2023-02-02"
+                    }
+                ],
+                "name": "modules"
+            }
+        ]
+    }
+}
+""" % (contentid))
+
+
 # module: ietf-restconf-monitoring
 #   +--ro restconf-state
 #      +--ro capabilities
