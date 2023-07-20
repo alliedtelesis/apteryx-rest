@@ -225,6 +225,11 @@ rest_api_get (int flags, const char *path, const char *if_none_match, const char
     int qdepth, rdepth;
     int diff;
 
+    /* If a request is made to /restconf/data (in which case the path is now empty) it is analogous to a
+       request to /restconf/data/ietf-yang-library:yang-library */
+    if (!strlen (path) && (flags & FLAGS_RESTCONF))
+        path = "/ietf-yang-library:yang-library";
+
     /* Separate the path from any query string */
     qmark = strchr (path, '?');
     if (qmark)
@@ -925,7 +930,7 @@ rest_api (req_handle handle, int flags, const char *rpath, const char *path,
             rest_api_watch (handle, flags, path);
             return;
         }
-        else if (path[strlen (path) - 1] == '/')
+        else if (strlen (path) && path[strlen (path) - 1] == '/')
             resp = rest_api_search (path, if_none_match, if_modified_since);
         else
             resp = rest_api_get (flags, path, if_none_match, if_modified_since);
