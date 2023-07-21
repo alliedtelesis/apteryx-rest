@@ -195,9 +195,17 @@ handle_http (void *arg)
         goto exit;
     }
     if_match = FCGX_GetParam ("HTTP_IF_MATCH", request->envp);
+    if (!if_match)
+        if_match = FCGX_GetParam ("HTTP_If_Match", request->envp);
     if_none_match = FCGX_GetParam ("HTTP_IF_NONE_MATCH", request->envp);
+    if (!if_none_match)
+        if_none_match = FCGX_GetParam ("HTTP_If-None-Match", request->envp);
     if_modified_since = FCGX_GetParam ("HTTP_IF_MODIFIED_SINCE", request->envp);
+    if (!if_modified_since)
+        if_modified_since = FCGX_GetParam ("HTTP_If-Modified-Since", request->envp);
     if_unmodified_since = FCGX_GetParam ("HTTP_IF_UNMODIFIED_SINCE", request->envp);
+    if (!if_unmodified_since)
+        if_unmodified_since = FCGX_GetParam ("HTTP_If-Unmodified-Since", request->envp);
     length = FCGX_GetParam ("CONTENT_LENGTH", request->envp);
     if (!rpath || !path)
     {
