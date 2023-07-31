@@ -75,6 +75,7 @@ bool is_connected (req_handle handle, bool block);
 typedef void (*req_callback) (req_handle handle, int flags, const char *rpath, const char *path,
                               const char *if_match, const char *if_none_match,
                               const char *if_modified_since, const char *if_unmodified_since,
+                              const char *server_name, const char *server_port,
                               const char *data, int length);
 
 /* FastCGI */
@@ -88,7 +89,7 @@ gboolean rest_init (const char *path);
 void rest_api (req_handle handle, int flags, const char *rpath, const char *path,
                const char *if_match, const char *if_none_match,
                const char *if_modified_since, const char *if_unmodified_since,
-               const char *data, int length);
+               const char *server_name, const char *server_port, const char *data, int length);
 void rest_shutdown (void);
 void yang_library_create (sch_instance *schema);
 void restconf_monitoring_create (sch_instance *schema);
