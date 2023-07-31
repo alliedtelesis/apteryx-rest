@@ -472,7 +472,8 @@ exit:
 }
 
 static char *
-rest_api_post (int flags, const char *path, const char *data, int length, const char *if_match, const char *if_unmodified_since)
+rest_api_post (int flags, const char *path, const char *data, int length, const char *if_match,
+               const char *if_unmodified_since, const char *server_name, const char *server_port)
 {
     GNode *root = NULL;
     GNode *tree = NULL;
@@ -484,6 +485,7 @@ rest_api_post (int flags, const char *path, const char *data, int length, const 
     json_error_t error;
     char *resp = NULL;
     char *error_string = NULL;
+    char *location = NULL;
     int schflags = 0;
     uint64_t ts = 0;
     bool res;
@@ -613,7 +615,12 @@ rest_api_post (int flags, const char *path, const char *data, int length, const 
     /* Write the combinded tree to apteryx */
     child->children = tree->children;
     if (flags & FLAGS_RESTCONF && flags & FLAGS_METHOD_POST)
+    {
         res = apteryx_cas_tree (root, 0);
+        if (res)
+            location = g_strdup_printf ("https://%s:%s%s/%s", server_name, server_port,
+                                        path, APTERYX_NAME (tree->children));
+    }
     else
         res = apteryx_set_tree (root);
     if (res)
@@ -635,11 +642,22 @@ exit:
     {
         error_string = restconf_error (rc);
     }
-    resp = g_strdup_printf ("Status: %d\r\n"
-                            "Content-Type: %s\r\n"
-                            "\r\n" "%s", rc,
-                            flags & FLAGS_RESTCONF ? "application/yang-data+json" : "application/json",
-                            error_string ? : "");
+    if (location)
+    {
+        resp = g_strdup_printf ("Status: %d\r\n"
+                                "Content-Type: %s\r\n"
+                                "Location: %s\r\n"
+                                "\r\n" "%s", rc,
+                                flags & FLAGS_RESTCONF ? "application/yang-data+json" : "application/json",
+                                location, error_string ? : "");
+        g_free (location);
+    }
+    else
+        resp = g_strdup_printf ("Status: %d\r\n"
+                                "Content-Type: %s\r\n"
+                                "\r\n" "%s", rc,
+                                flags & FLAGS_RESTCONF ? "application/yang-data+json" : "application/json",
+                                error_string ? : "");
     free (error_string);
     apteryx_free_tree (tree);
     apteryx_free_tree (root);
@@ -864,7 +882,7 @@ void
 rest_api (req_handle handle, int flags, const char *rpath, const char *path,
           const char *if_match, const char *if_none_match,
           const char *if_modified_since, const char *if_unmodified_since,
-          const char *data, int length)
+          const char *server_name, const char *server_port, const char *data, int length)
 {
     char *resp = NULL;
 
@@ -936,7 +954,8 @@ rest_api (req_handle handle, int flags, const char *rpath, const char *path,
             resp = rest_api_get (flags, path, if_none_match, if_modified_since);
     }
     else if (flags & (FLAGS_METHOD_POST|FLAGS_METHOD_PUT|FLAGS_METHOD_PATCH))
-        resp = rest_api_post (flags, path, data, length, if_match, if_unmodified_since);
+        resp = rest_api_post (flags, path, data, length, if_match, if_unmodified_since,
+                              server_name, server_port);
     else if (flags & FLAGS_METHOD_DELETE)
         resp = rest_api_delete (flags, path);
     else if (flags & FLAGS_METHOD_OPTIONS)
