@@ -376,11 +376,11 @@ def test_restconf_unsupported_method():
 
 def test_restconf_unsupported_encoding():
     response = requests.get("{}{}/data/test".format(server_uri, docroot), auth=server_auth, headers={"Accept": "text/html"})
-    assert response.status_code == 415
+    assert response.status_code == 406
     response = requests.get("{}{}/data/test".format(server_uri, docroot), auth=server_auth, headers={"Accept": "application/xml"})
-    assert response.status_code == 415
+    assert response.status_code == 406
     response = requests.get("{}{}/data/test".format(server_uri, docroot), auth=server_auth, headers={"Accept": "application/yang.data+xml"})
-    assert response.status_code == 415
+    assert response.status_code == 406
     response = requests.post("{}{}/data/test".format(server_uri, docroot), auth=server_auth, headers={"Content-Type": "text/html"}, data="""Hello World""")
     assert response.status_code == 415
     response = requests.post("{}{}/data/test".format(server_uri, docroot), auth=server_auth, headers={"Content-Type": "application/xml"}, data="""<cat></cat>""")

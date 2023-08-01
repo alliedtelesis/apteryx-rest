@@ -118,7 +118,7 @@ get_flags (FCGX_Request * r)
         else
         {
             ERROR ("Media-Type \"%s\" not allowed\n", param);
-            return -415;
+            return -406;
         }
     }
 
