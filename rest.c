@@ -471,6 +471,37 @@ exit:
     return resp;
 }
 
+static bool
+restconf_is_list_key_leaf_update (sch_node *api_subtree, GNode *child, GNode *tnode)
+{
+    sch_node *parent = sch_node_parent (api_subtree);
+    bool key_update = false;
+
+    if (parent && sch_is_list (parent))
+    {
+        char *key = sch_list_key (parent);
+        for (GNode *node = g_node_first_sibling (tnode); node; node = g_node_next_sibling (node))
+        {
+            if (g_strcmp0 (key, APTERYX_NAME (node)) == 0 && node->children)
+            {
+                char *value = APTERYX_NAME (node->children);
+                char *path = apteryx_node_path (child);
+                char *query = g_strdup_printf ("%s/%s", path, key);
+                char *res = apteryx_get (query);
+                if (res && g_strcmp0 (res, value))
+                    key_update = true;
+
+                g_free (res);
+                g_free (path);
+                g_free (query);
+                break;
+            }
+        }
+        g_free (key);
+    }
+    return key_update;
+}
+
 static char *
 rest_api_post (int flags, const char *path, const char *data, int length, const char *if_match,
                const char *if_unmodified_since, const char *server_name, const char *server_port)
@@ -590,6 +621,18 @@ rest_api_post (int flags, const char *path, const char *data, int length, const 
     /* Convert to GNode and validate the data */
     tree = sch_json_to_gnode (g_schema, api_subtree, json, schflags);
     json_decref (json);
+    if (tree && (flags & FLAGS_RESTCONF) && (flags & (FLAGS_METHOD_PUT | FLAGS_METHOD_PATCH)))
+    {
+        /* For a restconf PUT or PATCH do not allow the change of an existing list key field */
+        if (restconf_is_list_key_leaf_update (api_subtree, child, tree->children))
+        {
+            apteryx_free_tree (tree);
+            tree = NULL;
+            rc = HTTP_CODE_NOT_SUPPORTED;
+            goto exit;
+        }
+    }
+
     if (!tree)
     {
         switch (sch_last_err ())
