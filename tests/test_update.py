@@ -72,3 +72,15 @@ def test_restconf_update_missing_list_entry():
     """)
     assert apteryx_get("/test/animals/animal/frog/name") == "Not found"
     assert apteryx_get("/test/animals/animal/frog/type") == "Not found"
+
+
+def test_restconf_update_existing_list_key():
+    data = '{"name" : "fox"}'
+    response = requests.patch("{}{}/data/test/animals/animal=cat".format(server_uri, docroot), auth=server_auth, data=data, headers=set_restconf_headers)
+    assert response.status_code == 405
+
+
+def test_restconf_update_existing_list_non_key():
+    data = '{"colour" : "pink"}'
+    response = requests.patch("{}{}/data/test/animals/animal=cat".format(server_uri, docroot), auth=server_auth, data=data, headers=set_restconf_headers)
+    assert response.status_code == 204

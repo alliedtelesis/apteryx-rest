@@ -150,3 +150,15 @@ def test_restconf_replace_if_match_namespace():
 }
     """)
     assert apteryx_get("/test/settings/priority") == "2"
+
+
+def test_restconf_replace_existing_list_key():
+    data = '{"name" : "fox"}'
+    response = requests.put("{}{}/data/test/animals/animal=cat".format(server_uri, docroot), auth=server_auth, data=data, headers=set_restconf_headers)
+    assert response.status_code == 405
+
+
+def test_restconf_replace_existing_list_non_key():
+    data = '{"colour" : "pink"}'
+    response = requests.put("{}{}/data/test/animals/animal=cat".format(server_uri, docroot), auth=server_auth, data=data, headers=set_restconf_headers)
+    assert response.status_code == 204
