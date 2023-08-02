@@ -207,13 +207,13 @@ def test_restconf_create_invalid_enum():
     assert response.headers["Content-Type"] == "application/yang-data+json"
     assert response.json() == json.loads("""
 {
-    "ietf-restconf:errors" : {
-        "error" : [
-        {
-            "error-type" : "application",
-            "error-tag" : "malformed-message",
-            "error-message" : "malformed request syntax"
-        }
+    "ietf-restconf:errors": {
+        "error": [
+            {
+                "error-message": "Invalid input parameter",
+                "error-tag": "invalid-value",
+                "error-type": "application"
+            }
         ]
     }
 }
@@ -359,13 +359,13 @@ def test_restconf_create_list_leaf_integer_invalid():
     assert response.headers["Content-Type"] == "application/yang-data+json"
     assert response.json() == json.loads("""
 {
-    "ietf-restconf:errors" : {
-        "error" : [
-        {
-            "error-type" : "application",
-            "error-tag" : "malformed-message",
-            "error-message" : "malformed request syntax"
-        }
+    "ietf-restconf:errors": {
+        "error": [
+            {
+                "error-message": "Invalid input parameter",
+                "error-tag": "invalid-value",
+                "error-type": "application"
+            }
         ]
     }
 }

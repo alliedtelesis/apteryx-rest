@@ -51,17 +51,17 @@ def test_restconf_query_invalid_queries():
         print(json.dumps(response.json(), indent=4, sort_keys=True))
         assert response.headers["Content-Type"] == "application/yang-data+json"
         assert response.json() == json.loads("""
-    {
-        "ietf-restconf:errors" : {
-            "error" : [
+{
+    "ietf-restconf:errors": {
+        "error": [
             {
-                "error-type" : "application",
-                "error-tag" : "malformed-message",
-                "error-message" : "malformed request syntax"
+                "error-message": "Invalid input parameter",
+                "error-tag": "invalid-value",
+                "error-type": "application"
             }
-            ]
-        }
+        ]
     }
+}
         """)
 
 

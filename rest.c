@@ -35,11 +35,61 @@ extern bool delete_callback (const char *type, const char *path, void *fn, void 
 #define HTTP_CODE_PRECONDITION_FAILED   412
 #define HTTP_CODE_INTERNAL_SERVER_ERROR 500
 
+typedef enum
+{
+    REST_E_TAG_NONE,
+    REST_E_TAG_IN_USE,
+    REST_E_TAG_INVALID_VALUE,
+    REST_E_TAG_REQ_TOO_BIG,
+    REST_E_TAG_RESP_TOO_BIG,
+    REST_E_TAG_MISING_ATTRIB,
+    REST_E_TAG_BAD_ATTRIB,
+    REST_E_TAG_UNKNOWN_ATTRIB,
+    REST_E_TAG_BAD_ELEMENT,
+    REST_E_TAG_UNKNOWN_ELEMENT,
+    REST_E_TAG_UNKNOWN_NS,
+    REST_E_TAG_ACCESS_DENIED,
+    REST_E_TAG_LOCK_DENIED,
+    REST_E_TAG_RESOURCE_DENIED,
+    REST_E_TAG_ROLLBACK_FAILED,
+    REST_E_TAG_DATA_EXISTS,
+    REST_E_TAG_DATA_MISSING,
+    REST_E_TAG_OPER_NOT_SUPPORTED,
+    REST_E_TAG_OPER_FAILED,
+    REST_E_TAG_PARTIAL_OPER,
+    REST_E_TAG_MALFORMED,
+    REST_E_TAG_MAX,
+} rest_e_tag;
+
+const char *error_tags[REST_E_TAG_MAX] = {
+    "",
+    "in-use",
+    "invalid-value",
+    "(request) too-big",
+    "(response) too-big",
+    "missing-attribute",
+    "bad-attribute",
+    "unknown-attribute",
+    "bad-element",
+    "unknown-element",
+    "unknown-namespace",
+    "access-denied",
+    "lock-denied",
+    "resource-denied",
+    "rollback-failed",
+    "data-exists",
+    "data-missing",
+    "operation-not-supported",
+    "operation-failed",
+    "partial-operation",
+    "malformed-message"
+};
+
 static sch_instance *g_schema = NULL;
 static time_t g_boottime = 0;
 
 static char *
-restconf_error (int status)
+restconf_error (int status, rest_e_tag error_tag)
 {
     json_t *json = json_object();
     json_t *errors = json_object();
@@ -50,37 +100,38 @@ restconf_error (int status)
     if (status == HTTP_CODE_FORBIDDEN)
     {
         json_object_set_new (error, "error-type", json_string ("protocol"));
-        json_object_set_new (error, "error-tag", json_string ("access-denied"));
     }
     else if (status == HTTP_CODE_NOT_FOUND)
     {
         json_object_set_new (error, "error-type", json_string ("application"));
-        json_object_set_new (error, "error-tag", json_string ("invalid-value"));
         json_object_set_new (error, "error-message", json_string ("uri path not found"));
     }
     else if (status == HTTP_CODE_NOT_SUPPORTED)
     {
         json_object_set_new (error, "error-type", json_string ("application"));
-        json_object_set_new (error, "error-tag", json_string ("operation-not-supported"));
         json_object_set_new (error, "error-message", json_string ("requested operation is not supported"));
     }
     else if (status == HTTP_CODE_CONFLICT)
     {
         json_object_set_new (error, "error-type", json_string ("application"));
-        json_object_set_new (error, "error-tag", json_string ("data-exists"));
         json_object_set_new (error, "error-message", json_string ("object already exists"));
     }
     else if (status == HTTP_CODE_PRECONDITION_FAILED)
     {
         json_object_set_new (error, "error-type", json_string ("application"));
-        json_object_set_new (error, "error-tag", json_string ("operation-failed"));
         json_object_set_new (error, "error-message", json_string ("object modified"));
     }
     else
     {
         json_object_set_new (error, "error-type", json_string ("application"));
-        json_object_set_new (error, "error-tag", json_string ("malformed-message"));
-        json_object_set_new (error, "error-message", json_string ("malformed request syntax"));
+        if (error_tag == REST_E_TAG_INVALID_VALUE)
+            json_object_set_new (error, "error-message", json_string ("Invalid input parameter"));
+        else
+            json_object_set_new (error, "error-message", json_string ("malformed request syntax"));
+    }
+    if (error_tag != REST_E_TAG_NONE)
+    {
+        json_object_set_new (error, "error-tag", json_string (error_tags[error_tag]));
     }
     json_array_append_new (array, error);
     json_object_set_new (errors, "error", array);
@@ -218,6 +269,7 @@ rest_api_get (int flags, const char *path, const char *if_none_match, const char
     json_t *json = NULL;
     uint64_t ts = 0;
     int rc = HTTP_CODE_OK;
+    rest_e_tag error_tag = REST_E_TAG_NONE;
     GNode *query, *tree;
     char *json_string = NULL;
     char *resp = NULL;
@@ -268,10 +320,12 @@ rest_api_get (int flags, const char *path, const char *if_none_match, const char
         case SCH_E_NOTREADABLE:
         case SCH_E_NOTWRITABLE:
             rc = HTTP_CODE_FORBIDDEN;
+            error_tag = REST_E_TAG_ACCESS_DENIED;
             break;
         case SCH_E_NOSCHEMANODE:
         default:
             rc = HTTP_CODE_NOT_FOUND;
+            error_tag = REST_E_TAG_INVALID_VALUE;
         }
         goto exit;
     }
@@ -279,6 +333,7 @@ rest_api_get (int flags, const char *path, const char *if_none_match, const char
     {
         VERBOSE ("REST: Path \"%s\" not readable\n", path);
         rc = HTTP_CODE_FORBIDDEN;
+        error_tag = REST_E_TAG_ACCESS_DENIED;
         goto exit;
     }
 
@@ -345,6 +400,7 @@ rest_api_get (int flags, const char *path, const char *if_none_match, const char
         if (!sch_query_to_gnode (g_schema, qschema, qnode, qmark, schflags, &schflags))
         {
             rc = HTTP_CODE_BAD_REQUEST;
+            error_tag = REST_E_TAG_INVALID_VALUE;
             goto exit;
         }
     }
@@ -449,7 +505,7 @@ exit:
     {
         if (flags & FLAGS_RESTCONF && rc >= 400 && rc <= 499 && !json_string)
         {
-            json_string = restconf_error (rc);
+            json_string = restconf_error (rc, error_tag);
         }
         char last_modified[128];
         time_t realtime = (time_t) (g_boottime + (ts / 1000000));
@@ -521,6 +577,7 @@ rest_api_post (int flags, const char *path, const char *data, int length, const 
     uint64_t ts = 0;
     bool res;
     int rc;
+    rest_e_tag error_tag = REST_E_TAG_NONE;
 
     /* Parsing options - always set arrays and types */
     schflags = SCH_F_JSON_ARRAYS | SCH_F_JSON_TYPES;
@@ -536,12 +593,14 @@ rest_api_post (int flags, const char *path, const char *data, int length, const 
     {
         VERBOSE ("REST: Path \"%s\" not found\n", path);
         rc = HTTP_CODE_NOT_FOUND;
+        error_tag = REST_E_TAG_INVALID_VALUE;
         goto exit;
     }
     if (sch_is_leaf (api_subtree) && !sch_is_writable (api_subtree))
     {
         VERBOSE ("REST: Path \"%s\" not writable\n", path);
         rc = HTTP_CODE_FORBIDDEN;
+        error_tag = REST_E_TAG_ACCESS_DENIED;
         goto exit;
     }
 
@@ -559,6 +618,7 @@ rest_api_post (int flags, const char *path, const char *data, int length, const 
     {
         VERBOSE ("REST: Path \"%s\" modified since ETag:%s\n", path, if_match);
         rc = HTTP_CODE_PRECONDITION_FAILED;
+        error_tag = REST_E_TAG_OPER_FAILED;
         goto exit;
     }
     if (if_unmodified_since && if_unmodified_since[0] != '\0')
@@ -571,6 +631,7 @@ rest_api_post (int flags, const char *path, const char *data, int length, const 
         {
             VERBOSE ("REST: Path \"%s\" modified since Time:%s\n", path, if_unmodified_since);
             rc =  HTTP_CODE_PRECONDITION_FAILED;
+            error_tag = REST_E_TAG_OPER_FAILED;
             goto exit;
         }
     }
@@ -614,6 +675,7 @@ rest_api_post (int flags, const char *path, const char *data, int length, const 
         {
             ERROR ("error: on line %d: %s\n", error.line, error.text);
             rc = HTTP_CODE_BAD_REQUEST;
+            error_tag = REST_E_TAG_MALFORMED;
             goto exit;
         }
     }
@@ -629,6 +691,7 @@ rest_api_post (int flags, const char *path, const char *data, int length, const 
             apteryx_free_tree (tree);
             tree = NULL;
             rc = HTTP_CODE_NOT_SUPPORTED;
+            error_tag = REST_E_TAG_OPER_NOT_SUPPORTED;
             goto exit;
         }
     }
@@ -639,13 +702,16 @@ rest_api_post (int flags, const char *path, const char *data, int length, const 
         {
         case SCH_E_NOSCHEMANODE:
             rc = HTTP_CODE_NOT_FOUND;
+            error_tag = REST_E_TAG_INVALID_VALUE;
             break;
         case SCH_E_NOTREADABLE:
         case SCH_E_NOTWRITABLE:
             rc = HTTP_CODE_FORBIDDEN;
+            error_tag = REST_E_TAG_ACCESS_DENIED;
             break;
         default:
             rc = HTTP_CODE_BAD_REQUEST;
+            error_tag = REST_E_TAG_INVALID_VALUE;
             break;
         }
         goto exit;
@@ -673,17 +739,19 @@ rest_api_post (int flags, const char *path, const char *data, int length, const 
     else if (errno == -EBUSY)
     {
         rc = HTTP_CODE_CONFLICT;
+        error_tag = REST_E_TAG_DATA_EXISTS;
     }
     else
     {
         rc = HTTP_CODE_FORBIDDEN;
+        error_tag = REST_E_TAG_ACCESS_DENIED;
     }
     child->children = NULL;
 
 exit:
     if (flags & FLAGS_RESTCONF && rc >= 400 && rc <= 499)
     {
-        error_string = restconf_error (rc);
+        error_string = restconf_error (rc, error_tag);
     }
     if (location)
     {
@@ -715,6 +783,7 @@ rest_api_delete (int flags, const char *path)
     char *error_string = NULL;
     char *resp = NULL;
     int rc = HTTP_CODE_NO_CONTENT;
+    rest_e_tag error_tag = REST_E_TAG_NONE;
     int schflags = 0;
 
     /* Parsing options */
@@ -735,6 +804,7 @@ rest_api_delete (int flags, const char *path)
     {
         VERBOSE ("REST: Path \"%s\" not found\n", path);
         rc = HTTP_CODE_NOT_FOUND;
+        error_tag = REST_E_TAG_INVALID_VALUE;
         goto exit;
     }
     if (sch_is_leaf (api_subtree) && !sch_is_writable (api_subtree))
@@ -742,6 +812,7 @@ rest_api_delete (int flags, const char *path)
         VERBOSE ("REST: Path \"%s\" not writable\n", path);
         apteryx_free_tree (query);
         rc = HTTP_CODE_FORBIDDEN;
+        error_tag = REST_E_TAG_ACCESS_DENIED;
         goto exit;
     }
 
@@ -768,11 +839,24 @@ rest_api_delete (int flags, const char *path)
         /* Set all leaves to NULL if we are allowed */
         GNode *rnode = get_response_node (tree, query_depth);
         if (!sch_traverse_tree (g_schema, api_subtree, rnode, schflags | SCH_F_SET_NULL))
+        {
             rc = HTTP_CODE_FORBIDDEN;
+            error_tag = REST_E_TAG_ACCESS_DENIED;
+        }
         else if (g_node_max_height (tree) <= query_depth)
-             rc = HTTP_CODE_NOT_FOUND;
+        {
+            rc = HTTP_CODE_NOT_FOUND;
+            error_tag = REST_E_TAG_INVALID_VALUE;
+        }
+        else if (apteryx_set_tree (tree))
+        {
+            rc = HTTP_CODE_NO_CONTENT;
+        }
         else
-            rc = apteryx_set_tree (tree) ? HTTP_CODE_NO_CONTENT : 400;
+        {
+            rc = HTTP_CODE_BAD_REQUEST;
+            error_tag = REST_E_TAG_INVALID_VALUE;
+        }
 
         apteryx_free_tree (tree);
     }
@@ -780,7 +864,7 @@ rest_api_delete (int flags, const char *path)
 exit:
     if (flags & FLAGS_RESTCONF && rc >= 400 && rc <= 499)
     {
-        error_string = restconf_error (rc);
+        error_string = restconf_error (rc, error_tag);
     }
     resp = g_strdup_printf ("Status: %d\r\n"
                             "Content-Type: %s\r\n"
