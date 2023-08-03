@@ -76,7 +76,10 @@ get_flags (FCGX_Request * r)
         param = FCGX_GetParam ("CONTENT_TYPE", r->envp);
     if (param)
     {
-        if (g_strcmp0 (param, "application/json") == 0)
+        /* Some clients will encode raw values as text/plain,
+           but we can pretend it is json encoded */
+        if (g_strcmp0 (param, "application/json") == 0 ||
+            g_strcmp0 (param, "text/plain") == 0)
             flags |= FLAGS_CONTENT_JSON;
         else if (g_strcmp0 (param, "application/yang-data+json") == 0)
             flags |= FLAGS_CONTENT_JSON | FLAGS_RESTCONF;
