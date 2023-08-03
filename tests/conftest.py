@@ -59,6 +59,8 @@ db_default = [
     ('/t2:test/settings/priority', '2'),
     # Non-default namespace augmented path
     ('/t2:test/settings/speed', '2'),
+    # Apteryx namespace
+    ('/test3/state/age', '99'),
 ]
 
 

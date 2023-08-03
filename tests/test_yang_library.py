@@ -83,6 +83,11 @@ def test_restconf_yang_library_tree():
                         "revision": "2023-02-01"
                     },
                     {
+                        "name": "testing-3",
+                        "namespace": "http://test.com/ns/yang/testing-3",
+                        "revision": "2023-03-01"
+                    },
+                    {
                         "name": "testing2-augmented",
                         "namespace": "http://test.com/ns/yang/testing2-augmented",
                         "revision": "2023-02-02"
@@ -142,6 +147,11 @@ def test_restconf_yang_library_data():
                         "name": "testing-2",
                         "namespace": "http://test.com/ns/yang/testing-2",
                         "revision": "2023-02-01"
+                    },
+                    {
+                        "name": "testing-3",
+                        "namespace": "http://test.com/ns/yang/testing-3",
+                        "revision": "2023-03-01"
                     },
                     {
                         "name": "testing2-augmented",

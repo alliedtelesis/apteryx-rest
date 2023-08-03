@@ -27,6 +27,14 @@ def test_restconf_get_single_node_ns_default():
     assert response.json() == json.loads('{ "testing:priority": 1 }')
 
 
+def test_restconf_get_single_node_ns_apteryx():
+    response = requests.get("{}{}/data/test3/state/age".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.json() == json.loads('{ "age": "99" }')
+
+
 def test_restconf_get_single_node_ns_aug_default():
     response = requests.get("{}{}/data/testing:test/settings/volume".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -204,6 +212,22 @@ def test_restconf_get_trunk_other_namespace():
     "testing-2:settings": {
         "priority": 2,
         "testing2-augmented:speed": "2"
+    }
+}
+    """)
+
+
+def test_restconf_get_trunk_ns_apteryx():
+    response = requests.get("{}{}/data/test3".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.json() == json.loads("""
+{
+    "test3": {
+        "state": {
+            "age": "99"
+        }
     }
 }
     """)
