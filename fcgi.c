@@ -206,7 +206,7 @@ handle_http (void *arg)
         server_name = FCGX_GetParam ("SERVER_ADDR", request->envp);
     if_match = FCGX_GetParam ("HTTP_IF_MATCH", request->envp);
     if (!if_match)
-        if_match = FCGX_GetParam ("HTTP_If_Match", request->envp);
+        if_match = FCGX_GetParam ("HTTP_If-Match", request->envp);
     if_none_match = FCGX_GetParam ("HTTP_IF_NONE_MATCH", request->envp);
     if (!if_none_match)
         if_none_match = FCGX_GetParam ("HTTP_If-None-Match", request->envp);
