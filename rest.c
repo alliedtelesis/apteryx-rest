@@ -1005,6 +1005,40 @@ rest_api_watch (req_handle handle, int flags, const char *path)
     g_free (req);
 }
 
+static void
+rest_decode_uri (char *path)
+{
+    char *in = path;
+    char *out = path;
+
+    while (*in)
+    {
+        if(*in == '%' && strlen (in) > 2 && isxdigit (in[1]) && isxdigit (in[2]))
+        {
+            char char_1;
+            char char_2;
+
+            char_1 = toupper (in[1]);
+            if(char_1 >= 'A')
+                char_1 -= ('A' - 10);
+            else
+                char_1 -= '0';
+
+            char_2 = toupper (in[2]);
+            if(char_2 >= 'A')
+                char_2 -= ('A' - 10);
+            else
+                char_2 -= '0';
+
+            *out++ = (char_1 * 16) + char_2;
+            in +=3;
+        }
+        else
+            *out++ = *in++;
+    }
+    *out++ = '\0';
+}
+
 void
 rest_api (req_handle handle, int flags, const char *rpath, const char *path,
           const char *if_match, const char *if_none_match,
@@ -1012,8 +1046,15 @@ rest_api (req_handle handle, int flags, const char *rpath, const char *path,
           const char *server_name, const char *server_port, const char *data, int length)
 {
     char *resp = NULL;
+    char *new_path = NULL;
 
     VERBOSE ("REQ:\n[0x%x] %s\n", flags, path);
+
+    /* Check for encoded special characters of the form "%" HEXDIG HEXDIG (RFC 3986 section 2.1) */
+    new_path = g_strdup (path);
+    rest_decode_uri (new_path);
+    path = new_path;
+
     if (data && data[0])
     {
         VERBOSE ("%s\n", data);
@@ -1032,6 +1073,7 @@ rest_api (req_handle handle, int flags, const char *rpath, const char *path,
             else if (g_strcmp0 (path, ".html") == 0)
             {
                 rest_api_html (handle);
+                g_free (new_path);
                 return;
             }
             else
@@ -1058,6 +1100,7 @@ rest_api (req_handle handle, int flags, const char *rpath, const char *path,
             }
             send_response (handle, resp, false);
             g_free (resp);
+            g_free (new_path);
             return;
         }
     }
@@ -1068,11 +1111,13 @@ rest_api (req_handle handle, int flags, const char *rpath, const char *path,
         else if (strcmp (path, ".html") == 0)
         {
             rest_api_html (handle);
+            g_free (new_path);
             return;
         }
         else if (flags & (FLAGS_EVENT_STREAM | FLAGS_APPLICATION_STREAM))
         {
             rest_api_watch (handle, flags, path);
+            g_free (new_path);
             return;
         }
         else if (strlen (path) && path[strlen (path) - 1] == '/')
@@ -1104,6 +1149,7 @@ rest_api (req_handle handle, int flags, const char *rpath, const char *path,
     VERBOSE ("RESP:\n%s\n", resp);
     send_response (handle, resp, false);
     g_free (resp);
+    g_free (new_path);
     return;
 }
 
