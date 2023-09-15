@@ -24,6 +24,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <inttypes.h>
+#include <ctype.h>
 #include <stdbool.h>
 #include <string.h>
 #include <sys/sysinfo.h>
