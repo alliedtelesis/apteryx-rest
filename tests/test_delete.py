@@ -158,3 +158,23 @@ def test_restconf_delete_list_by_path_select_two():
     assert apteryx_get("/test/animals/animal/hamster/food/banana/type") == "Not found"
     assert apteryx_get('/test/animals/animal/hamster/food/nuts/name') == 'nuts'
     assert apteryx_get('/test/animals/animal/hamster/food/nuts/type') == 'kibble'
+
+
+def test_restconf_delete_trunk_ns_default_translate():
+    response = requests.delete("{}{}/data/xlat-test:xlat-test/xlat-animals".format(server_uri, docroot), auth=server_auth, headers=set_restconf_headers)
+    assert response.status_code == 204
+    assert len(response.content) == 0
+    response = requests.get("{}{}/data/xlat-test:xlat-test/xlat-animals".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    assert response.status_code == 200
+    assert response.json() == json.loads('{}')
+
+
+def test_restconf_delete_list_by_path_select_two_translate():
+    response = requests.delete("{}{}/data/xlat-test:xlat-test/xlat-animals/xlat-animal/hamster/food/banana".format(server_uri, docroot),
+                               auth=server_auth, headers=set_restconf_headers)
+    assert response.status_code == 204
+    assert len(response.content) == 0
+    assert apteryx_get("/test/animals/animal/hamster/food/banana/name") == "Not found"
+    assert apteryx_get("/test/animals/animal/hamster/food/banana/type") == "Not found"
+    assert apteryx_get('/test/animals/animal/hamster/food/nuts/name') == 'nuts'
+    assert apteryx_get('/test/animals/animal/hamster/food/nuts/type') == 'kibble'

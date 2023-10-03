@@ -416,6 +416,126 @@ def test_restconf_get_percent_encoded_fields():
     """)
 
 
+def test_restconf_get_list_trunk_translate():
+    response = requests.get("{}{}/data/xlat-test:xlat-test/xlat-animals".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.json() == json.loads("""
+{
+    "xlat-test:xlat-animals": {
+        "xlat-animal": [
+            {"name": "cat", "type": "fast"},
+            {"name": "dog", "colour": "brown"},
+            {"name": "hamster", "type": "slow", "food": [
+                    {"name": "banana", "type": "fruit"},
+                    {"name": "nuts", "type": "kibble"}
+                ]
+            },
+            {"name": "mouse", "type": "slow", "colour": "grey"},
+            {"name": "parrot", "type": "fast", "colour": "blue", "toys": {
+                "toy": ["puzzles", "rings"]
+                }
+            }
+        ]
+    }
+}
+    """)
+
+
+def test_restconf_get_list_select_none_translate():
+    response = requests.get("{}{}/data/xlat-test:xlat-test/xlat-animals/xlat-animal".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.json() == json.loads("""
+{
+    "xlat-test:xlat-animal": [
+        {"name": "cat", "type": "fast"},
+        {"name": "dog", "colour": "brown"},
+        {"name": "hamster", "type": "slow", "food": [
+                {"name": "banana", "type": "fruit"},
+                {"name": "nuts", "type": "kibble"}
+            ]
+        },
+        {"name": "mouse", "colour": "grey", "type": "slow"},
+        {"name": "parrot", "type": "fast", "colour": "blue", "toys": {
+            "toy": ["puzzles", "rings"]
+            }
+        }
+    ]
+}
+    """)
+
+
+def test_restconf_get_list_select_one_trunk_translate():
+    response = requests.get("{}{}/data/xlat-test:xlat-test/xlat-animals/xlat-animal=cat".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.json() == json.loads("""
+{
+    "xlat-test:xlat-animal": [
+        {
+            "name": "cat",
+            "type": "fast"
+        }
+    ]
+}
+    """)
+
+
+def test_restconf_get_list_select_one_by_path_trunk_translate():
+    response = requests.get("{}{}/data/xlat-test:xlat-test/xlat-animals/xlat-animal/cat".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.json() == json.loads("""
+{
+    "xlat-test:xlat-animal": [
+        {
+            "name": "cat",
+            "type": "fast"
+        }
+    ]
+}
+    """)
+
+
+def test_restconf_get_list_select_two_trunk_translate():
+    response = requests.get("{}{}/data/xlat-test:xlat-test/xlat-animals/xlat-animal=hamster/food=banana".format(server_uri, docroot),
+                            auth=server_auth, headers=get_restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.json() == json.loads("""
+{
+    "xlat-test:food": [
+        {
+            "name": "banana",
+            "type": "fruit"
+        }
+    ]
+}
+    """)
+
+
+def test_restconf_get_leaf_list_node_translate():
+    response = requests.get("{}{}/data/xlat-test:xlat-test/xlat-animals/xlat-animal=parrot/toys/toy".format(server_uri, docroot),
+                            auth=server_auth, headers=get_restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.json() == json.loads("""
+{
+    "xlat-test:toy": [
+        "puzzles",
+        "rings"
+    ]
+}
+    """)
+
+
 # TODO multiple keys
 #  /restconf/data/ietf-yang-library:modules-state/module=ietf-interfaces,2014-05-08
 #  Missing key values are not allowed, so two consecutive commas are
