@@ -908,6 +908,106 @@ def test_restconf_query_with_defaults_report_all_list():
     """)
 
 
+def test_restconf_query_depth_4_translate():
+    response = requests.get("{}{}/data/xlat-test:xlat-test/xlat-animals?depth=4".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    assert response.status_code == 200
+    assert len(response.content) > 0
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.json() == json.loads("""
+{
+    "xlat-test:xlat-animals": {
+        "xlat-animal": [
+            {
+                "name": "cat",
+                "type": "fast"
+            },
+            {
+                "colour": "brown",
+                "name": "dog"
+            },
+            {
+                "food": [
+                    {
+                        "name": "banana",
+                        "type": "fruit"
+                    },
+                    {
+                        "name": "nuts",
+                        "type": "kibble"
+                    }
+                ],
+                "name": "hamster",
+                "type": "slow"
+            },
+            {
+                "colour": "grey",
+                "name": "mouse",
+                "type": "slow"
+            },
+            {
+                "colour": "blue",
+                "name": "parrot",
+                "type": "fast"
+            }
+        ]
+    }
+}
+    """)
+
+
+def test_restconf_query_depth_5_translate():
+    response = requests.get("{}{}/data/xlat-test:xlat-test/xlat-animals?depth=5".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    assert response.status_code == 200
+    assert len(response.content) > 0
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.json() == json.loads("""
+{
+    "xlat-test:xlat-animals": {
+        "xlat-animal": [
+            {
+                "name": "cat",
+                "type": "fast"
+            },
+            {
+                "colour": "brown",
+                "name": "dog"
+            },
+            {
+                "food": [
+                    {
+                        "name": "banana",
+                        "type": "fruit"
+                    },
+                    {
+                        "name": "nuts",
+                        "type": "kibble"
+                    }
+                ],
+                "name": "hamster",
+                "type": "slow"
+            },
+            {
+                "colour": "grey",
+                "name": "mouse",
+                "type": "slow"
+            },
+            {
+                "colour": "blue",
+                "name": "parrot",
+                "toys": {
+                    "toy": [
+                        "puzzles",
+                        "rings"
+                    ]
+                },
+                "type": "fast"
+            }
+        ]
+    }
+}
+    """)
+
+
 # POST /restconf/data/example-jukebox:jukebox/playlist=Foo-One?insert=first
 # POST /restconf/data/example-jukebox:jukebox/playlist=Foo-One?insert=after&point=%2Fexample-jukebox%3Ajukebox%2Fplaylist%3DFoo-One%2Fsong%3D1
 
