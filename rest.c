@@ -432,7 +432,7 @@ rest_api_get (int flags, const char *path, const char *if_none_match, const char
             /* Nothing in the database, but we may have defaults! */
             tree = query;
             query = NULL;
-            if ((g_node_max_height (tree) - 1) > qdepth)
+            if (g_node_max_height (tree) > qdepth)
             {
                 GNode *child = g_node_first_child (qnode);
                 qnode->children = NULL;
