@@ -425,7 +425,7 @@ rest_api_get (int flags, const char *path, const char *if_none_match, const char
         if (tree)
         {
             rnode = get_response_node (tree, rdepth);
-            sch_traverse_tree (g_schema, rschema, rnode, schflags | SCH_F_ADD_DEFAULTS);
+            sch_traverse_tree (g_schema, rschema, rnode, schflags | SCH_F_ADD_DEFAULTS, 0);
         }
         else if (qdepth == rdepth && (sch_node_child_first (rschema) || sch_is_leaf (rschema)))
         {
@@ -439,7 +439,7 @@ rest_api_get (int flags, const char *path, const char *if_none_match, const char
                 if (child)
                     apteryx_free_tree (child);
             }
-            sch_traverse_tree (g_schema, rschema, qnode, schflags | SCH_F_ADD_DEFAULTS);
+            sch_traverse_tree (g_schema, rschema, qnode, schflags | SCH_F_ADD_DEFAULTS, 0);
         }
     }
     if (tree)
@@ -448,7 +448,7 @@ rest_api_get (int flags, const char *path, const char *if_none_match, const char
         if (schflags & SCH_F_TRIM_DEFAULTS)
         {
             rnode = get_response_node (tree, rdepth);
-            sch_traverse_tree (g_schema, rschema, rnode, schflags | SCH_F_TRIM_DEFAULTS);
+            sch_traverse_tree (g_schema, rschema, rnode, schflags | SCH_F_TRIM_DEFAULTS, 0);
         }
 
         /* Convert the result to JSON */
@@ -719,7 +719,7 @@ rest_api_post (int flags, const char *path, const char *data, int length, const 
 
     /* Check for replace */
     if (flags & FLAGS_RESTCONF && flags & FLAGS_METHOD_PUT)
-        sch_traverse_tree (g_schema, api_subtree, tree, schflags | SCH_F_ADD_MISSING_NULL);
+        sch_traverse_tree (g_schema, api_subtree, tree, schflags | SCH_F_ADD_MISSING_NULL, 0);
 
     /* Write the combinded tree to apteryx */
     child->children = tree->children;
@@ -838,7 +838,7 @@ rest_api_delete (int flags, const char *path)
     {
         /* Set all leaves to NULL if we are allowed */
         GNode *rnode = get_response_node (tree, query_depth);
-        if (!sch_traverse_tree (g_schema, api_subtree, rnode, schflags | SCH_F_SET_NULL))
+        if (!sch_traverse_tree (g_schema, api_subtree, rnode, schflags | SCH_F_SET_NULL, 0))
         {
             rc = HTTP_CODE_FORBIDDEN;
             error_tag = REST_E_TAG_ACCESS_DENIED;
