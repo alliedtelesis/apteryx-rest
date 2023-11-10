@@ -22,6 +22,9 @@
 
 /* Name for the set of modules */
 #define MODULES_STR "modules"
+#define SCHEMA_STR "schema"
+#define DATASTORE_STR "datastore"
+#define COMMON_STR "common"
 
 /* List of supported capabilities. This is hard-coded for now, if we add a
  * capability in the code, we need to update this table. Null terminate it
@@ -169,13 +172,26 @@ yang_library_create (sch_instance *schema)
 {
     GNode *root;
     GNode *modules;
+    GNode *datastore;
+    GNode *tmp;
+    GNode *sch_tmp;
     time_t now = time (NULL);
     char set_id[24];
 
     root = APTERYX_NODE (NULL, g_strdup (YANG_LIBRARY_PATH));
-    modules = add_leaf_strdup (root, YANG_LIBRARY_SCHEMA_MODULE_SET, MODULES_STR);
-    add_leaf_strdup (modules, YANG_LIBRARY_MODULE_SET_NAME, MODULES_STR);
+    modules = add_leaf_strdup (root, YANG_LIBRARY_SCHEMA_MODULE_SET, COMMON_STR);
+    add_leaf_strdup (modules, YANG_LIBRARY_MODULE_SET_NAME, COMMON_STR);
     schema_set_model_information (schema, modules);
+
+    tmp = add_leaf_strdup (root, SCHEMA_STR, SCHEMA_STR);
+    add_leaf_strdup (tmp, YANG_LIBRARY_SCHEMA_NAME, COMMON_STR);
+    sch_tmp = add_leaf_strdup (tmp, YANG_LIBRARY_SCHEMA_MODULE_SET, COMMON_STR);
+    add_leaf_strdup (sch_tmp, COMMON_STR, COMMON_STR);
+
+
+    datastore = add_leaf_strdup (root, DATASTORE_STR, DATASTORE_STR);
+    add_leaf_strdup (datastore, YANG_LIBRARY_DATASTORE_NAME, "ietf-datastores:running");
+    add_leaf_strdup (datastore, YANG_LIBRARY_DATASTORE_SCHEMA, COMMON_STR);
 
     apteryx_set_tree (root);
     apteryx_free_tree (root);
