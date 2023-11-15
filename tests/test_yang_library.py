@@ -47,6 +47,12 @@ def test_restconf_yang_library_tree():
 {
     "ietf-yang-library:yang-library": {
         "content-id": "%s",
+        "datastore" : [
+            {
+                "name" : "ietf-datastores:running",
+                "schema" : "common"
+            }
+        ],
         "module-set": [
             {
                 "module": [
@@ -93,9 +99,17 @@ def test_restconf_yang_library_tree():
                         "revision": "2023-02-02"
                     }
                 ],
-                "name": "modules"
+                "name": "common"
             }
-        ]
+        ],
+       "schema" : [
+            {
+                "module-set" : [
+                "common"
+             ],
+            "name" : "common"
+            }
+       ]
     }
 }
 """ % (contentid))
@@ -113,6 +127,12 @@ def test_restconf_yang_library_data():
 {
     "ietf-yang-library:yang-library": {
         "content-id": "%s",
+        "datastore" : [
+          {
+             "name" : "ietf-datastores:running",
+             "schema" : "common"
+          }
+        ],
         "module-set": [
             {
                 "module": [
@@ -159,7 +179,15 @@ def test_restconf_yang_library_data():
                         "revision": "2023-02-02"
                     }
                 ],
-                "name": "modules"
+                "name": "common"
+            }
+        ],
+        "schema" : [
+            {
+                "module-set" : [
+                    "common"
+                ],
+                "name" : "common"
             }
         ]
     }
