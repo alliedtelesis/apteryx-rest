@@ -740,7 +740,6 @@ def test_restconf_query_with_defaults_report_all_trunk_data():
     "settings": {
         "debug": "disable",
         "enable": true,
-        "empty": {},
         "priority": 1,
         "readonly": "yes",
         "time": {
@@ -774,7 +773,6 @@ def test_restconf_query_with_defaults_report_all_trunk_empty():
 {
     "settings": {
         "debug": "disable",
-        "empty": {},
         "enable": false,
         "readonly": "yes",
         "time": {
