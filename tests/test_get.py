@@ -425,17 +425,18 @@ def test_restconf_get_list_trunk_translate():
 {
     "xlat-test:xlat-animals": {
         "xlat-animal": [
-            {"name": "cat", "type": "fast"},
-            {"name": "dog", "colour": "brown"},
+            {"name": "cat", "type": "fast", "food": [{"pet": "cat"}]},
+            {"name": "dog", "colour": "brown", "food": [{"pet": "dog"}]},
             {"name": "hamster", "type": "slow", "food": [
                     {"name": "banana", "type": "fruit"},
-                    {"name": "nuts", "type": "kibble"}
+                    {"name": "nuts", "type": "kibble"},
+                    {"pet": "hamster"}
                 ]
             },
-            {"name": "mouse", "type": "slow", "colour": "grey"},
+            {"name": "mouse", "type": "slow", "colour": "grey", "food": [{"pet": "mouse"}]},
             {"name": "parrot", "type": "fast", "colour": "blue", "toys": {
                 "toy": ["puzzles", "rings"]
-                }
+                }, "food": [{"pet": "parrot"}]
             }
         ]
     }
@@ -451,17 +452,19 @@ def test_restconf_get_list_select_none_translate():
     assert response.json() == json.loads("""
 {
     "xlat-test:xlat-animal": [
-        {"name": "cat", "type": "fast"},
-        {"name": "dog", "colour": "brown"},
+        {"name": "cat", "type": "fast", "food": [{"pet": "cat"}]},
+        {"name": "dog", "colour": "brown", "food": [{"pet": "dog"}]},
         {"name": "hamster", "type": "slow", "food": [
                 {"name": "banana", "type": "fruit"},
-                {"name": "nuts", "type": "kibble"}
+                {"name": "nuts", "type": "kibble"},
+                {"pet": "hamster"}
             ]
         },
-        {"name": "mouse", "colour": "grey", "type": "slow"},
+        {"name": "mouse", "colour": "grey", "type": "slow", "food": [{"pet": "mouse"}]},
         {"name": "parrot", "type": "fast", "colour": "blue", "toys": {
             "toy": ["puzzles", "rings"]
-            }
+            },
+            "food": [{"pet": "parrot"}]
         }
     ]
 }
@@ -478,7 +481,8 @@ def test_restconf_get_list_select_one_trunk_translate():
     "xlat-test:xlat-animal": [
         {
             "name": "cat",
-            "type": "fast"
+            "type": "fast",
+            "food": [{"pet": "cat"}]
         }
     ]
 }
@@ -495,7 +499,8 @@ def test_restconf_get_list_select_one_by_path_trunk_translate():
     "xlat-test:xlat-animal": [
         {
             "name": "cat",
-            "type": "fast"
+            "type": "fast",
+            "food": [{"pet": "cat"}]
         }
     ]
 }

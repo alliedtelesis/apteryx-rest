@@ -271,6 +271,7 @@ rest_api_get (int flags, const char *path, const char *if_none_match, const char
     int rc = HTTP_CODE_OK;
     rest_e_tag error_tag = REST_E_TAG_NONE;
     GNode *query, *tree;
+    GNode *orig_query = NULL;
     char *json_string = NULL;
     char *resp = NULL;
     void *xlat_data = NULL;
@@ -420,7 +421,12 @@ rest_api_get (int flags, const char *path, const char *if_none_match, const char
     }
 
     if ((flags & FLAGS_RESTCONF))
+    {
+        if (query)
+            orig_query = sch_translate_copy_query (query);
+
         query = sch_translate_input (g_schema, query, flags, &xlat_data, NULL);
+    }
 
     /* Query the database */
     tree = apteryx_query (query);
@@ -456,7 +462,7 @@ rest_api_get (int flags, const char *path, const char *if_none_match, const char
         }
 
         if (xlat_data && tree && (flags & FLAGS_RESTCONF))
-            tree = sch_translate_output (g_schema, tree, schflags, xlat_data);
+            tree = sch_translate_output (g_schema, tree, orig_query, schflags, xlat_data);
 
         /* Convert the result to JSON */
         rnode = get_response_node (tree, rdepth);
@@ -495,6 +501,10 @@ rest_api_get (int flags, const char *path, const char *if_none_match, const char
     {
         json = json_object();
     }
+
+    if (orig_query)
+        apteryx_free_tree (orig_query);
+
     if (!(flags & FLAGS_JSON_FORMAT_ROOT) &&
         (json_is_string (json) || json_is_integer (json) || json_is_boolean (json)))
     {
