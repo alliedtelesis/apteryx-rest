@@ -916,11 +916,21 @@ def test_restconf_query_depth_4_translate():
     "xlat-test:xlat-animals": {
         "xlat-animal": [
             {
+                "food": [
+                    {
+                        "pet": "cat"
+                    }
+                ],
                 "name": "cat",
                 "type": "fast"
             },
             {
                 "colour": "brown",
+                "food": [
+                    {
+                        "pet": "dog"
+                    }
+                ],
                 "name": "dog"
             },
             {
@@ -932,6 +942,9 @@ def test_restconf_query_depth_4_translate():
                     {
                         "name": "nuts",
                         "type": "kibble"
+                    },
+                    {
+                        "pet": "hamster"
                     }
                 ],
                 "name": "hamster",
@@ -939,11 +952,21 @@ def test_restconf_query_depth_4_translate():
             },
             {
                 "colour": "grey",
+                "food": [
+                    {
+                        "pet": "mouse"
+                    }
+                ],
                 "name": "mouse",
                 "type": "slow"
             },
             {
                 "colour": "blue",
+                "food": [
+                    {
+                        "pet": "parrot"
+                    }
+                ],
                 "name": "parrot",
                 "type": "fast"
             }
@@ -963,11 +986,21 @@ def test_restconf_query_depth_5_translate():
     "xlat-test:xlat-animals": {
         "xlat-animal": [
             {
+                "food": [
+                    {
+                        "pet": "cat"
+                    }
+                ],
                 "name": "cat",
                 "type": "fast"
             },
             {
                 "colour": "brown",
+                "food": [
+                    {
+                        "pet": "dog"
+                    }
+                ],
                 "name": "dog"
             },
             {
@@ -979,6 +1012,9 @@ def test_restconf_query_depth_5_translate():
                     {
                         "name": "nuts",
                         "type": "kibble"
+                    },
+                    {
+                        "pet": "hamster"
                     }
                 ],
                 "name": "hamster",
@@ -986,11 +1022,21 @@ def test_restconf_query_depth_5_translate():
             },
             {
                 "colour": "grey",
+                "food": [
+                    {
+                        "pet": "mouse"
+                    }
+                ],
                 "name": "mouse",
                 "type": "slow"
             },
             {
                 "colour": "blue",
+                "food": [
+                    {
+                        "pet": "parrot"
+                    }
+                ],
                 "name": "parrot",
                 "toys": {
                     "toy": [
