@@ -178,3 +178,11 @@ def test_restconf_delete_list_by_path_select_two_translate():
     assert apteryx_get("/test/animals/animal/hamster/food/banana/type") == "Not found"
     assert apteryx_get('/test/animals/animal/hamster/food/nuts/name') == 'nuts'
     assert apteryx_get('/test/animals/animal/hamster/food/nuts/type') == 'kibble'
+
+
+def test_restconf_delete_list_by_path_select_list_leaf():
+    response = requests.delete("{}{}/data/testing:test/animals/animal/parrot/toys/toy/puzzles".format(server_uri, docroot), auth=server_auth, headers=set_restconf_headers)
+    assert response.status_code == 204
+    assert len(response.content) == 0
+    assert apteryx_get("/test/animals/animal/parrot/toys/toy/puzzles") == "Not found"
+    assert apteryx_get("/test/animals/animal/parrot/toys/toy/rings") == 'rings'
