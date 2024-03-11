@@ -804,6 +804,7 @@ rest_api_delete (int flags, const char *path)
     sch_node *api_subtree = NULL;
     char *error_string = NULL;
     char *resp = NULL;
+    char *name = NULL;
     void *xlat_data = NULL;
     int rc = HTTP_CODE_NO_CONTENT;
     rest_e_tag error_tag = REST_E_TAG_NONE;
@@ -864,7 +865,28 @@ rest_api_delete (int flags, const char *path)
     {
         /* Set all leaves to NULL if we are allowed */
         GNode *rnode = get_response_node (tree, query_depth);
-        if (!sch_traverse_tree (g_schema, api_subtree, rnode, schflags | SCH_F_SET_NULL, 0))
+
+        /* Special treatment is required for the deletion of a leaf list item */
+        if (api_subtree && sch_is_leaf (api_subtree) && (name = sch_name (api_subtree)) &&
+            sch_is_leaf_list (sch_node_parent (api_subtree)) &&
+            g_strcmp0 (name, "*") == 0)
+        {
+            if (rnode && rnode->children->data)
+            {
+                free (rnode->children->data);
+                rnode->children->data = g_strdup ("");
+                if (apteryx_set_tree (tree))
+                {
+                    rc = HTTP_CODE_NO_CONTENT;
+                }
+                else
+                {
+                    rc = HTTP_CODE_BAD_REQUEST;
+                    error_tag = REST_E_TAG_INVALID_VALUE;
+                }
+            }
+        }
+        else if (!sch_traverse_tree (g_schema, api_subtree, rnode, schflags | SCH_F_SET_NULL, 0))
         {
             rc = HTTP_CODE_FORBIDDEN;
             error_tag = REST_E_TAG_ACCESS_DENIED;
@@ -883,7 +905,7 @@ rest_api_delete (int flags, const char *path)
             rc = HTTP_CODE_BAD_REQUEST;
             error_tag = REST_E_TAG_INVALID_VALUE;
         }
-
+        g_free (name);
         apteryx_free_tree (tree);
     }
 
