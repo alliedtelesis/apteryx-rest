@@ -313,7 +313,7 @@ rest_api_get (int flags, const char *path, const char *if_none_match, const char
     }
 
     /* Convert the path to a GNode tree to use as the base of the apteryx query */
-    query = sch_path_to_gnode (g_schema, NULL, path, schflags, &qschema);
+    query = sch_path_to_gnode (g_schema, NULL, path, schflags, &qschema, NULL);
     if (!query || !qschema)
     {
         VERBOSE ("REST: Path \"%s\" invalid\n", path);
@@ -606,7 +606,7 @@ rest_api_post (int flags, const char *path, const char *data, int length, const 
     schflags |= SCH_F_STRIP_DATA;
 
     /* Generate an aperyx tree from the path */
-    root = sch_path_to_gnode (g_schema, NULL, path, schflags, &api_subtree);
+    root = sch_path_to_gnode (g_schema, NULL, path, schflags, &api_subtree, NULL);
     if (!root || !api_subtree)
     {
         VERBOSE ("REST: Path \"%s\" not found\n", path);
@@ -822,7 +822,7 @@ rest_api_delete (int flags, const char *path)
         schflags |= SCH_F_CONFIG; /* We only want to delete config-nodes */
 
     /* Generate an aperyx query from the path */
-    GNode *query = sch_path_to_gnode (g_schema, NULL, path, schflags, &api_subtree);
+    GNode *query = sch_path_to_gnode (g_schema, NULL, path, schflags, &api_subtree, NULL);
     if (!query || !api_subtree)
     {
         VERBOSE ("REST: Path \"%s\" not found\n", path);
