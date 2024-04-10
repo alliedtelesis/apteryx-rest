@@ -840,9 +840,10 @@ rest_api_delete (int flags, const char *path)
         goto exit;
     }
 
-    int query_depth = g_node_max_height (query);
     if ((flags & FLAGS_RESTCONF))
         query = sch_translate_input (g_schema, query, schflags, &xlat_data, &api_subtree);
+
+    int query_depth = g_node_max_height (query);
 
     /* We may want to get everything from here down */
     if (sch_node_child_first (api_subtree))
