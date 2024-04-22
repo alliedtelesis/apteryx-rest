@@ -55,6 +55,7 @@ help (char *app_name)
             "  -a   enable the use of JSON arrays for lists\n"
             "  -t   encode values as JSON types where possible\n"
             "  -m   search <path> for modules\n"
+            "  -n   name of a file containing a list of supported models\n"
             "  -p   use <pidfile> (defaults to " DEFAULT_APP_PID ")\n"
             "  -s   rest socket <socket> (defaults to " DEFAULT_REST_SOCK ")\n", app_name);
 }
@@ -67,11 +68,12 @@ main (int argc, char *argv[])
     const char *socket = DEFAULT_REST_SOCK;
     int i = 0;
     bool background = false;
+    char *supported = NULL;
     FILE *fp = NULL;
     int rc = EXIT_SUCCESS;
 
     /* Parse options */
-    while ((i = getopt (argc, argv, "bdvatm:s:p:e:h")) != -1)
+    while ((i = getopt (argc, argv, "bdvatm:n:s:p:e:h")) != -1)
     {
         switch (i)
         {
@@ -112,6 +114,9 @@ main (int argc, char *argv[])
         case 'm':
             path = optarg;
             break;
+        case 'n':
+            supported = optarg;
+            break;
         case 's':
             socket = optarg;
             break;
@@ -143,7 +148,7 @@ main (int argc, char *argv[])
     apteryx_init (verbose);
 
     /* Initialise rest */
-    if (!rest_init (path))
+    if (!rest_init (path, supported))
     {
         ERROR ("ERROR: Failed to load modules at path \"%s\"\n", path);
         rc = EXIT_FAILURE;

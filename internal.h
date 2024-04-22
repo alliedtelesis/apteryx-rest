@@ -86,7 +86,7 @@ void fcgi_stop (void);
 /* Rest */
 extern bool rest_use_arrays;
 extern bool rest_use_types;
-gboolean rest_init (const char *path);
+gboolean rest_init (const char *path, const char *supported);
 void rest_api (req_handle handle, int flags, const char *rpath, const char *path,
                const char *if_match, const char *if_none_match,
                const char *if_modified_since, const char *if_unmodified_since,

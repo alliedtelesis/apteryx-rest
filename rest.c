@@ -1203,7 +1203,7 @@ rest_api (req_handle handle, int flags, const char *rpath, const char *path,
 }
 
 gboolean
-rest_init (const char *path)
+rest_init (const char *path, const char *supported)
 {
     struct sysinfo info;
     struct timespec monotime;
@@ -1218,7 +1218,7 @@ rest_init (const char *path)
     g_boottime += (monotime.tv_sec - monotime_raw.tv_sec);
 
     /* Load Data Models */
-    g_schema = sch_load (path);
+    g_schema = sch_load_with_model_list_filename (path, supported);
     if (!g_schema)
     {
         return false;
