@@ -80,6 +80,10 @@ def apteryx_traverse(path):
     return subprocess.check_output("%s -t %s%s" % (APTERYX, APTERYX_URL, path), shell=True).strip().decode('utf-8')
 
 
+def apteryx_proxy(path, url):
+    assert subprocess.check_output('%s -x %s%s "%s"' % (APTERYX, APTERYX_URL, path, url), shell=True).strip().decode('utf-8') != "Failed"
+
+
 @pytest.fixture(autouse=True)
 def run_around_tests():
     # Before test
