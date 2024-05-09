@@ -1,6 +1,6 @@
 import json
 import requests
-from conftest import server_uri, server_auth, docroot, apteryx_set, get_restconf_headers
+from conftest import server_uri, server_auth, docroot, apteryx_set, get_restconf_headers, apteryx_proxy
 
 
 def test_restconf_get_single_node_ns_none():
@@ -410,6 +410,53 @@ def test_restconf_get_percent_encoded_fields():
         {
             "colour": "grey",
             "type": "little"
+        }
+    ]
+}
+    """)
+
+
+def test_restconf_get_proxy_value_string():
+    apteryx_set("/logical-elements/logical-element/loop/name", "loopy")
+    apteryx_set("/logical-elements/logical-element/loop/root", "root")
+    apteryx_set("/apteryx/sockets/E18FE205",  "tcp://127.0.0.1:9999")
+    apteryx_proxy("/logical-elements/logical-element/loopy/*", "tcp://127.0.0.1:9999")
+    response = requests.get("{}{}/data/logical-elements:logical-elements/logical-element/loopy/testing:test/settings/debug".format(server_uri, docroot),
+                            auth=server_auth, headers=get_restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.json() == json.loads('{ "testing:debug": "enable" }')
+    apteryx_set("/test/settings/debug", "disable")
+    response = requests.get("{}{}/data/testing:test/settings/debug".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.json() == json.loads('{ "testing:debug": "disable" }')
+    response = requests.get("{}{}/data/logical-elements:logical-elements/logical-element/loopy/testing:test/settings/debug".format(server_uri, docroot),
+                            auth=server_auth, headers=get_restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.json() == json.loads('{ "testing:debug": "disable" }')
+
+
+def test_restconf_get_proxy_list_select_one_trunk():
+    apteryx_set("/logical-elements/logical-element/loop/name", "loopy")
+    apteryx_set("/logical-elements/logical-element/loop/root", "root")
+    apteryx_set("/apteryx/sockets/E18FE205",  "tcp://127.0.0.1:9999")
+    apteryx_proxy("/logical-elements/logical-element/loopy/*", "tcp://127.0.0.1:9999")
+    response = requests.get("{}{}/data/logical-elements:logical-elements/logical-element/loopy/testing:test/animals/animal=cat".format(server_uri, docroot),
+                            auth=server_auth, headers=get_restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.json() == json.loads("""
+{
+    "testing:animal": [
+        {
+            "name": "cat",
+            "type": "big"
         }
     ]
 }

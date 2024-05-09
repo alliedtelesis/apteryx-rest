@@ -79,6 +79,11 @@ def test_restconf_yang_library_tree():
                         "revision": "2019-01-04"
                     },
                     {
+                        "name": "logical-elements",
+                        "namespace": "http://example.com/ns/logical-elements",
+                        "revision": "2024-04-04"
+                    },
+                    {
                         "name": "testing",
                         "namespace": "http://test.com/ns/yang/testing",
                         "revision": "2023-01-01"
@@ -162,6 +167,11 @@ def test_restconf_yang_library_data():
                         "name": "ietf-yang-library",
                         "namespace": "urn:ietf:params:xml:ns:yang:ietf-yang-library",
                         "revision": "2019-01-04"
+                    },
+                    {
+                        "name": "logical-elements",
+                        "namespace": "http://example.com/ns/logical-elements",
+                        "revision": "2024-04-04"
                     },
                     {
                         "name": "testing",

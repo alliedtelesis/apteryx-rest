@@ -1,6 +1,6 @@
 import json
 import requests
-from conftest import server_uri, server_auth, docroot, apteryx_set, apteryx_get, apteryx_traverse, get_restconf_headers, set_restconf_headers
+from conftest import server_uri, server_auth, docroot, apteryx_set, apteryx_get, apteryx_traverse, get_restconf_headers, set_restconf_headers, apteryx_proxy
 
 
 def test_restconf_delete_single_node_ns_none():
@@ -166,3 +166,17 @@ def test_restconf_delete_list_by_path_select_list_leaf():
     assert len(response.content) == 0
     assert apteryx_get("/test/animals/animal/parrot/toys/toy/puzzles") == "Not found"
     assert apteryx_get("/test/animals/animal/parrot/toys/toy/rings") == 'rings'
+
+
+def test_restconf_delete_proxy_list_select_one():
+    apteryx_set("/logical-elements/logical-element/loop/name", "loopy")
+    apteryx_set("/logical-elements/logical-element/loop/root", "root")
+    apteryx_set("/apteryx/sockets/E18FE205",  "tcp://127.0.0.1:9999")
+    apteryx_proxy("/logical-elements/logical-element/loopy/*", "tcp://127.0.0.1:9999")
+    response = requests.delete("{}{}/data/logical-elements:logical-elements/logical-element/loopy/testing:test/animals/animal=dog".format(server_uri, docroot),
+                               auth=server_auth, headers=set_restconf_headers)
+    assert response.status_code == 204
+    assert len(response.content) == 0
+    assert apteryx_get("/test/animals/animal/cat/name") == 'cat'
+    assert apteryx_get('/test/animals/animal/dog/name') == "Not found"
+    assert apteryx_get('/test/animals/animal/dog/colour') == "Not found"
