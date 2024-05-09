@@ -1,6 +1,6 @@
 import json
 import requests
-from conftest import server_uri, server_auth, docroot, apteryx_set, apteryx_get, apteryx_traverse, set_restconf_headers
+from conftest import server_uri, server_auth, docroot, apteryx_set, apteryx_get, apteryx_traverse, set_restconf_headers, apteryx_proxy
 
 
 def test_restconf_create_single_node_ns_none():
@@ -429,3 +429,17 @@ def test_restconf_create_list_entry_exists():
 }
     """)
     assert apteryx_get("/test/animals/animal/cat/type") == "1"
+
+
+def test_restconf_create_proxy_string():
+    apteryx_set("/logical-elements/logical-element/loop/name", "loopy")
+    apteryx_set("/logical-elements/logical-element/loop/root", "root")
+    apteryx_set("/apteryx/sockets/E18FE205",  "tcp://127.0.0.1:9999")
+    apteryx_proxy("/logical-elements/logical-element/loopy/*", "tcp://127.0.0.1:9999")
+    apteryx_set("/test/settings/description", "")
+    data = """{"description": "this is a description via a proxy"}"""
+    response = requests.post("{}{}/data/logical-elements:logical-elements/logical-element/loopy/test/settings".format(server_uri, docroot),
+                             auth=server_auth, headers=set_restconf_headers, data=data)
+    assert response.status_code == 201
+    assert len(response.content) == 0
+    assert apteryx_get("/test/settings/description") == "this is a description via a proxy"

@@ -1,7 +1,7 @@
 import json
 import pytest
 import requests
-from conftest import server_uri, server_auth, docroot, apteryx_set, get_restconf_headers
+from conftest import server_uri, server_auth, docroot, apteryx_set, get_restconf_headers, apteryx_proxy
 
 
 def test_restconf_query_empty():
@@ -902,6 +902,24 @@ def test_restconf_query_with_defaults_report_all_list():
             "name": "mildred"
         }
     ]
+}
+    """)
+
+
+def test_restconf_query_proxy_with_defaults_report_all_leaf():
+    apteryx_set("/logical-elements/logical-element/loop/name", "loopy")
+    apteryx_set("/logical-elements/logical-element/loop/root", "root")
+    apteryx_set("/apteryx/sockets/E18FE205",  "tcp://127.0.0.1:9999")
+    apteryx_proxy("/logical-elements/logical-element/loopy/*", "tcp://127.0.0.1:9999")
+    apteryx_set("/test/settings/debug", "")
+    response = requests.get("{}{}/data/logical-elements:logical-elements/logical-element/loopy/test/settings/debug?with-defaults=report-all".format(server_uri, docroot),
+                            auth=server_auth, headers=get_restconf_headers)
+    assert response.status_code == 200
+    assert len(response.content) > 0
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.json() == json.loads("""
+{
+    "testing:debug": "disable"
 }
     """)
 
