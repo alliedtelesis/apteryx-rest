@@ -97,11 +97,6 @@ def test_restconf_yang_library_tree():
                         "name": "testing2-augmented",
                         "namespace": "http://test.com/ns/yang/testing2-augmented",
                         "revision": "2023-02-02"
-                    },
-                    {
-                        "name": "xlat-test",
-                        "namespace": "http://test.com/ns/yang/xlat-testing",
-                        "revision": "2023-01-01"
                     }
                 ],
                 "name": "common"
@@ -182,11 +177,6 @@ def test_restconf_yang_library_data():
                         "name": "testing2-augmented",
                         "namespace": "http://test.com/ns/yang/testing2-augmented",
                         "revision": "2023-02-02"
-                    },
-                    {
-                        "name": "xlat-test",
-                        "namespace": "http://test.com/ns/yang/xlat-testing",
-                        "revision": "2023-01-01"
                     }
                 ],
                 "name": "common"

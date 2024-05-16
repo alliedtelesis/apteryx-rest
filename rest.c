@@ -271,10 +271,8 @@ rest_api_get (int flags, const char *path, const char *if_none_match, const char
     int rc = HTTP_CODE_OK;
     rest_e_tag error_tag = REST_E_TAG_NONE;
     GNode *query, *tree;
-    GNode *orig_query = NULL;
     char *json_string = NULL;
     char *resp = NULL;
-    void *xlat_data = NULL;
     int schflags = 0;
     int qdepth, rdepth;
     int diff;
@@ -420,14 +418,6 @@ rest_api_get (int flags, const char *path, const char *if_none_match, const char
         }
     }
 
-    if ((flags & FLAGS_RESTCONF))
-    {
-        if (query)
-            orig_query = sch_translate_copy_query (query);
-
-        query = sch_translate_input (g_schema, query, flags, &xlat_data, NULL);
-    }
-
     /* Query the database */
     tree = apteryx_query (query);
     if (schflags & SCH_F_ADD_DEFAULTS)
@@ -460,9 +450,6 @@ rest_api_get (int flags, const char *path, const char *if_none_match, const char
             rnode = get_response_node (tree, rdepth);
             sch_traverse_tree (g_schema, rschema, rnode, schflags | SCH_F_TRIM_DEFAULTS, 0);
         }
-
-        if (xlat_data && tree && (flags & FLAGS_RESTCONF))
-            tree = sch_translate_output (g_schema, tree, orig_query, schflags, xlat_data);
 
         /* Convert the result to JSON */
         rnode = get_response_node (tree, rdepth);
@@ -501,9 +488,6 @@ rest_api_get (int flags, const char *path, const char *if_none_match, const char
     {
         json = json_object();
     }
-
-    if (orig_query)
-        apteryx_free_tree (orig_query);
 
     if (!(flags & FLAGS_JSON_FORMAT_ROOT) &&
         (json_is_string (json) || json_is_integer (json) || json_is_boolean (json)))
@@ -590,7 +574,6 @@ rest_api_post (int flags, const char *path, const char *data, int length, const 
     char *resp = NULL;
     char *error_string = NULL;
     char *location = NULL;
-    void *xlat_data = NULL;
     int schflags = 0;
     uint64_t ts = 0;
     bool res;
@@ -614,9 +597,6 @@ rest_api_post (int flags, const char *path, const char *data, int length, const 
         error_tag = REST_E_TAG_INVALID_VALUE;
         goto exit;
     }
-
-    if ((flags & FLAGS_RESTCONF))
-        root = sch_translate_input (g_schema, root, schflags, &xlat_data, NULL);
 
     if (sch_is_leaf (api_subtree) && !sch_is_writable (api_subtree))
     {
@@ -805,7 +785,6 @@ rest_api_delete (int flags, const char *path)
     char *error_string = NULL;
     char *resp = NULL;
     char *name = NULL;
-    void *xlat_data = NULL;
     int rc = HTTP_CODE_NO_CONTENT;
     rest_e_tag error_tag = REST_E_TAG_NONE;
     int schflags = 0;
@@ -839,9 +818,6 @@ rest_api_delete (int flags, const char *path)
         error_tag = REST_E_TAG_ACCESS_DENIED;
         goto exit;
     }
-
-    if ((flags & FLAGS_RESTCONF))
-        query = sch_translate_input (g_schema, query, schflags, &xlat_data, &api_subtree);
 
     int query_depth = g_node_max_height (query);
 
