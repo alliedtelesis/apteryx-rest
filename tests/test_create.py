@@ -429,20 +429,3 @@ def test_restconf_create_list_entry_exists():
 }
     """)
     assert apteryx_get("/test/animals/animal/cat/type") == "1"
-
-
-def test_restconf_create_list_leaf_string_ok_translate():
-    tree = """
-{
-    "toy": [
-        "ball",
-        "mouse"
-    ]
-}
-"""
-    response = requests.post("{}{}/data/xlat-test:xlat-test/xlat-animals/xlat-animal=cat/toys".format(server_uri, docroot),
-                             auth=server_auth, data=tree, headers=set_restconf_headers)
-    assert response.status_code == 201
-    print(apteryx_traverse("/test/animals/animal/cat"))
-    assert apteryx_get("/test/animals/animal/cat/toys/toy/ball") == "ball"
-    assert apteryx_get("/test/animals/animal/cat/toys/toy/mouse") == "mouse"

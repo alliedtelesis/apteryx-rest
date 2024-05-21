@@ -63,7 +63,6 @@ fi
 rm -f $BUILD/etc/apteryx/schema/*
 cp $BUILD/apteryx-xml/models/*.xml $BUILD/etc/apteryx/schema/
 cp $BUILD/apteryx-xml/models/*.map $BUILD/etc/apteryx/schema/
-cp $BUILD/apteryx-xml/models/*.xlat $BUILD/etc/apteryx/schema/
 
 # Check fcgi
 if [ ! -d fcgi-2.4.0 ]; then
