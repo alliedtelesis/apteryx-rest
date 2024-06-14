@@ -61,6 +61,14 @@ typedef enum
     REST_E_TAG_MAX,
 } rest_e_tag;
 
+typedef struct _log_params
+{
+    const char *remote_user;
+    const char *remote_addr;
+    char *key;
+    int rc;
+} log_params;
+
 const char *error_tags[REST_E_TAG_MAX] = {
     "",
     "in-use",
@@ -142,6 +150,119 @@ restconf_error (int status, rest_e_tag error_tag)
     return output;
 }
 
+static void
+log_get_head (int flags, const char *path, const char *remote_user,
+              const char *remote_addr, int rc)
+{
+    if ((flags & FLAGS_METHOD_GET) && (logging & LOG_GET))
+    {
+        NOTICE ("GET   [%3d] %s@%s %s\n", rc, remote_user, remote_addr, path);
+    }
+    else if ((flags & FLAGS_METHOD_HEAD) && (logging & LOG_HEAD))
+    {
+        NOTICE ("HEAD  [%3d] %s@%s %s\n", rc, remote_user, remote_addr, path);
+    }
+}
+
+static gboolean
+log_modified_leafs (GNode *node, gpointer arg)
+{
+    log_params *params = (log_params *) arg;
+    char *path = NULL;
+    char *value = NULL;
+
+    path = apteryx_node_path (node);
+    value = strrchr (path, '/');
+    if (value)
+    {
+        *value = '\0';
+        value++;
+    }
+    if (!value || strlen (value) == 0)
+    {
+        value = "";
+    }
+    NOTICE ("%s[%3d] %s@%s %s=%s\n",
+            params->key, params->rc, params->remote_user, params->remote_addr, path, value);
+
+    g_free (path);
+    return FALSE;
+}
+
+static gboolean
+log_deleted_leafs (GNode *node, gpointer arg)
+{
+    log_params *params = (log_params *) arg;
+    char *path = NULL;
+
+    if (!node->data || strlen (node->data) == 0)
+        node = node->parent;
+
+    if (node)
+    {
+        path = apteryx_node_path (node);
+        if (node->data)
+            NOTICE ("%s[%3d] %s@%s %s\n",
+                    params->key, params->rc, params->remote_user, params->remote_addr, path);
+    }
+    g_free (path);
+    return FALSE;
+}
+
+static void
+log_post_put_patch (int flags, const char *path, GNode *root, const char *remote_user,
+                    const char *remote_addr, int rc)
+{
+    char *key = NULL;
+
+    if ((flags & FLAGS_METHOD_POST) && (logging & LOG_POST))
+        key = "POST  ";
+    else if ((flags & FLAGS_METHOD_PUT) && (logging & LOG_PUT))
+        key = "PUT   ";
+    else if ((flags & FLAGS_METHOD_PATCH) && (logging & LOG_PATCH))
+        key = "PATCH ";
+
+    if (key)
+    {
+        log_params params;
+        params.remote_user = remote_user;
+        params.remote_addr = remote_addr;
+        params.key = key;
+        params.rc = rc;
+        if (root)
+            g_node_traverse (root, G_IN_ORDER, G_TRAVERSE_LEAVES, -1, log_modified_leafs,
+                             (gpointer) &params);
+        else
+            NOTICE ("%s[%3d] %s@%s %s\n",
+                    key, rc, remote_user, remote_addr, path);
+    }
+}
+
+static void
+log_delete (int flags, const char *path, GNode *tree, const char *remote_user,
+            const char *remote_addr, int rc)
+{
+    char *key = NULL;
+
+    if ((flags & FLAGS_METHOD_DELETE) && (logging & LOG_DELETE))
+    {
+        log_params params;
+        key = "DELETE";
+
+        params.remote_user = remote_user;
+        params.remote_addr = remote_addr;
+        params.key = key;
+        params.rc = rc;
+
+        if (tree)
+            g_node_traverse (tree, G_IN_ORDER, G_TRAVERSE_LEAVES, -1, log_deleted_leafs,
+                             (gpointer) &params);
+        else
+            NOTICE ("%s[%3d] %s@%s %s\n",
+                    key, rc, remote_user, remote_addr, path);
+    }
+}
+
 static char *
 rest_api_xml (void)
 {
@@ -220,7 +341,8 @@ apteryx_json_search (const char *path, char **data)
 }
 
 static char *
-rest_api_search (const char *path, const char *if_none_match, const char *if_modified_since)
+rest_api_search (int flags, const char *path, const char *if_none_match, const char *if_modified_since,
+                 const char *remote_user, const char *remote_addr)
 {
     char *_path;
     char *data = NULL;
@@ -242,6 +364,9 @@ rest_api_search (const char *path, const char *if_none_match, const char *if_mod
     rc = apteryx_json_search (path, &data);
 
   exit:
+    if (logging)
+        log_get_head (FLAGS_METHOD_GET, path, remote_user, remote_addr, rc);
+
     resp = g_strdup_printf ("Status: %d\r\n"
                             "Etag: %" PRIX64 "\r\n"
                             "Content-Type: application/json\r\n"
@@ -260,7 +385,8 @@ get_response_node (GNode *tree, int rdepth)
 }
 
 static char *
-rest_api_get (int flags, const char *path, const char *if_none_match, const char *if_modified_since)
+rest_api_get (int flags, const char *path, const char *if_none_match, const char *if_modified_since,
+              const char *remote_user, const char *remote_addr)
 {
     const char *qmark;
     char *rpath = NULL;
@@ -502,6 +628,9 @@ rest_api_get (int flags, const char *path, const char *if_none_match, const char
     else
         json_string = json_dumps (json, 0);
 exit:
+    if (logging)
+        log_get_head (flags, path, remote_user, remote_addr, rc);
+
     if (!resp)
     {
         if (flags & FLAGS_RESTCONF && rc >= 400 && rc <= 499 && !json_string)
@@ -561,13 +690,14 @@ restconf_is_list_key_leaf_update (sch_node *api_subtree, GNode *child, GNode *tn
 
 static char *
 rest_api_post (int flags, const char *path, const char *data, int length, const char *if_match,
-               const char *if_unmodified_since, const char *server_name, const char *server_port)
+               const char *if_unmodified_since, const char *server_name, const char *server_port,
+               const char *remote_user, const char *remote_addr)
 {
     GNode *root = NULL;
     GNode *tree = NULL;
     char *apath = NULL;
     sch_node *api_subtree = NULL;
-    GNode *child;
+    GNode *child = NULL;
     GNode *node;
     json_t *json;
     json_error_t error;
@@ -748,9 +878,16 @@ rest_api_post (int flags, const char *path, const char *data, int length, const 
         rc = HTTP_CODE_FORBIDDEN;
         error_tag = REST_E_TAG_ACCESS_DENIED;
     }
-    child->children = NULL;
+
+    /* Fixup the combined tree for logging and freeing */
+    for (GNode *cnode = child->children; cnode; cnode = cnode->next)
+        cnode->parent = child;
+    tree->children = NULL;
 
 exit:
+    if (logging)
+        log_post_put_patch (flags, path, root, remote_user, remote_addr, rc);
+
     if (flags & FLAGS_RESTCONF && rc >= 400 && rc <= 499)
     {
         error_string = restconf_error (rc, error_tag);
@@ -779,7 +916,7 @@ exit:
 
 /* Implemented by doing a query and setting all data to NULL */
 static char *
-rest_api_delete (int flags, const char *path)
+rest_api_delete (int flags, const char *path, const char *remote_user, const char *remote_addr)
 {
     sch_node *api_subtree = NULL;
     char *error_string = NULL;
@@ -883,8 +1020,14 @@ rest_api_delete (int flags, const char *path)
             error_tag = REST_E_TAG_INVALID_VALUE;
         }
         g_free (name);
+
+        if (logging)
+            log_delete (flags, path, tree, remote_user, remote_addr, rc);
+
         apteryx_free_tree (tree);
     }
+    else if (logging)
+        log_delete (flags, path, NULL, remote_user, remote_addr, rc);
 
 exit:
     if (flags & FLAGS_RESTCONF && rc >= 400 && rc <= 499)
@@ -1068,7 +1211,9 @@ void
 rest_api (req_handle handle, int flags, const char *rpath, const char *path,
           const char *if_match, const char *if_none_match,
           const char *if_modified_since, const char *if_unmodified_since,
-          const char *server_name, const char *server_port, const char *data, int length)
+          const char *server_name, const char *server_port,
+          const char *remote_addr, const char *remote_user,
+          const char *data, int length)
 {
     char *resp = NULL;
     char *new_path = NULL;
@@ -1146,15 +1291,17 @@ rest_api (req_handle handle, int flags, const char *rpath, const char *path,
             return;
         }
         else if (strlen (path) && path[strlen (path) - 1] == '/')
-            resp = rest_api_search (path, if_none_match, if_modified_since);
+            resp = rest_api_search (flags, path, if_none_match, if_modified_since,
+                                    remote_user, remote_addr);
         else
-            resp = rest_api_get (flags, path, if_none_match, if_modified_since);
+            resp = rest_api_get (flags, path, if_none_match, if_modified_since,
+                                 remote_user, remote_addr);
     }
     else if (flags & (FLAGS_METHOD_POST|FLAGS_METHOD_PUT|FLAGS_METHOD_PATCH))
         resp = rest_api_post (flags, path, data, length, if_match, if_unmodified_since,
-                              server_name, server_port);
+                              server_name, server_port, remote_user, remote_addr);
     else if (flags & FLAGS_METHOD_DELETE)
-        resp = rest_api_delete (flags, path);
+        resp = rest_api_delete (flags, path, remote_user, remote_addr);
     else if (flags & FLAGS_METHOD_OPTIONS)
     {
         resp = g_strdup_printf ("Status: 200\r\n"
