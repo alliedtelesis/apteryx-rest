@@ -48,6 +48,17 @@ extern bool verbose;
 #define NOTICE(fmt, args...) { if (debug) printf (fmt, ## args); else syslog (LOG_NOTICE, fmt, ## args); }
 #define ERROR(fmt, args...) { if (debug) printf (fmt, ## args); else syslog (LOG_CRIT, fmt, ## args); }
 
+typedef enum
+{
+    LOG_NONE                    = 0,
+    LOG_POST                    = (1 << 0),  /* Log POST requests */
+    LOG_PUT                     = (1 << 1),  /* Log PUT requests */
+    LOG_PATCH                   = (1 << 2),  /* Log PATCH requests */
+    LOG_DELETE                  = (1 << 3),  /* Log DELETE requests */
+    LOG_GET                     = (1 << 4),  /* Log GET requests */
+    LOG_HEAD                    = (1 << 5),  /* Log HEAD requests */
+} logging_flags;
+
 /* HTTP handler for rest */
 #define FLAGS_METHOD_POST           (1 << 0)
 #define FLAGS_METHOD_GET            (1 << 1)
@@ -77,6 +88,7 @@ typedef void (*req_callback) (req_handle handle, int flags, const char *rpath, c
                               const char *if_match, const char *if_none_match,
                               const char *if_modified_since, const char *if_unmodified_since,
                               const char *server_name, const char *server_port,
+                              const char *remote_addr, const char *remote_user,
                               const char *data, int length);
 
 /* FastCGI */
@@ -90,9 +102,17 @@ gboolean rest_init (const char *path);
 void rest_api (req_handle handle, int flags, const char *rpath, const char *path,
                const char *if_match, const char *if_none_match,
                const char *if_modified_since, const char *if_unmodified_since,
-               const char *server_name, const char *server_port, const char *data, int length);
+               const char *server_name, const char *server_port,
+               const char *remote_addr, const char *remote_user,
+               const char *data, int length);
 void rest_shutdown (void);
 void yang_library_create (sch_instance *schema);
 void restconf_monitoring_create (sch_instance *schema);
+
+/* Logging */
+extern int logging;
+
+void logging_shutdown (void);
+int logging_init (const char *path, const char *logging_arg);
 
 #endif /* _REST_H_ */

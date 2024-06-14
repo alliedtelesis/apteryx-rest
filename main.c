@@ -33,6 +33,9 @@ int default_content_encoding = FLAGS_CONTENT_JSON;
 bool rest_use_arrays = false;
 bool rest_use_types = false;
 
+/* Logging Path */
+static gchar *logging_arg = NULL;
+
 static gboolean
 termination_handler (gpointer arg1)
 {
@@ -44,9 +47,8 @@ termination_handler (gpointer arg1)
 void
 help (char *app_name)
 {
-    printf ("Usage: %s [-h] [-b] [-d] [-v] [-a] [-t] [-m <path>] [-p <pidfile>]\n"
-            "                [-n] [-l <port>] [-k <key>]\n"
-            "                [-r] [-s <socket>] [-e <encoding>]\n"
+    printf ("Usage: %s [-h] [-b] [-d] [-v] [-a] [-t] [-l <path>] [-m <path>] [-p <pidfile>]\n"
+            "                [-s <socket>] [-e <encoding>]\n"
             "  -h   show this help\n"
             "  -b   background mode\n"
             "  -d   enable debug\n"
@@ -54,6 +56,7 @@ help (char *app_name)
             "  -e   set default data encoding (defaults to \"application/json\")\n"
             "  -a   enable the use of JSON arrays for lists\n"
             "  -t   encode values as JSON types where possible\n"
+            "  -l   name of a file containing a list of events to log\n"
             "  -m   search <path> for modules\n"
             "  -p   use <pidfile> (defaults to " DEFAULT_APP_PID ")\n"
             "  -s   rest socket <socket> (defaults to " DEFAULT_REST_SOCK ")\n", app_name);
@@ -71,7 +74,7 @@ main (int argc, char *argv[])
     int rc = EXIT_SUCCESS;
 
     /* Parse options */
-    while ((i = getopt (argc, argv, "bdvatm:s:p:e:h")) != -1)
+    while ((i = getopt (argc, argv, "bdvatm:l:s:p:e:h")) != -1)
     {
         switch (i)
         {
@@ -108,6 +111,9 @@ main (int argc, char *argv[])
             break;
         case 't':
             rest_use_types = true;
+            break;
+        case 'l':
+            logging_arg = optarg;
             break;
         case 'm':
             path = optarg;
@@ -150,6 +156,10 @@ main (int argc, char *argv[])
         goto exit;
     }
 
+    /* Initialize logging */
+    if (logging_arg)
+        logging_init (path, logging_arg);
+
     /* Create pid file */
     if (background)
     {
@@ -178,6 +188,10 @@ main (int argc, char *argv[])
     g_main_loop_run (g_loop);
 
   exit:
+
+    /* Cleanup logging */
+    if (logging_arg)
+        logging_shutdown ();
 
     /* Cleanup FCGI */
     fcgi_stop ();
