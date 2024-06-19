@@ -31,13 +31,14 @@ def test_restconf_query_invalid_queries():
         "fields=enable&die=now",
         # "&",
         "&&,",
-        # "fields=;",
-        # "fields=;;",
+        "fields=;",
+        "fields=;;",
         # "fields=/",
         # "fields=//",
-        # "fields=(",
-        # "fields=)",
-        # "fields=()",
+        "fields=(",
+        "fields=)",
+        "fields=()",
+        "fields=(node;node1)(node2;node3)",
         "depth=1&depth=100",
         "content=config&content=nonconfig",
         "fields=all&fields=all",
@@ -623,6 +624,167 @@ def test_restconf_query_field_list_select_two_all_nodes():
     ]
 }
 """)
+
+
+_animals_all_name = """
+{
+    "animals": {
+        "animal": [
+            {
+                "name": "cat"
+            },
+            {
+                "name": "dog"
+            },
+            {
+                "name": "hamster"
+            },
+            {
+                "name": "mouse"
+            },
+            {
+                "name": "parrot"
+            }
+        ]
+    }
+}
+"""
+_animal_all_name = """
+{
+    "animal": [
+        {
+            "name": "cat"
+        },
+        {
+            "name": "dog"
+        },
+        {
+            "name": "hamster"
+        },
+        {
+            "name": "mouse"
+        },
+        {
+            "name": "parrot"
+        }
+    ]
+}
+"""
+_animals_mouse_name = """
+{
+    "animals": {
+        "animal": [
+            {
+                "name": "mouse"
+            }
+        ]
+    }
+}
+"""
+
+
+def test_restconf_query_field_wild_index_1():
+    response = requests.get(f"{server_uri}{docroot}/data/test/animals?fields=animal(*/name)", verify=False, auth=server_auth, headers=get_restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers.get("ETag") is not None and response.headers.get("ETag") != "0"
+    assert response.json() == json.loads(_animals_all_name)
+
+
+def test_restconf_query_field_wild_index_2():
+    response = requests.get(f"{server_uri}{docroot}/data/test/animals/animal?fields=*/name", verify=False, auth=server_auth, headers=get_restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers.get("ETag") is not None and response.headers.get("ETag") != "0"
+    assert response.json() == json.loads(_animal_all_name)
+
+
+def test_restconf_query_field_specific_index_1():
+    response = requests.get(f"{server_uri}{docroot}/data/test/animals?fields=animal/mouse(name)", verify=False, auth=server_auth, headers=get_restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers.get("ETag") is not None and response.headers.get("ETag") != "0"
+    assert response.json() == json.loads(_animals_mouse_name)
+
+
+def test_restconf_query_field_specific_index_2():
+    response = requests.get(f"{server_uri}{docroot}/data/test/animals?fields=animal(mouse/name)", verify=False, auth=server_auth, headers=get_restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers.get("ETag") is not None and response.headers.get("ETag") != "0"
+    assert response.json() == json.loads(_animals_mouse_name)
+
+
+@pytest.mark.skip(reason="Needs a fix to query result to json conversion")
+def test_restconf_query_field_mixed_index_1():
+    response = requests.get(f"{server_uri}{docroot}/data/test/animals?fields=animal(mouse/name;*/type)", verify=False, auth=server_auth, headers=get_restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers.get("ETag") is not None and response.headers.get("ETag") != "0"
+    assert response.json() == json.loads("""
+{
+    "animals": {
+        "animal": {
+            "cat": {
+                "type": "1"
+            },
+            "hamster": {
+                "type": "2"
+            },
+            "mouse": {
+                "name": "mouse"
+            },
+            "parrot": {
+                "type": "1"
+            }
+        }
+    }
+}
+    """)
+
+
+@pytest.mark.skip(reason="Needs a fix to query result to json conversion")
+def test_restconf_query_field_mixed_index_2():
+    response = requests.get(f"{server_uri}{docroot}/data/test/animals?fields=animal(mouse/name;type)", verify=False, auth=server_auth, headers=get_restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers.get("ETag") is not None and response.headers.get("ETag") != "0"
+    assert response.json() == json.loads("""
+{
+    "animals": {
+        "animal": {
+            "cat": {
+                "type": "1"
+            },
+            "hamster": {
+                "type": "2"
+            },
+            "mouse": {
+                "name": "mouse"
+            },
+            "parrot": {
+                "type": "1"
+            }
+        }
+    }
+}
+    """)
+
+
+def test_restconf_query_field_no_index_1():
+    response = requests.get(f"{server_uri}{docroot}/data/test/animals?fields=animal(name)", verify=False, auth=server_auth, headers=get_restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers.get("ETag") is not None and response.headers.get("ETag") != "0"
+    assert response.json() == json.loads(_animals_all_name)
+
+
+def test_restconf_query_field_no_index_2():
+    response = requests.get(f"{server_uri}{docroot}/data/test/animals/animal?fields=name", verify=False, auth=server_auth, headers=get_restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers.get("ETag") is not None and response.headers.get("ETag") != "0"
+    assert response.json() == json.loads(_animal_all_name)
 
 
 def test_restconf_query_with_defaults_explicit_leaf():
