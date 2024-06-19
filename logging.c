@@ -25,6 +25,7 @@
 static int inotify_fd = -1;
 static GIOChannel *channel = NULL;
 static char *logging_filename = NULL;
+static char *logging_directory = NULL;
 
 /* Logging flags */
 int logging = LOG_NONE;
@@ -35,13 +36,15 @@ load_logging_options (void)
     FILE *fp = NULL;
     gchar **split;
     char *buf;
+    char *filename;
     int count;
     int i;
-    logging_flags flags = LOG_NONE;
+    int flags = LOG_NONE;
     int ret = 0;
 
     buf = g_malloc0 (READ_BUF_SIZE);
-    fp = fopen (logging_filename, "r");
+    filename = g_strdup_printf ("%s/%s", logging_directory, logging_filename);
+    fp = fopen (filename, "r");
     if (fp && buf)
     {
         if (fgets (buf, READ_BUF_SIZE, fp) != NULL)
@@ -73,6 +76,7 @@ load_logging_options (void)
     {
         ret = -1;
     }
+    g_free (filename);
     g_free (buf);
     logging = flags;
 
@@ -87,15 +91,31 @@ static int
 logging_file_update (void)
 {
     char *buf;
-    int len;
+    int total_len;
+    int len_read = 0;
+    bool file_modified = false;
     int ret = -1;
 
     /* Got a notify event informing the logging file has been modified */
     if (inotify_fd >= 0)
     {
         buf = g_malloc0 (READ_BUF_SIZE);
-        len = read (inotify_fd, buf, READ_BUF_SIZE);
-        if (len)
+        total_len = read (inotify_fd, buf, READ_BUF_SIZE);
+        while (len_read < total_len)
+        {
+            struct inotify_event *event = (struct inotify_event *) &buf[len_read];
+
+            /* check it's the logging control file that was modified, and not
+             * another file in the same directory */
+            if (event->len &&
+                strncmp (event->name, logging_filename, strlen (logging_filename)) == 0)
+            {
+                file_modified = true;
+            }
+            len_read += sizeof (struct inotify_event) + event->len;
+        }
+
+        if (file_modified)
             ret = load_logging_options ();
 
         g_free (buf);
@@ -116,11 +136,11 @@ logging_open_inotify (void)
 {
     if (inotify_fd < 0)
     {
-        /* inotify doesn't tell us about creation of the tracelog_control file
+        /* inotify doesn't tell us about creation of the logging control file
          * unless we listen to inotify events for the whole directory */
         inotify_fd = inotify_init ();
-        inotify_add_watch (inotify_fd, logging_filename,
-                           IN_MODIFY | IN_DELETE | IN_MOVE);
+        inotify_add_watch (inotify_fd, logging_directory,
+                           IN_CREATE | IN_MODIFY | IN_DELETE | IN_MOVE);
     }
 
     return inotify_fd;
@@ -142,21 +162,26 @@ logging_shutdown (void)
 int
 logging_init (const char *path, const char *logging_arg)
 {
+    int fd;
+
     if (!path || !logging_arg)
         return -1;
 
-    logging_filename = g_strdup_printf ("%s/%s", path, logging_arg);
+    logging_directory = g_strdup (path);
+    logging_filename = g_strdup (logging_arg);
 
     /* Read the current setting */
     if (load_logging_options () < 0)
         return -1;
 
     /* Add an inotify watch for logging changes */
-    if (logging_open_inotify () < 0)
+    fd = logging_open_inotify ();
+    if (fd < 0)
         return -1;
 
-    channel = g_io_channel_unix_new (logging_open_inotify ());
+    channel = g_io_channel_unix_new (fd);
     g_io_add_watch (channel, G_IO_IN, logging_options_reload, NULL);
+    g_io_channel_unref (channel);
 
     openlog ("restconf", LOG_PID | LOG_NDELAY, LOG_USER);
 
