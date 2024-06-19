@@ -1427,14 +1427,14 @@ def test_restapi_query_invalid_queries():
         "fields=counter&die=now",
         # "&",
         "&&,",
-        # "fields=;",
-        # "fields=;",
-        # "fields=;;",
+        "fields=;",
+        "fields=;;",
         # "fields=/",
         # "fields=//",
-        # "fields=(",
-        # "fields=)",
-        # "fields=()",
+        "fields=(",
+        "fields=)",
+        "fields=()",
+        "fields=(node;node1)(node2;node3)",
     ]
     for query in queries:
         print("Checking " + query)
@@ -1673,3 +1673,164 @@ def test_restapi_query_field_etag_not_modified():
     print(response.headers.get("ETag"))
     assert response.status_code == 304
     assert len(response.content) == 0
+
+
+_animals_all_name = """
+{
+    "animals": {
+        "animal": {
+            "cat": {
+                "name": "cat"
+            },
+            "dog": {
+                "name": "dog"
+            },
+            "hamster": {
+                "name": "hamster"
+            },
+            "mouse": {
+                "name": "mouse"
+            },
+            "parrot": {
+                "name": "parrot"
+            }
+        }
+    }
+}
+"""
+_animal_all_name = """
+{
+    "animal": {
+        "cat": {
+            "name": "cat"
+        },
+        "dog": {
+            "name": "dog"
+        },
+        "hamster": {
+            "name": "hamster"
+        },
+        "mouse": {
+            "name": "mouse"
+        },
+        "parrot": {
+            "name": "parrot"
+        }
+    }
+}
+"""
+_animals_mouse_name = """
+{
+    "animals": {
+        "animal": {
+            "mouse": {
+                "name": "mouse"
+            }
+        }
+    }
+}
+"""
+
+
+def test_restapi_query_field_wild_index_1():
+    response = requests.get(f"{server_uri}{docroot}/test/animals?fields=animal(*/name)", verify=False, auth=server_auth)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers.get("ETag") is not None and response.headers.get("ETag") != "0"
+    assert response.json() == json.loads(_animals_all_name)
+
+
+def test_restapi_query_field_wild_index_2():
+    response = requests.get(f"{server_uri}{docroot}/test/animals/animal?fields=*/name", verify=False, auth=server_auth)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers.get("ETag") is not None and response.headers.get("ETag") != "0"
+    assert response.json() == json.loads(_animal_all_name)
+
+
+def test_restapi_query_field_specific_index_1():
+    response = requests.get(f"{server_uri}{docroot}/test/animals?fields=animal/mouse(name)", verify=False, auth=server_auth)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers.get("ETag") is not None and response.headers.get("ETag") != "0"
+    assert response.json() == json.loads(_animals_mouse_name)
+
+
+def test_restapi_query_field_specific_index_2():
+    response = requests.get(f"{server_uri}{docroot}/test/animals?fields=animal(mouse/name)", verify=False, auth=server_auth)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers.get("ETag") is not None and response.headers.get("ETag") != "0"
+    assert response.json() == json.loads(_animals_mouse_name)
+
+
+@pytest.mark.skip(reason="Needs a fix to query result to json conversion")
+def test_restapi_query_field_mixed_index_1():
+    response = requests.get(f"{server_uri}{docroot}/test/animals?fields=animal(mouse/name;*/type)", verify=False, auth=server_auth)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers.get("ETag") is not None and response.headers.get("ETag") != "0"
+    assert response.json() == json.loads("""
+{
+    "animals": {
+        "animal": {
+            "cat": {
+                "type": "1"
+            },
+            "hamster": {
+                "type": "2"
+            },
+            "mouse": {
+                "name": "mouse"
+            },
+            "parrot": {
+                "type": "1"
+            }
+        }
+    }
+}
+    """)
+
+
+@pytest.mark.skip(reason="Needs a fix to query result to json conversion")
+def test_restapi_query_field_mixed_index_2():
+    response = requests.get(f"{server_uri}{docroot}/test/animals?fields=animal(mouse/name;type)", verify=False, auth=server_auth)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers.get("ETag") is not None and response.headers.get("ETag") != "0"
+    assert response.json() == json.loads("""
+{
+    "animals": {
+        "animal": {
+            "cat": {
+                "type": "1"
+            },
+            "hamster": {
+                "type": "2"
+            },
+            "mouse": {
+                "name": "mouse"
+            },
+            "parrot": {
+                "type": "1"
+            }
+        }
+    }
+}
+    """)
+
+
+def test_restapi_query_field_no_index_1():
+    response = requests.get(f"{server_uri}{docroot}/test/animals?fields=animal(name)", verify=False, auth=server_auth)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers.get("ETag") is not None and response.headers.get("ETag") != "0"
+    assert response.json() == json.loads(_animals_all_name)
+
+
+def test_restapi_query_field_no_index_2():
+    response = requests.get(f"{server_uri}{docroot}/test/animals/animal?fields=name", verify=False, auth=server_auth)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers.get("ETag") is not None and response.headers.get("ETag") != "0"
+    assert response.json() == json.loads(_animal_all_name)

@@ -328,7 +328,34 @@ curl -s -u manager:friend -k https://<HOST>/api/system/state?fields=uptime(days;
     }
 }
 ```
-
+```
+curl -s -u manager:friend -k "https://<HOST>:443/restconf/data/openconfig-interfaces:interfaces?fields=interface((state;config)/enabled;ethernet/state(mac-address;port-speed))"
+{
+    "openconfig-interfaces:oc-if:interfaces": {
+        "interface": [
+            {
+                "name": "eth0",
+                "openconfig-if-ethernet:ethernet": {
+                    "state": {
+                        "mac-address": "ec:cd:6d:d1:65:7b",
+                        "port-speed": "SPEED_1GB"
+                    }
+                },
+                "state": {
+                     "enabled": true
+                }
+            },
+            {
+                "name": "lo",
+                "state": {
+                    "enabled": true
+                }
+            },
+            ...
+        ]
+    }
+}
+```
 ## POST
 * Change the application attribute in firewall rule 10
 ```
