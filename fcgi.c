@@ -25,6 +25,8 @@
 #include <fcgi_config.h>
 #include <fcgiapp.h>
 
+#define UNKNOWN_STR "unknown"
+
 static req_callback g_cb;
 static const char *g_socket = NULL;
 static int g_sock = -1;
@@ -174,7 +176,7 @@ handle_http (void *arg)
 {
     FCGX_Request *request = (FCGX_Request *) arg;
     char *rpath, *path, *length, *if_match, *if_none_match, *if_modified_since, *if_unmodified_since;
-    char *server_name, *server_port;
+    char *server_name, *server_port, *remote_addr, *remote_user;
     int flags;
     char *data = NULL;
     int len = 0;
@@ -204,6 +206,12 @@ handle_http (void *arg)
         server_name = NULL;
     if (!server_name)
         server_name = FCGX_GetParam ("SERVER_ADDR", request->envp);
+    remote_addr = FCGX_GetParam("REMOTE_ADDR", request->envp);
+    if (!remote_addr)
+        remote_addr = UNKNOWN_STR;
+    remote_user = FCGX_GetParam("REMOTE_USER", request->envp);
+    if (!remote_user)
+        remote_user = UNKNOWN_STR;
     if_match = FCGX_GetParam ("HTTP_IF_MATCH", request->envp);
     if (!if_match)
         if_match = FCGX_GetParam ("HTTP_If-Match", request->envp);
@@ -238,7 +246,7 @@ handle_http (void *arg)
         }
     }
     g_cb ((req_handle) request, flags, rpath, path, if_match, if_none_match, if_modified_since,
-           if_unmodified_since, server_name, server_port, data, len);
+           if_unmodified_since, server_name, server_port, remote_addr, remote_user, data, len);
 
 exit:
     if (rc)
