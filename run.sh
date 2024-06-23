@@ -60,9 +60,13 @@ if [ ! -f $BUILD/usr/lib/libapteryx-schema.so ]; then
         rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
         cd $BUILD
 fi
-rm -f $BUILD/etc/apteryx/schema/*
-cp $BUILD/apteryx-xml/models/*.xml $BUILD/etc/apteryx/schema/
-cp $BUILD/apteryx-xml/models/*.map $BUILD/etc/apteryx/schema/
+mkdir -p $BUILD/etc/restconf
+rm -f $BUILD/etc/restconf/*
+cp $BUILD/apteryx-xml/models/*.xml $BUILD/etc/restconf/
+cp $BUILD/apteryx-xml/models/*.map $BUILD/etc/restconf/
+rm -fr $BUILD/usr/share/restconf
+mkdir -p $BUILD/usr/share/restconf
+cp $BUILD/apteryx-xml/models/*.lua $BUILD/usr/share/restconf/
 
 # Check fcgi
 if [ ! -d fcgi-2.4.0 ]; then
@@ -134,8 +138,9 @@ if [ ! -f $BUILD/../Makefile ]; then
 fi
 make -C $BUILD/../
 rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
-cp $BUILD/../models/*.xml $BUILD/etc/apteryx/schema/
-cp $BUILD/../models/*.map $BUILD/etc/apteryx/schema/
+cp $BUILD/../models/*.xml $BUILD/etc/restconf/
+cp $BUILD/../models/*.map $BUILD/etc/restconf/
+cp $BUILD/../models/*.lua $BUILD/usr/share/restconf/
 
 # Check tests
 echo Checking pytest coding style ...
@@ -240,8 +245,8 @@ rm -f $BUILD/apteryx-rest.sock
 # TEST_WRAPPER="valgrind --leak-check=full"
 # TEST_WRAPPER="valgrind --tool=cachegrind"
 # TEST_WRAPPER="valgrind --tool=callgrind"
-G_SLICE=always-malloc LD_LIBRARY_PATH=$BUILD/usr/lib \
-        $TEST_WRAPPER ../apteryx-rest $PARAM -m $BUILD/etc/apteryx/schema/ -p apteryx-rest.pid -s apteryx-rest.sock
+G_SLICE=always-malloc LD_LIBRARY_PATH=$BUILD/usr/lib LUA_CPATH="$BUILD/usr/lib/lib?.so;;" \
+        $TEST_WRAPPER ../apteryx-rest $PARAM -m $BUILD/etc/restconf/ -r $BUILD/usr/share/restconf/ -p apteryx-rest.pid -s apteryx-rest.sock
 rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
 sleep 0.5
 cd $BUILD/../

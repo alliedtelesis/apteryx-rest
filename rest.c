@@ -289,6 +289,181 @@ rest_api_html (req_handle handle)
     return;
 }
 
+static char *
+rest_rpc (int flags, GNode *node, sch_node *schema, json_t *json)
+{
+    char *path = apteryx_node_path (node);
+    int schflags = 0;
+    GNode *input = NULL;
+    GNode *output = NULL;
+    rest_e_tag error_tag = REST_E_TAG_NONE;
+    char *error_string = NULL;
+    char *data = NULL;
+    char *resp;
+    rest_rpc_error error;
+    int rc;
+
+    /* Set formating flags for input/output */
+    if (verbose)
+        schflags |= SCH_F_DEBUG;
+    if (flags & FLAGS_JSON_FORMAT_ARRAYS)
+        schflags |= SCH_F_JSON_ARRAYS;
+    if (flags & FLAGS_JSON_FORMAT_TYPES)
+        schflags |= SCH_F_JSON_TYPES;
+    if (flags & FLAGS_JSON_FORMAT_NS)
+        schflags |= (SCH_F_NS_MODEL_NAME|SCH_F_NS_PREFIX);
+
+    if (json)
+    {
+        /* RESTCONF mandates "input" (or nothing) be the primary data object
+        for rpc requests. In non-restconf mode we are more relaxed but to match
+        the data model we need to provide that top level "input" node */
+        if (!(flags & FLAGS_RESTCONF) && json_object_size (json))
+        {
+            const char *key = NULL;
+            if (json_object_size (json) == 1)
+            {
+                key = json_object_iter_key (json_object_iter(json));
+                char *colon = key ? strchr (key, ':') : NULL;
+                if (colon) key = colon + 1;
+                if (g_strcmp0 (key, "input") != 0)
+                    key = NULL;
+            }
+            if (key == NULL)
+            {
+                json_t *obj = json_object ();
+                json_object_set_new (obj, "input", json);
+                json = obj;
+            }
+        }
+
+        /* Parse the input */
+        input = sch_json_to_gnode (g_schema, schema, json, schflags);
+        json_decref (json);
+
+        /* Check parsing succeeded and we have input when required */
+        if (!input)
+        {
+            switch (sch_last_err ())
+            {
+            case SCH_E_NOSCHEMANODE:
+                rc = HTTP_CODE_NOT_FOUND;
+                error_tag = REST_E_TAG_INVALID_VALUE;
+                break;
+            case SCH_E_NOTREADABLE:
+            case SCH_E_NOTWRITABLE:
+                rc = HTTP_CODE_FORBIDDEN;
+                error_tag = REST_E_TAG_ACCESS_DENIED;
+                break;
+            default:
+                rc = HTTP_CODE_BAD_REQUEST;
+                error_tag = REST_E_TAG_INVALID_VALUE;
+                break;
+            }
+            goto exit;
+        }
+    }
+
+    error = rest_rpc_execute (flags, path, input, &output, &error_string);
+    switch (error)
+    {
+        case REST_RPC_E_NONE:
+            if (output)
+                rc = HTTP_CODE_OK;
+            else
+                rc = HTTP_CODE_NO_CONTENT;
+            break;
+        case REST_RPC_E_FAIL:
+            rc = HTTP_CODE_BAD_REQUEST;
+            error_tag = REST_E_TAG_OPER_FAILED;
+            break;
+        case REST_RPC_E_NOT_FOUND:
+            rc = HTTP_CODE_NOT_SUPPORTED;
+            error_tag = REST_E_TAG_OPER_NOT_SUPPORTED;
+            break;
+        case REST_RPC_E_INTERNAL:
+            rc = HTTP_CODE_INTERNAL_SERVER_ERROR;
+            error_tag = REST_E_TAG_OPER_FAILED;
+            break;
+        default:
+            rc = HTTP_CODE_BAD_REQUEST;
+            error_tag = REST_E_TAG_INVALID_VALUE;
+            break;
+    }
+
+    if (output)
+    {
+        /* Get schema output node */
+        schema = sch_node_child (schema, "output");
+        if (schema)
+        {
+            /* Convert the data to json from the expected path offset */
+            json_t *json = sch_gnode_to_json (g_schema, schema, output, schflags);
+            if (json && !(flags & FLAGS_RESTCONF))
+            {
+                /* Chop off the output node */
+                json_t *json_new = json_object_iter_value (json_object_iter (json));
+                json_incref (json_new);
+                json_decref (json);
+                json = json_new;
+            }
+            if (!json || (data = json_dumps (json, JSON_ENCODE_ANY)) == NULL)
+            {
+                ERROR ("REST: Failed to convert rpc output to json\n");
+                rc = HTTP_CODE_INTERNAL_SERVER_ERROR;
+            }
+            apteryx_free_tree (output);
+            if (json)
+                json_decref (json);
+        }
+        else
+        {
+            ERROR ("REST: no output node in schema\n");
+            rc = HTTP_CODE_INTERNAL_SERVER_ERROR;
+        }
+    }
+
+exit:
+    if (!data && rc >= 400 && rc <= 500)
+    {
+        if (flags & FLAGS_RESTCONF)
+        {
+            json_t *json = json_object();
+            json_t *errors = json_object();
+            json_t *array = json_array ();
+            json_t *error = json_object();
+            json_object_set_new (error, "error-type", json_string ("application"));
+            if (error_tag != REST_E_TAG_NONE)
+                json_object_set_new (error, "error-tag", json_string (error_tags[error_tag]));
+            if (error_string)
+                json_object_set_new (error, "error-message", json_string (error_string));
+            json_array_append_new (array, error);
+            json_object_set_new (errors, "error", array);
+            json_object_set_new (json, "ietf-restconf:errors", errors);
+            data = json_dumps (json, 0);
+            json_decref (json);
+        }
+        else if (error_string)
+        {
+            json_t *json = json_object();
+            json_object_set_new (json, "message", json_string (error_string));
+            data = json_dumps (json, 0);
+            json_decref (json);
+        }
+    }
+
+    resp = g_strdup_printf ("Status: %d\r\n"
+                            "Content-Type: %s\r\n"
+                            "\r\n" "%s", rc,
+                            flags & FLAGS_RESTCONF ? "application/yang-data+json" : "application/json",
+                            data ? : "");
+    free (data);
+    free (error_string);
+    apteryx_free_tree (input);
+    free (path);
+    return resp;
+}
+
 static int
 apteryx_json_search (const char *path, char **data)
 {
@@ -488,6 +663,23 @@ rest_api_get (int flags, const char *path, const char *if_none_match, const char
     GNode *qnode = rnode;
     while (qnode->children)
         qnode = qnode->children;
+
+    /* Handle GET RPC's */
+    if (sch_is_executable (qschema))
+    {
+        /* Check RPC supports GET */
+        if (flags & FLAGS_RESTCONF || !sch_is_readable (qschema))
+        {
+            VERBOSE ("REST: GET RPC not supported for %s\n", path);
+            error_tag = REST_E_TAG_OPER_NOT_SUPPORTED;
+            rc = HTTP_CODE_NOT_SUPPORTED;
+        }
+        else
+        {
+            resp = rest_rpc (flags, qnode, rschema, NULL);
+        }
+        goto exit;
+    }
 
     /* Get a timestamp for the root of the query path */
     apath = apteryx_node_path (rnode);
@@ -699,13 +891,14 @@ rest_api_post (int flags, const char *path, const char *data, int length, const 
     sch_node *api_subtree = NULL;
     GNode *child = NULL;
     GNode *node;
-    json_t *json;
+    json_t *json = NULL;
     json_error_t error;
     char *resp = NULL;
     char *error_string = NULL;
     char *location = NULL;
     int schflags = 0;
     uint64_t ts = 0;
+    bool isrpc;
     bool res;
     int rc;
     rest_e_tag error_tag = REST_E_TAG_NONE;
@@ -727,7 +920,7 @@ rest_api_post (int flags, const char *path, const char *data, int length, const 
         error_tag = REST_E_TAG_INVALID_VALUE;
         goto exit;
     }
-
+    isrpc = sch_is_executable (api_subtree);
     if (sch_is_leaf (api_subtree) && !sch_is_writable (api_subtree))
     {
         VERBOSE ("REST: Path \"%s\" not writable\n", path);
@@ -741,35 +934,38 @@ rest_api_post (int flags, const char *path, const char *data, int length, const 
     while (child && g_node_first_child (child))
         child = g_node_first_child (child);
 
-    /* Get a timestamp for the apteryx path */
-    apath = apteryx_node_path (child);
-    ts = apteryx_timestamp (apath);
-    free (apath);
-    if (if_match && if_match[0] != '\0' &&
-        ts != strtoull (if_match, NULL, 16))
+    if (!isrpc)
     {
-        VERBOSE ("REST: Path \"%s\" modified since ETag:%s\n", path, if_match);
-        rc = HTTP_CODE_PRECONDITION_FAILED;
-        error_tag = REST_E_TAG_OPER_FAILED;
-        goto exit;
-    }
-    if (if_unmodified_since && if_unmodified_since[0] != '\0')
-    {
-        struct tm last_modified;
-        time_t realtime;
-        strptime (if_unmodified_since, "%a, %d %b %Y %H:%M:%S GMT", &last_modified);
-        realtime = timegm (&last_modified);
-        if ((ts / 1000000) != (realtime - g_boottime))
+        /* Get a timestamp for the apteryx path */
+        apath = apteryx_node_path (child);
+        ts = apteryx_timestamp (apath);
+        free (apath);
+        if (if_match && if_match[0] != '\0' &&
+            ts != strtoull (if_match, NULL, 16))
         {
-            VERBOSE ("REST: Path \"%s\" modified since Time:%s\n", path, if_unmodified_since);
-            rc =  HTTP_CODE_PRECONDITION_FAILED;
+            VERBOSE ("REST: Path \"%s\" modified since ETag:%s\n", path, if_match);
+            rc = HTTP_CODE_PRECONDITION_FAILED;
             error_tag = REST_E_TAG_OPER_FAILED;
             goto exit;
+        }
+        if (if_unmodified_since && if_unmodified_since[0] != '\0')
+        {
+            struct tm last_modified;
+            time_t realtime;
+            strptime (if_unmodified_since, "%a, %d %b %Y %H:%M:%S GMT", &last_modified);
+            realtime = timegm (&last_modified);
+            if ((ts / 1000000) != (realtime - g_boottime))
+            {
+                VERBOSE ("REST: Path \"%s\" modified since Time:%s\n", path, if_unmodified_since);
+                rc =  HTTP_CODE_PRECONDITION_FAILED;
+                error_tag = REST_E_TAG_OPER_FAILED;
+                goto exit;
+            }
         }
     }
 
     /* Parse the JSON data (support full path to leaf value) */
-    if (sch_is_leaf (api_subtree))
+    if (length && sch_is_leaf (api_subtree))
     {
         char *name;
         sch_node *pschema = sch_node_parent (api_subtree);
@@ -800,7 +996,7 @@ rest_api_post (int flags, const char *path, const char *data, int length, const 
         free (node->data);
         g_node_destroy (node);
     }
-    else
+    else if (length)
     {
         json = json_loads (data, 0, &error);
         if (!json)
@@ -812,9 +1008,20 @@ rest_api_post (int flags, const char *path, const char *data, int length, const 
         }
     }
 
+    /* Handle rpc's */
+    if (isrpc)
+    {
+        resp = rest_rpc (flags, child, api_subtree, json);
+        goto exit;
+    }
+
     /* Convert to GNode and validate the data */
-    tree = sch_json_to_gnode (g_schema, api_subtree, json, schflags);
-    json_decref (json);
+    if (json)
+    {
+        tree = sch_json_to_gnode (g_schema, api_subtree, json, schflags);
+        json_decref (json);
+    }
+
     if (tree && (flags & FLAGS_RESTCONF) && (flags & (FLAGS_METHOD_PUT | FLAGS_METHOD_PATCH)))
     {
         /* For a restconf PUT or PATCH do not allow the change of an existing list key field */
@@ -828,6 +1035,7 @@ rest_api_post (int flags, const char *path, const char *data, int length, const 
         }
     }
 
+    /* Check parsing succeeded and we have input when required */
     if (!tree)
     {
         switch (sch_last_err ())
@@ -888,26 +1096,29 @@ exit:
     if (logging)
         log_post_put_patch (flags, path, root, remote_user, remote_addr, rc);
 
-    if (flags & FLAGS_RESTCONF && rc >= 400 && rc <= 499)
+    if (!resp)
     {
-        error_string = restconf_error (rc, error_tag);
+        if (flags & FLAGS_RESTCONF && rc >= 400 && rc <= 499)
+        {
+            error_string = restconf_error (rc, error_tag);
+        }
+        if (location)
+        {
+            resp = g_strdup_printf ("Status: %d\r\n"
+                                    "Content-Type: %s\r\n"
+                                    "Location: %s\r\n"
+                                    "\r\n" "%s", rc,
+                                    flags & FLAGS_RESTCONF ? "application/yang-data+json" : "application/json",
+                                    location, error_string ? : "");
+            g_free (location);
+        }
+        else
+            resp = g_strdup_printf ("Status: %d\r\n"
+                                    "Content-Type: %s\r\n"
+                                    "\r\n" "%s", rc,
+                                    flags & FLAGS_RESTCONF ? "application/yang-data+json" : "application/json",
+                                    error_string ? : "");
     }
-    if (location)
-    {
-        resp = g_strdup_printf ("Status: %d\r\n"
-                                "Content-Type: %s\r\n"
-                                "Location: %s\r\n"
-                                "\r\n" "%s", rc,
-                                flags & FLAGS_RESTCONF ? "application/yang-data+json" : "application/json",
-                                location, error_string ? : "");
-        g_free (location);
-    }
-    else
-        resp = g_strdup_printf ("Status: %d\r\n"
-                                "Content-Type: %s\r\n"
-                                "\r\n" "%s", rc,
-                                flags & FLAGS_RESTCONF ? "application/yang-data+json" : "application/json",
-                                error_string ? : "");
     free (error_string);
     apteryx_free_tree (tree);
     apteryx_free_tree (root);
@@ -953,6 +1164,23 @@ rest_api_delete (int flags, const char *path, const char *remote_user, const cha
         apteryx_free_tree (query);
         rc = HTTP_CODE_FORBIDDEN;
         error_tag = REST_E_TAG_ACCESS_DENIED;
+        goto exit;
+    }
+
+    /* Handle DELETE RPC's */
+    if (sch_is_executable (api_subtree))
+    {
+        /* Do not support DELETE when using pure restconf */
+        if (flags & FLAGS_RESTCONF)
+        {
+            error_tag = REST_E_TAG_OPER_NOT_SUPPORTED;
+            rc = HTTP_CODE_NOT_SUPPORTED;
+        }
+        else
+        {
+            resp = rest_rpc (flags, query, api_subtree, NULL);
+        }
+        apteryx_free_tree (query);
         goto exit;
     }
 
@@ -1030,16 +1258,19 @@ rest_api_delete (int flags, const char *path, const char *remote_user, const cha
         log_delete (flags, path, NULL, remote_user, remote_addr, rc);
 
 exit:
-    if (flags & FLAGS_RESTCONF && rc >= 400 && rc <= 499)
+    if (!resp)
     {
-        error_string = restconf_error (rc, error_tag);
+        if (flags & FLAGS_RESTCONF && rc >= 400 && rc <= 499)
+        {
+            error_string = restconf_error (rc, error_tag);
+        }
+        resp = g_strdup_printf ("Status: %d\r\n"
+                                "Content-Type: %s\r\n"
+                                "\r\n" "%s", rc,
+                                flags & FLAGS_RESTCONF ? "application/yang-data+json" : "application/json",
+                                error_string ? : "");
+        free (error_string);
     }
-    resp = g_strdup_printf ("Status: %d\r\n"
-                            "Content-Type: %s\r\n"
-                            "\r\n" "%s", rc,
-                            flags & FLAGS_RESTCONF ? "application/yang-data+json" : "application/json",
-                            error_string ? : "");
-    free (error_string);
     return resp;
 }
 
@@ -1234,40 +1465,57 @@ rest_api (req_handle handle, int flags, const char *rpath, const char *path,
     path = path + strlen (rpath);
     if (flags & FLAGS_RESTCONF)
     {
-        if (strstr (path, "/data") == path)
+        json_t *json = NULL;
+        int rc = HTTP_CODE_OK;
+        if (g_ascii_strncasecmp (path, "/data", strlen("/data")) == 0)
             path += strlen ("/data");
-        else if (flags & FLAGS_METHOD_GET)
+        else if (flags & FLAGS_METHOD_GET && g_strcmp0 (path, "/operations") == 0)
         {
-            if (g_strcmp0 (path, ".xml") == 0)
-                resp = rest_api_xml ();
-            else if (g_strcmp0 (path, ".html") == 0)
+            json = json_object();
+            json_t *obj = json_object ();
+            sch_node *schema = sch_lookup (g_schema, path);
+            sch_node *child = schema ? sch_node_child_first (schema) : NULL;
+            while (child)
             {
-                rest_api_html (handle);
-                g_free (new_path);
-                return;
+                char *name = sch_name (child);
+                char *model = sch_model (child, false);
+                char *fname = g_strdup_printf ("%s:%s", model, name);
+                char *rpcpath = g_strdup_printf ("%s/operations/%s", rpath, fname);
+                json_object_set_new (obj, fname, json_string (rpcpath));
+                free (rpcpath);
+                free (fname);
+                free (model);
+                free (name);
+                child = sch_node_next_sibling (child);
             }
-            else
-            {
-                json_t *json = json_object();
-                json_t *obj = json;
-                if (path[0] == 0)
-                {
-                    obj = json_object();
-                    json_object_set_new (json, "ietf-restconf:restconf", obj);
-                    json_object_set_new (obj, "data", json_object ());
-                }
-                if (path[0] == 0 || g_strcmp0 (path, "/operations") == 0)
-                    json_object_set_new (obj, "operations", json_object ());
-                if (path[0] == 0 || g_strcmp0 (path, "/yang-library-version") == 0)
-                    json_object_set_new (obj, "yang-library-version", json_string ("2019-01-04"));
-                char *json_string = json_dumps (json, 0);
-                resp = g_strdup_printf ("Status: 200\r\n"
-                        "Content-Type: application/yang-data+json\r\n"
-                        "\r\n" "%s",
-                        json_string ? : "");
-                free (json_string);
-                json_decref (json);
-            }
+            json_object_set_new (json, "ietf-restconf:operations", obj);
+        }
+        else if (flags & FLAGS_METHOD_GET && g_strcmp0 (path, "/yang-library-version") == 0)
+        {
+            json = json_object();
+            json_object_set_new (json, "yang-library-version", json_string ("2019-01-04"));
+        }
+        else if (flags & FLAGS_METHOD_GET && path[0] == '\0')
+        {
+            json = json_object();
+            json_t *obj = json_object();
+            json_object_set_new (obj, "data", json_object ());
+            json_object_set_new (obj, "operations", json_object ());
+            json_object_set_new (obj, "yang-library-version", json_string ("2019-01-04"));
+            char *root_resource = g_strdup_printf ("ietf-restconf:%s", rpath + 1);
+            json_object_set_new (json, root_resource, obj);
+            free (root_resource);
+        }
+        if (json)
+        {
+            char *json_str = json_dumps (json, 0);
+            resp = g_strdup_printf ("Status: %d\r\n"
+                    "Content-Type: application/yang-data+json\r\n"
+                    "\r\n" "%s",
+                    rc, json_str ? : "");
+            free (json_str);
+            json_decref (json);
+            VERBOSE ("RESP:\n%s\n", resp);
             send_response (handle, resp, false);
             g_free (resp);
             g_free (new_path);

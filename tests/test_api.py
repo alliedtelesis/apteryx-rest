@@ -23,21 +23,27 @@ def test_restconf_root_resource():
     assert response.headers["Content-Type"] == "application/yang-data+json"
     assert response.json() == json.loads("""
 {
-    "ietf-restconf:restconf": {
+    "ietf-restconf:%s": {
         "data": {},
         "operations": {},
         "yang-library-version": "2019-01-04"
     }
 }
-""")
+""" % (docroot[1:]))
 
 
-def test_restconf_operations_list_empty():
+def test_restconf_operations_list():
     response = requests.get("{}{}/operations".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/yang-data+json"
-    assert response.json() == json.loads('{ "operations" : {} }')
+    assert response.json() == json.loads("""
+{
+    "ietf-restconf:operations" : {
+            "testing-4:reboot": "%s/operations/testing-4:reboot",
+            "testing-4:get-reboot-info": "%s/operations/testing-4:get-reboot-info"
+    }
+}""" % (docroot, docroot))
 
 
 def test_restconf_yang_library_version():
