@@ -109,6 +109,18 @@ void rest_shutdown (void);
 void yang_library_create (sch_instance *schema);
 void restconf_monitoring_create (sch_instance *schema);
 
+/* RPC */
+typedef enum
+{
+    REST_RPC_E_NONE,
+    REST_RPC_E_FAIL,
+    REST_RPC_E_NOT_FOUND,
+    REST_RPC_E_INTERNAL,
+} rest_rpc_error;
+bool rest_rpc_init (const char *path);
+rest_rpc_error rest_rpc_execute (int flags, const char *path, GNode *input, GNode **output, char **error_message);
+void rest_rpc_shutdown (void);
+
 /* Logging */
 extern int logging;
 

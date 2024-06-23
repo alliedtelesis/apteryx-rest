@@ -1834,3 +1834,83 @@ def test_restapi_query_field_no_index_2():
     assert response.status_code == 200
     assert response.headers.get("ETag") is not None and response.headers.get("ETag") != "0"
     assert response.json() == json.loads(_animal_all_name)
+
+
+def test_restapi_rpc_native():
+    apteryx_set("/t4:test/state/age", "100")
+    response = requests.post("{}{}/t4:test/state/reset".format(server_uri, docroot), auth=server_auth)
+    assert response.status_code == 204
+    assert len(response.content) == 0
+    assert apteryx_get("/t4:test/state/age") == "Not found"
+
+
+def test_restapi_rpc_root_namespace():
+    headers = {"X-JSON-Types": "on", "X-JSON-Array": "on", "X-JSON-Namespace": "on"}
+    apteryx_set("/t4:test/state/age", "100")
+    response = requests.post("{}{}/testing-4:test/state/reset".format(server_uri, docroot), auth=server_auth, headers=headers)
+    assert response.status_code == 204
+    assert len(response.content) == 0
+    assert apteryx_get("/t4:test/state/age") == "Not found"
+
+
+def test_restapi_rpc_namespace():
+    headers = {"X-JSON-Types": "on", "X-JSON-Array": "on", "X-JSON-Namespace": "on"}
+    response = requests.post("{}{}/operations/testing-4:reboot".format(server_uri, docroot), auth=server_auth, headers=headers)
+    assert response.status_code == 204
+    assert len(response.content) == 0
+
+
+def test_restapi_rpc_empty_input():
+    apteryx_set("/t4:test/state/age", "100")
+    data = ""
+    response = requests.post("{}{}/t4:test/state/reset".format(server_uri, docroot), auth=server_auth, data=data)
+    assert response.status_code == 204
+    assert len(response.content) == 0
+    assert apteryx_get("/t4:test/state/age") == "Not found"
+
+
+def test_restapi_rpc_with_input():
+    data = """{ "delay": 55 }"""
+    response = requests.post("{}{}/t4:test/state/reset".format(server_uri, docroot), auth=server_auth, data=data)
+    assert response.status_code == 204
+    assert len(response.content) == 0
+    assert apteryx_get("/t4:test/state/age") == "55"
+
+
+def test_restapi_rpc_invalid_get_operation():
+    response = requests.get("{}{}/t4:test/state/reset".format(server_uri, docroot), auth=server_auth)
+    assert response.status_code == 405
+    assert len(response.content) == 0
+
+
+def test_restapi_rpc_with_output():
+    apteryx_set("/t4:test/state/age", "5")
+    response = requests.post("{}{}/t4:test/state/get-last-reset-time".format(server_uri, docroot), auth=server_auth)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/json"
+    assert response.json() == json.loads("""{ "last-reset": "5" }""")
+
+
+def test_restapi_rpc_get_with_output():
+    apteryx_set("/t4:test/state/age", "5")
+    response = requests.get("{}{}/t4:test/state/get-last-reset-time".format(server_uri, docroot), auth=server_auth)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/json"
+    assert response.json() == json.loads("""{ "last-reset": "5" }""")
+
+
+def test_restapi_rpc_wildcard_no_input():
+    response = requests.post("{}{}/t4:test/state/users/fred/set-age".format(server_uri, docroot), auth=server_auth)
+    assert response.status_code == 204
+    assert len(response.content) == 0
+    assert apteryx_get("/t4:test/state/users/fred/age") == "Not found"
+
+
+def test_restapi_rpc_wildcard_with_input():
+    data = """{ "age": 74 }"""
+    response = requests.post("{}{}/t4:test/state/users/fred/set-age".format(server_uri, docroot), auth=server_auth, data=data)
+    assert response.status_code == 204
+    assert len(response.content) == 0
+    assert apteryx_get("/t4:test/state/users/fred/age") == "74"

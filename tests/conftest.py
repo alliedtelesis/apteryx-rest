@@ -87,6 +87,8 @@ def run_around_tests():
     os.system("%s -r /test" % (APTERYX))
     apteryx_prune("/test")
     apteryx_prune("/t2:test")
+    apteryx_prune("/test3")
+    apteryx_prune("/t4:test")
     for path, value in db_default:
         apteryx_set(path, value)
     yield
@@ -94,3 +96,5 @@ def run_around_tests():
     os.system("echo After test")
     apteryx_prune("/test")
     apteryx_prune("/t2:test")
+    apteryx_prune("/test3")
+    apteryx_prune("/t4:test")

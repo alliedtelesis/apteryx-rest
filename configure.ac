@@ -14,6 +14,13 @@ PKG_CHECK_MODULES([LIBXML2],[libxml-2.0])
 PKG_CHECK_MODULES([JANSSON],[jansson])
 PKG_CHECK_MODULES([APTERYX_XML],[apteryx-xml])
 PKG_CHECK_MODULES([LIBFCGI],[libfcgi])
+PKG_CHECK_MODULES([LUA], [lua], , [
+    PKG_CHECK_MODULES([LUA], [lua5.4], , [
+        PKG_CHECK_MODULES([LUA], [lua5.3], , [
+            PKG_CHECK_MODULES([LUA], [lua5.2])
+        ])
+    ])
+])
 
 AC_ARG_WITH([pyang],
   [AS_HELP_STRING([--with-pyang], [path to pyang])],

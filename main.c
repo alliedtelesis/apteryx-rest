@@ -47,8 +47,8 @@ termination_handler (gpointer arg1)
 void
 help (char *app_name)
 {
-    printf ("Usage: %s [-h] [-b] [-d] [-v] [-a] [-t] [-l <path>] [-m <path>] [-p <pidfile>]\n"
-            "                [-s <socket>] [-e <encoding>]\n"
+    printf ("Usage: %s [-h] [-b] [-d] [-v] [-a] [-t] [-l <path>] [-m <path>] [-r <path>] [-p <pidfile>]\n"
+            "                [-r] [-s <socket>] [-e <encoding>]\n"
             "  -h   show this help\n"
             "  -b   background mode\n"
             "  -d   enable debug\n"
@@ -58,6 +58,7 @@ help (char *app_name)
             "  -t   encode values as JSON types where possible\n"
             "  -l   name of a file containing a list of events to log\n"
             "  -m   search <path> for modules\n"
+            "  -r   search <path> for rpc handlers\n"
             "  -p   use <pidfile> (defaults to " DEFAULT_APP_PID ")\n"
             "  -s   rest socket <socket> (defaults to " DEFAULT_REST_SOCK ")\n", app_name);
 }
@@ -66,6 +67,7 @@ int
 main (int argc, char *argv[])
 {
     const char *path = "./";
+    const char *rpc = NULL;
     const char *pid_file = DEFAULT_APP_PID;
     const char *socket = DEFAULT_REST_SOCK;
     int i = 0;
@@ -74,7 +76,7 @@ main (int argc, char *argv[])
     int rc = EXIT_SUCCESS;
 
     /* Parse options */
-    while ((i = getopt (argc, argv, "bdvatm:l:s:p:e:h")) != -1)
+    while ((i = getopt (argc, argv, "bdvatm:l:r:s:p:e:h")) != -1)
     {
         switch (i)
         {
@@ -118,6 +120,9 @@ main (int argc, char *argv[])
         case 'm':
             path = optarg;
             break;
+        case 'r':
+            rpc = optarg;
+            break;
         case 's':
             socket = optarg;
             break;
@@ -152,6 +157,14 @@ main (int argc, char *argv[])
     if (!rest_init (path))
     {
         ERROR ("ERROR: Failed to load modules at path \"%s\"\n", path);
+        rc = EXIT_FAILURE;
+        goto exit;
+    }
+
+    /* Initialise rpc */
+    if (rpc && !rest_rpc_init (rpc))
+    {
+        ERROR ("ERROR: Failed to load rpc plugins at path \"%s\"\n", rpc);
         rc = EXIT_FAILURE;
         goto exit;
     }
@@ -195,6 +208,10 @@ main (int argc, char *argv[])
 
     /* Cleanup FCGI */
     fcgi_stop ();
+
+    /* Cleanup rpc */
+    if (rpc)
+        rest_rpc_shutdown ();
 
     /* Cleanup rest */
     rest_shutdown ();
