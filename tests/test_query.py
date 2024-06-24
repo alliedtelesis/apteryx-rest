@@ -787,6 +787,58 @@ def test_restconf_query_field_no_index_2():
     assert response.json() == json.loads(_animal_all_name)
 
 
+def test_restconf_query_field_ns_aug():
+    response = requests.get(f"{server_uri}{docroot}/data/testing-2:test?fields=settings/testing2-augmented:speed", auth=server_auth, headers=get_restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.json() == json.loads("""
+{
+    "testing-2:test": {
+        "settings": {
+            "testing2-augmented:speed": "2"
+        }
+    }
+}
+""")
+
+
+def test_restconf_query_field_ns_none():
+    response = requests.get(f"{server_uri}{docroot}/data/testing-2:test?fields=settings/speed", auth=server_auth, headers=get_restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.json() == json.loads("""
+{
+    "testing-2:test": {
+        "settings": {
+            "testing2-augmented:speed": "2"
+        }
+    }
+}
+""")
+
+
+def test_restconf_query_field_ns_bad():
+    response = requests.get(f"{server_uri}{docroot}/data/testing-2:test?fields=settings/test-dodgy:speed", auth=server_auth, headers=get_restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 400
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.json() == json.loads("""
+{
+    "ietf-restconf:errors": {
+        "error": [
+            {
+                "error-message": "Invalid input parameter",
+                "error-tag": "invalid-value",
+                "error-type": "application"
+            }
+        ]
+    }
+}
+""")
+
+
 def test_restconf_query_with_defaults_explicit_leaf():
     apteryx_set("/test/settings/debug", "0")
     response = requests.get("{}{}/data/test/settings/debug?with-defaults=explicit".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
