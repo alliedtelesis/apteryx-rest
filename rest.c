@@ -303,6 +303,22 @@ rest_rpc (int flags, GNode *node, sch_node *schema, json_t *json)
     rest_rpc_error error;
     int rc;
 
+    /* Special case: We consider /operations to be a root node and hence
+       support non-native namespaces at this node. This allows us to have
+       multiple data models with the same root rpc. */
+    if (g_ascii_strncasecmp (path, "/operations", strlen("/operations")) == 0)
+    {
+        sch_ns *ns = sch_node_ns (schema);
+        if (ns && !sch_ns_native (g_schema, ns))
+        {
+            const char *prefix = sch_ns_prefix (g_schema, ns);
+            const char *name = APTERYX_NAME (node);
+            char *_path = g_strdup_printf ("/operations/%s:%s", prefix, name);
+            free (path);
+            path = _path;
+        }
+    }
+
     /* Set formating flags for input/output */
     if (verbose)
         schflags |= SCH_F_DEBUG;
