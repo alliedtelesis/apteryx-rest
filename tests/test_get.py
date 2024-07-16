@@ -242,15 +242,15 @@ def test_restconf_get_list_trunk():
 {
     "testing:animals": {
         "animal": [
-            {"name": "cat", "type": "big"},
+            {"name": "cat", "type": "animal-testing-types:big"},
             {"name": "dog", "colour": "brown"},
-            {"name": "hamster", "type": "little", "food": [
+            {"name": "hamster", "type": "animal-testing-types:little", "food": [
                     {"name": "banana", "type": "fruit"},
                     {"name": "nuts", "type": "kibble"}
                 ]
             },
-            {"name": "mouse", "colour": "grey", "type": "little"},
-            {"name": "parrot", "type": "big", "colour": "blue", "toys": {
+            {"name": "mouse", "colour": "grey", "type": "animal-testing-types:little"},
+            {"name": "parrot", "type": "animal-testing-types:big", "colour": "blue", "toys": {
                 "toy": ["puzzles", "rings"]
                 }
             }
@@ -269,15 +269,15 @@ def test_restconf_get_list_trunk_no_namespace():
 {
     "animals": {
         "animal": [
-            {"name": "cat", "type": "big"},
+            {"name": "cat", "type": "animal-testing-types:big"},
             {"name": "dog", "colour": "brown"},
-            {"name": "hamster", "type": "little", "food": [
+            {"name": "hamster", "type": "animal-testing-types:little", "food": [
                     {"name": "banana", "type": "fruit"},
                     {"name": "nuts", "type": "kibble"}
                 ]
             },
-            {"name": "mouse", "colour": "grey", "type": "little"},
-            {"name": "parrot", "type": "big", "colour": "blue", "toys": {
+            {"name": "mouse", "colour": "grey", "type": "animal-testing-types:little"},
+            {"name": "parrot", "type": "animal-testing-types:big", "colour": "blue", "toys": {
                 "toy": ["puzzles", "rings"]
                 }
             }
@@ -295,15 +295,15 @@ def test_restconf_get_list_select_none():
     assert response.json() == json.loads("""
 {
     "animal": [
-        {"name": "cat", "type": "big"},
+        {"name": "cat", "type": "animal-testing-types:big"},
         {"name": "dog", "colour": "brown"},
-        {"name": "hamster", "type": "little", "food": [
+        {"name": "hamster", "type": "animal-testing-types:little", "food": [
                 {"name": "banana", "type": "fruit"},
                 {"name": "nuts", "type": "kibble"}
             ]
         },
-        {"name": "mouse", "colour": "grey", "type": "little"},
-        {"name": "parrot", "type": "big", "colour": "blue", "toys": {
+        {"name": "mouse", "colour": "grey", "type": "animal-testing-types:little"},
+        {"name": "parrot", "type": "animal-testing-types:big", "colour": "blue", "toys": {
             "toy": ["puzzles", "rings"]
             }
         }
@@ -322,7 +322,7 @@ def test_restconf_get_list_select_one_trunk():
     "testing:animal": [
         {
             "name": "cat",
-            "type": "big"
+            "type": "animal-testing-types:big"
         }
     ]
 }
@@ -339,7 +339,7 @@ def test_restconf_get_list_select_one_by_path_trunk():
     "testing:animal": [
         {
             "name": "cat",
-            "type": "big"
+            "type": "animal-testing-types:big"
         }
     ]
 }
@@ -409,7 +409,7 @@ def test_restconf_get_percent_encoded_fields():
     "testing:animal": [
         {
             "colour": "grey",
-            "type": "little"
+            "type": "animal-testing-types:little"
         }
     ]
 }
@@ -456,7 +456,7 @@ def test_restconf_get_proxy_list_select_one_trunk():
     "testing:animal": [
         {
             "name": "cat",
-            "type": "big"
+            "type": "animal-testing-types:big"
         }
     ]
 }

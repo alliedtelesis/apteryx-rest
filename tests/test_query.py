@@ -329,7 +329,7 @@ def test_restconf_query_depth_4():
         "animal": [
             {
                 "name": "cat",
-                "type": "big"
+                "type": "animal-testing-types:big"
             },
             {
                 "colour": "brown",
@@ -347,17 +347,17 @@ def test_restconf_query_depth_4():
                     }
                 ],
                 "name": "hamster",
-                "type": "little"
+                "type": "animal-testing-types:little"
             },
             {
                 "colour": "grey",
                 "name": "mouse",
-                "type": "little"
+                "type": "animal-testing-types:little"
             },
             {
                 "colour": "blue",
                 "name": "parrot",
-                "type": "big"
+                "type": "animal-testing-types:big"
             }
         ]
     }
@@ -376,7 +376,7 @@ def test_restconf_query_depth_5():
         "animal": [
             {
                 "name": "cat",
-                "type": "big"
+                "type": "animal-testing-types:big"
             },
             {
                 "colour": "brown",
@@ -394,12 +394,12 @@ def test_restconf_query_depth_5():
                     }
                 ],
                 "name": "hamster",
-                "type": "little"
+                "type": "animal-testing-types:little"
             },
             {
                 "colour": "grey",
                 "name": "mouse",
-                "type": "little"
+                "type": "animal-testing-types:little"
             },
             {
                 "colour": "blue",
@@ -410,7 +410,7 @@ def test_restconf_query_depth_5():
                         "rings"
                     ]
                 },
-                "type": "big"
+                "type": "animal-testing-types:big"
             }
         ]
     }
@@ -558,7 +558,7 @@ def test_restconf_query_field_list_one_specific_node():
     assert response.json() == json.loads("""
 {
     "animal": [{
-        "type": "little"
+        "type": "animal-testing-types:little"
     }]
 }
 """)
@@ -573,7 +573,7 @@ def test_restconf_query_field_list_two_specific_nodes():
 {
     "animal": [{
         "name": "mouse",
-        "type": "little"
+        "type": "animal-testing-types:little"
     }]
 }
 """)
@@ -726,16 +726,16 @@ def test_restconf_query_field_mixed_index_1():
     "animals": {
         "animal": {
             "cat": {
-                "type": "1"
+                "type": "animal-testing-types:1"
             },
             "hamster": {
-                "type": "2"
+                "type": "animal-testing-types:2"
             },
             "mouse": {
                 "name": "mouse"
             },
             "parrot": {
-                "type": "1"
+                "type": "animal-testing-types:1"
             }
         }
     }
