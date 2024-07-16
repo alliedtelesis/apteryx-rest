@@ -614,6 +614,8 @@ rest_api_get (int flags, const char *path, const char *if_none_match, const char
         schflags |= SCH_F_JSON_ARRAYS;
     if (flags & FLAGS_JSON_FORMAT_TYPES)
         schflags |= SCH_F_JSON_TYPES;
+    if (flags & FLAGS_RESTCONF)
+        schflags |= SCH_F_IDREF_VALUES;
     if (flags & FLAGS_JSON_FORMAT_NS)
     {
         schflags |= SCH_F_NS_MODEL_NAME;
