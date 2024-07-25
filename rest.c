@@ -353,8 +353,8 @@ rest_rpc (int flags, GNode *node, sch_node *schema, json_t *json)
             }
         }
 
-        /* Parse the input */
-        input = sch_json_to_gnode (g_schema, schema, json, schflags);
+        /* Parse the input - always set types */
+        input = sch_json_to_gnode (g_schema, schema, json, schflags | SCH_F_JSON_TYPES);
         json_decref (json);
 
         /* Check parsing succeeded and we have input when required */
@@ -1017,6 +1017,25 @@ rest_api_post (int flags, const char *path, const char *data, int length, const 
     else if (length)
     {
         json = json_loads (data, 0, &error);
+        if (!json && isrpc && !(flags & FLAGS_RESTCONF))
+        {
+            /* In non RESTCONF mode we support single input parameters without keys in RPC's */
+            sch_node *ischema = sch_node_child (api_subtree, "input");
+            sch_node *ichild = ischema ? sch_node_child_first (ischema) : NULL;
+            if (ischema && ichild && !sch_node_next_sibling (ichild))
+            {
+                json_t *value = json_loads (data, JSON_DECODE_ANY, &error);
+                if (!value && data && data[0] != '{' && data[0] != '[')
+                    value = json_stringn (data, strlen (data));
+                if (value)
+                {
+                    char *name = sch_name (ichild);
+                    json = json_object ();
+                    json_object_set_new (json, name, value);
+                    free (name);
+                }
+            }
+        }
         if (!json)
         {
             ERROR ("error: on line %d: %s\n", error.line, error.text);
