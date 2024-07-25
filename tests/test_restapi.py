@@ -1877,6 +1877,46 @@ def test_restapi_rpc_with_input():
     assert apteryx_get("/t4:test/state/age") == "55"
 
 
+def test_restapi_rpc_with_input_invalid():
+    data = """{ "delay": "cabbage" }"""
+    response = requests.post("{}{}/t4:test/state/reset".format(server_uri, docroot), auth=server_auth, data=data)
+    assert response.status_code == 400
+    assert len(response.content) == 0
+    assert apteryx_get("/t4:test/state/age") == "Not found"
+
+
+def test_restapi_rpc_with_simple_input_integer():
+    data = """55"""
+    response = requests.post("{}{}/t4:test/state/reset".format(server_uri, docroot), auth=server_auth, data=data)
+    assert response.status_code == 204
+    assert len(response.content) == 0
+    assert apteryx_get("/t4:test/state/age") == "55"
+
+
+def test_restapi_rpc_with_simple_input_quoted():
+    data = '"55"'
+    response = requests.post("{}{}/t4:test/state/reset".format(server_uri, docroot), auth=server_auth, data=data)
+    assert response.status_code == 204
+    assert len(response.content) == 0
+    assert apteryx_get("/t4:test/state/age") == "55"
+
+
+def test_restapi_rpc_with_simple_input_invalid():
+    data = """cabbage"""
+    response = requests.post("{}{}/t4:test/state/reset".format(server_uri, docroot), auth=server_auth, data=data)
+    assert response.status_code == 400
+    assert len(response.content) == 0
+    assert apteryx_get("/t4:test/state/age") == "Not found"
+
+
+def test_restapi_rpc_with_simple_input_integer_outofrange():
+    data = """-1"""
+    response = requests.post("{}{}/t4:test/state/reset".format(server_uri, docroot), auth=server_auth, data=data)
+    assert response.status_code == 400
+    assert len(response.content) == 0
+    assert apteryx_get("/t4:test/state/age") == "Not found"
+
+
 def test_restapi_rpc_invalid_get_operation():
     response = requests.get("{}{}/t4:test/state/reset".format(server_uri, docroot), auth=server_auth)
     assert response.status_code == 405
@@ -1890,6 +1930,15 @@ def test_restapi_rpc_with_output():
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/json"
     assert response.json() == json.loads("""{ "last-reset": "5" }""")
+
+
+def test_restapi_rpc_with_output_integer():
+    apteryx_set("/t4:test/state/age", "5")
+    response = requests.post("{}{}/t4:test/state/get-last-reset-time".format(server_uri, docroot), auth=server_auth, headers=json_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/json"
+    assert response.json() == json.loads("""{ "last-reset": 5 }""")
 
 
 def test_restapi_rpc_get_with_output():
