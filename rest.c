@@ -422,6 +422,14 @@ rest_rpc (int flags, GNode *node, sch_node *schema, json_t *json)
                 json_incref (json_new);
                 json_decref (json);
                 json = json_new;
+                if (json && !(flags & FLAGS_JSON_FORMAT_ROOT) && !json_is_string (json))
+                {
+                    /* Chop off the root node */
+                    json_new = json_object_iter_value (json_object_iter (json));
+                    json_incref (json_new);
+                    json_decref (json);
+                    json = json_new;
+                }
             }
             if (!json || (data = json_dumps (json, JSON_ENCODE_ANY)) == NULL)
             {
