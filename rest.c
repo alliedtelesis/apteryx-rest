@@ -422,6 +422,16 @@ rest_rpc (int flags, GNode *node, sch_node *schema, json_t *json)
                 json_incref (json_new);
                 json_decref (json);
                 json = json_new;
+                /* If there is only one value in the output and we have been asked to
+                strip root elements then remove the key and return the value only */
+                if (!(flags & FLAGS_JSON_FORMAT_ROOT) && json_object_size (json) == 1)
+                {
+                    /* Chop off the root node */
+                    json_t *json_new = json_object_iter_value (json_object_iter (json));
+                    json_incref (json_new);
+                    json_decref (json);
+                    json = json_new;
+                }
             }
             if (!json || (data = json_dumps (json, JSON_ENCODE_ANY)) == NULL)
             {
@@ -825,18 +835,7 @@ rest_api_get (int flags, const char *path, const char *if_none_match, const char
         json = json_object();
     }
 
-    if (!(flags & FLAGS_JSON_FORMAT_ROOT) &&
-        (json_is_string (json) || json_is_integer (json) || json_is_boolean (json)))
-    {
-        if (flags & FLAGS_JSON_FORMAT_TYPES && json_is_integer (json))
-            json_string = g_strdup_printf ("%" JSON_INTEGER_FORMAT, json_integer_value (json));
-        else if (flags & FLAGS_JSON_FORMAT_TYPES && json_is_boolean (json))
-            json_string = g_strdup_printf ("%s", json_is_true (json) ? "true" : "false");
-        else
-            json_string = g_strdup_printf ("\"%s\"", json_string_value (json));
-    }
-    else
-        json_string = json_dumps (json, 0);
+    json_string = json_dumps (json, JSON_ENCODE_ANY);
 exit:
     if (logging)
         log_get_head (flags, path, remote_user, remote_addr, rc);
