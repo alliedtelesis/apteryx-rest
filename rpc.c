@@ -220,14 +220,8 @@ _lua_apteryx_dict2tree (lua_State *L, GNode *n, bool leaves)
             lua_pushvalue (L, -2);
             c = APTERYX_NODE (n, strdup ((char *) lua_tostring (L, -1)));
             lua_pop (L, 1);
-            if ((_lua_apteryx_dict2tree (L, c, leaves)) || !leaves)
-            {
-                ret = true;
-            }
-            else
-            { /* destroy leafless sub-trees */
-                apteryx_free_tree (c);
-            }
+            _lua_apteryx_dict2tree (L, c, leaves);
+            ret = true;
         }
         else
         {
