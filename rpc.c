@@ -24,6 +24,7 @@
 
 struct rpc_handler {
     char *path;
+    int flags;
     int ref;
 };
 
@@ -280,16 +281,30 @@ rest_rpc_execute (int flags, const char *path, GNode *input, GNode **output, cha
             return REST_RPC_E_INTERNAL;
         }
 
-        /* Path */
-        lua_pushstring (L, path);
         /* Input - without the top level input node */
         if (input)
             lua_apteryx_tree2dict (L, g_node_first_child (input));
         else
             lua_newtable (L);
+        /* Path */
+        lua_pushstring (L, path);
+        if (flags & FLAGS_METHOD_POST)
+            lua_pushstring (L, "POST");
+        else if (flags & FLAGS_METHOD_GET)
+            lua_pushstring (L, "GET");
+        else if (flags & FLAGS_METHOD_PUT)
+            lua_pushstring (L, "PUT");
+        else if (flags & FLAGS_METHOD_PATCH)
+            lua_pushstring (L, "PATCH");
+        else if (flags & FLAGS_METHOD_DELETE)
+            lua_pushstring (L, "DELETE");
+        else if (flags & FLAGS_METHOD_HEAD)
+            lua_pushstring (L, "HEAD");
+        else if (flags & FLAGS_METHOD_OPTIONS)
+            lua_pushstring (L, "OPTIONS");
 
         /* Call RPC */
-        int res = lua_pcall (L, 2, LUA_MULTRET, 0);
+        int res = lua_pcall (L, 3, LUA_MULTRET, 0);
         if (res != 0)
             rpc_lua_error (L, res);
 
@@ -297,6 +312,7 @@ rest_rpc_execute (int flags, const char *path, GNode *input, GNode **output, cha
                                1=input(table), 2=output(table)
                                1=input(table), 2=true(boolean), 3=output(table)
            FAILURE Lua stack = 1=input(table), 2=false(boolean), 3=nil
+                               1=input(table), 2=false(boolean), 3=message(string)
                                1=input(table), 2=false(boolean), 3=message(string)
          */
         rcount = lua_gettop (L) - 1;
@@ -319,6 +335,12 @@ rest_rpc_execute (int flags, const char *path, GNode *input, GNode **output, cha
         else if (rcount == 2 && lua_isboolean (L, 2) && !lua_toboolean (L, 2) && lua_isstring (L, 3))
         {
             *error_message = g_strdup ((char *) lua_tostring (L, 3));
+            rc = REST_RPC_E_FAIL;
+            lua_pop (L, 3);
+        }
+        else if (rcount == 2 && lua_isboolean (L, 2) && !lua_toboolean (L, 2) && lua_istable (L, 3))
+        {
+            root = lua_apteryx_dict2tree (L, "output", 3);
             rc = REST_RPC_E_FAIL;
             lua_pop (L, 3);
         }
@@ -352,6 +374,63 @@ rest_rpc_execute (int flags, const char *path, GNode *input, GNode **output, cha
 
     *output = root;
     return rc;
+}
+
+static void
+rpc_push (struct rpc_handler *rpc, int *count)
+{
+    lua_State *L = g_ls;
+
+    lua_newtable (L);
+
+    /* Methods */
+    lua_pushstring (L, "methods");
+    lua_newtable (L);
+    int nmethods = 1;
+    if (rpc->flags & FLAGS_METHOD_POST)
+    {
+        lua_pushstring (L, "POST");
+        lua_rawseti (L, -2, nmethods++);
+    }
+    else if (rpc->flags & FLAGS_METHOD_GET)
+    {
+        lua_pushstring (L, "GET");
+        lua_rawseti (L, -2, nmethods++);
+    }
+    else if (rpc->flags & FLAGS_METHOD_PUT)
+    {
+        lua_pushstring (L, "PUT");
+        lua_rawseti (L, -2, nmethods++);
+    }
+    else if (rpc->flags & FLAGS_METHOD_PATCH)
+    {
+        lua_pushstring (L, "PATCH");
+        lua_rawseti (L, -2, nmethods++);
+    }
+    else if (rpc->flags & FLAGS_METHOD_DELETE)
+    {
+        lua_pushstring (L, "DELETE");
+        lua_rawseti (L, -2, nmethods++);
+    }
+    else if (rpc->flags & FLAGS_METHOD_HEAD)
+    {
+        lua_pushstring (L, "HEAD");
+        lua_rawseti (L, -2, nmethods++);
+    }
+    else if (rpc->flags & FLAGS_METHOD_OPTIONS)
+    {
+        lua_pushstring (L, "OPTIONS");
+        lua_rawseti (L, -2, nmethods++);
+    }
+    lua_settable (L, -3);
+
+    /* Path */
+    lua_pushstring (L, "path");
+    lua_pushstring (L, rpc->path);
+    lua_settable (L, -3);
+
+    lua_rawseti (L, -2, *count);
+    (*count)++;
 }
 
 bool
@@ -408,27 +487,81 @@ rest_rpc_init (const char *path)
                 continue;
             }
 
-            /* Expect table of { "path": fn, } */
+            /* Expect table of { path=string, methods={string,}, handler=fn } */
             lua_pushnil (L);
             while (lua_next (L, 1) != 0)
             {
-                /* Three items on stack 1=table, 2=path, 3=fn */
-                luaL_checktype (L, 2, LUA_TSTRING);
-                luaL_checktype (L, 3, LUA_TFUNCTION);
-                const char *path = lua_tostring (L, 2);
-                int ref = ref_callback (L, 3);
-                lua_pop (L, 1);
-
-                DEBUG (" %s(0x%08x)\n", path, ref);
                 struct rpc_handler *rpc = g_malloc0 (sizeof (struct rpc_handler));
-                rpc->path = g_strdup (path);
-                rpc->ref = ref;
-                g_rpcs = g_list_prepend (g_rpcs, (gpointer) rpc);
+
+                /* Parse the handler parameters */
+                if (lua_istable (L, 3))
+                {
+                    if (lua_getfield (L, 3, "path"))
+                    {
+                        rpc->path = g_strdup (lua_tostring (L, 4));
+                        lua_pop (L, 1);
+                    }
+                    if (lua_getfield (L, 3, "methods"))
+                    {
+                        lua_pushnil (L);
+                        while (lua_next (L, -2) != 0)
+                        {
+                            if (lua_isstring (L, 6))
+                            {
+                                const char *method = lua_tostring (L, 6);
+                                if (g_strcmp0 (method, "POST") == 0)
+                                    rpc->flags |= FLAGS_METHOD_POST;
+                                else if (g_strcmp0 (method, "GET") == 0)
+                                    rpc->flags |= FLAGS_METHOD_GET;
+                                else if (g_strcmp0 (method, "PUT") == 0)
+                                    rpc->flags |= FLAGS_METHOD_PUT;
+                                else if (g_strcmp0 (method, "PATCH") == 0)
+                                    rpc->flags |= FLAGS_METHOD_PATCH;
+                                else if (g_strcmp0 (method, "DELETE") == 0)
+                                    rpc->flags |= FLAGS_METHOD_DELETE;
+                                else if (g_strcmp0 (method, "HEAD") == 0)
+                                    rpc->flags |= FLAGS_METHOD_HEAD;
+                                else if (g_strcmp0 (method, "OPTIONS") == 0)
+                                    rpc->flags |= FLAGS_METHOD_OPTIONS;
+                            }
+                            lua_pop (L, 1);
+                        }
+                        lua_pop (L, 1);
+                    }
+                    if (lua_getfield (L, 3, "handler"))
+                    {
+                        rpc->ref = ref_callback (L, 4);
+                        lua_pop (L, 1);
+                    }
+                }
+
+                /* Check we have enough info */
+                if (rpc->path && rpc->flags && rpc->ref)
+                {
+                    DEBUG ("    RPC[0x%04x]: %s\n", rpc->flags, rpc->path);
+                    g_rpcs = g_list_prepend (g_rpcs, (gpointer) rpc);
+                }
+                else
+                {
+                    ERROR ("Failed to parse an RPC handler from %s\n", entry->d_name);
+                    if (rpc->path)
+                        free (rpc->path);
+                    free (rpc);
+                }
+
+                lua_pop (L, 1);
             }
             lua_pop (L, 1); /* pop the table */
         }
     }
     (void) closedir (dir);
+    g_rpcs = g_list_reverse (g_rpcs);
+
+    /* Push the rpc table to the lua instance */
+    int count = 1;
+    lua_newtable (g_ls);
+    g_list_foreach (g_rpcs, (GFunc) rpc_push, (gpointer) &count);
+    lua_setglobal (g_ls, "_RPCS");
 
     return true;
 }

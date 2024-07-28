@@ -41,9 +41,10 @@ def test_restconf_operations_list():
 {
     "ietf-restconf:operations" : {
             "testing-4:reboot": "%s/operations/testing-4:reboot",
-            "testing-4:get-reboot-info": "%s/operations/testing-4:get-reboot-info"
+            "testing-4:get-reboot-info": "%s/operations/testing-4:get-reboot-info",
+            "testing-4:get-rpcs": "%s/operations/testing-4:get-rpcs"
     }
-}""" % (docroot, docroot))
+}""" % (docroot, docroot, docroot))
 
 
 def test_restconf_yang_library_version():
