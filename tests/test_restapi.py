@@ -2010,3 +2010,24 @@ def test_restapi_rpc_wildcard_with_input():
     assert response.status_code == 204
     assert len(response.content) == 0
     assert apteryx_get("/t4:test/state/users/fred/age") == "74"
+
+
+def test_restapi_rpc_get_rpcs():
+    headers = {"X-JSON-Types": "on", "X-JSON-Array": "on", "X-JSON-Namespace": "on"}
+    response = requests.get("{}{}/operations/testing-4:get-rpcs".format(server_uri, docroot), auth=server_auth, headers=headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/json"
+    assert response.json() == json.loads("""
+{
+    "paths": [
+        { "methods": ["POST"], "path": "/operations/t4:reboot" },
+        { "methods": ["GET"], "path": "/operations/t4:get-reboot-info" },
+        { "methods": ["GET"], "path": "/operations/t4:get-rpcs" },
+        { "methods": ["POST"], "path": "/t4:test/state/reset" },
+        { "methods": ["GET"], "path": "/t4:test/state/get-last-reset-time" },
+        { "methods": ["GET"], "path": "/t4:test/state/get-reset-history" },
+        { "methods": ["POST"], "path": "/t4:test/state/users/*/set-age" }
+    ]
+}
+""")
