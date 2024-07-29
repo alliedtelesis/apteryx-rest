@@ -1917,8 +1917,18 @@ def test_restapi_rpc_with_simple_input_integer_outofrange():
     assert apteryx_get("/t4:test/state/age") == "Not found"
 
 
-def test_restapi_rpc_invalid_get_operation():
-    response = requests.get("{}{}/t4:test/state/reset".format(server_uri, docroot), auth=server_auth)
+def test_restapi_rpc_alternate_operation():
+    apteryx_set("/t4:test/state/age", "5")
+    response = requests.get("{}{}/t4:test/state/reset".format(server_uri, docroot), auth=server_auth, headers=json_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/json"
+    assert response.json() == json.loads("""{ "delay": 5 }""")
+
+
+def test_restapi_rpc_invalid_operation():
+    data = """{ "delay": 55 }"""
+    response = requests.put("{}{}/t4:test/state/reset".format(server_uri, docroot), auth=server_auth, data=data)
     assert response.status_code == 405
     assert len(response.content) == 0
 
@@ -2022,11 +2032,11 @@ def test_restapi_rpc_get_rpcs():
 {
     "paths": [
         { "methods": ["POST"], "path": "/operations/t4:reboot" },
-        { "methods": ["GET"], "path": "/operations/t4:get-reboot-info" },
-        { "methods": ["GET"], "path": "/operations/t4:get-rpcs" },
-        { "methods": ["POST"], "path": "/t4:test/state/reset" },
-        { "methods": ["GET"], "path": "/t4:test/state/get-last-reset-time" },
-        { "methods": ["GET"], "path": "/t4:test/state/get-reset-history" },
+        { "methods": ["GET", "POST"], "path": "/operations/t4:get-reboot-info" },
+        { "methods": ["GET", "POST"], "path": "/operations/t4:get-rpcs" },
+        { "methods": ["GET", "POST"], "path": "/t4:test/state/reset" },
+        { "methods": ["GET", "POST"], "path": "/t4:test/state/get-last-reset-time" },
+        { "methods": ["GET", "POST"], "path": "/t4:test/state/get-reset-history" },
         { "methods": ["POST"], "path": "/t4:test/state/users/*/set-age" }
     ]
 }

@@ -273,6 +273,14 @@ rest_rpc_execute (int flags, const char *path, GNode *input, GNode **output, cha
         int ssize = lua_gettop (L);
         int rcount;
 
+        /* Check this RPC supports the requested operation */
+        if (!((flags & FLAGS_METHOD_MASK) & (rpc->flags & FLAGS_METHOD_MASK)))
+        {
+            pthread_mutex_unlock (&g_ls_lock);
+            ERROR ("RPC[%s]: does not support method (flags:0x%08x)\n", rpc->path, flags);
+            return REST_RPC_E_NOT_FOUND;
+        }
+
         /* Load rpc function onto the lua stack */
         if (!push_callback (L, rpc->ref))
         {
@@ -387,37 +395,37 @@ rpc_push (struct rpc_handler *rpc, int *count)
     lua_pushstring (L, "methods");
     lua_newtable (L);
     int nmethods = 1;
+    if (rpc->flags & FLAGS_METHOD_GET)
+    {
+        lua_pushstring (L, "GET");
+        lua_rawseti (L, -2, nmethods++);
+    }
     if (rpc->flags & FLAGS_METHOD_POST)
     {
         lua_pushstring (L, "POST");
         lua_rawseti (L, -2, nmethods++);
     }
-    else if (rpc->flags & FLAGS_METHOD_GET)
-    {
-        lua_pushstring (L, "GET");
-        lua_rawseti (L, -2, nmethods++);
-    }
-    else if (rpc->flags & FLAGS_METHOD_PUT)
+    if (rpc->flags & FLAGS_METHOD_PUT)
     {
         lua_pushstring (L, "PUT");
         lua_rawseti (L, -2, nmethods++);
     }
-    else if (rpc->flags & FLAGS_METHOD_PATCH)
+    if (rpc->flags & FLAGS_METHOD_PATCH)
     {
         lua_pushstring (L, "PATCH");
         lua_rawseti (L, -2, nmethods++);
     }
-    else if (rpc->flags & FLAGS_METHOD_DELETE)
+    if (rpc->flags & FLAGS_METHOD_DELETE)
     {
         lua_pushstring (L, "DELETE");
         lua_rawseti (L, -2, nmethods++);
     }
-    else if (rpc->flags & FLAGS_METHOD_HEAD)
+    if (rpc->flags & FLAGS_METHOD_HEAD)
     {
         lua_pushstring (L, "HEAD");
         lua_rawseti (L, -2, nmethods++);
     }
-    else if (rpc->flags & FLAGS_METHOD_OPTIONS)
+    if (rpc->flags & FLAGS_METHOD_OPTIONS)
     {
         lua_pushstring (L, "OPTIONS");
         lua_rawseti (L, -2, nmethods++);

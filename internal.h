@@ -67,6 +67,7 @@ typedef enum
 #define FLAGS_METHOD_DELETE         (1 << 4)
 #define FLAGS_METHOD_HEAD           (1 << 5)
 #define FLAGS_METHOD_OPTIONS        (1 << 6)
+#define FLAGS_METHOD_MASK           ((1 << 7) - 1)
 #define FLAGS_CONTENT_JSON          (1 << 7)
 #define FLAGS_CONTENT_XML           (1 << 8)
 #define FLAGS_ACCEPT_JSON           (1 << 9)
