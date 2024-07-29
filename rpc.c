@@ -319,9 +319,9 @@ rest_rpc_execute (int flags, const char *path, GNode *input, GNode **output, cha
         /* SUCCESS Lua stack = 1=input(table), 2=true(boolean)
                                1=input(table), 2=output(table)
                                1=input(table), 2=true(boolean), 3=output(table)
-           FAILURE Lua stack = 1=input(table), 2=false(boolean), 3=nil
+           FAILURE Lua stack = 1=input(table), 2=false(boolean)
                                1=input(table), 2=false(boolean), 3=message(string)
-                               1=input(table), 2=false(boolean), 3=message(string)
+                               1=input(table), 2=false(boolean), 3=output(table)
          */
         rcount = lua_gettop (L) - 1;
         if (rcount == 1 && lua_isboolean (L, 2))
