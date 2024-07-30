@@ -289,6 +289,20 @@ rest_api_html (req_handle handle)
     return;
 }
 
+sch_node *
+rest_rpc_schema (sch_node *schema)
+{
+    /* Executable nodes are RPC's */
+    if (sch_is_executable (schema))
+        return schema;
+    /* Special case to support a container that also has an RPC with the same name */
+    sch_node *_schema = sch_node_child (schema, "_");
+    if (_schema && sch_is_executable (_schema))
+        return _schema;
+    /* Not an RPC */
+    return NULL;
+}
+
 static char *
 rest_rpc (int flags, GNode *node, sch_node *schema, json_t *json)
 {
@@ -693,10 +707,11 @@ rest_api_get (int flags, const char *path, const char *if_none_match, const char
         qnode = qnode->children;
 
     /* Handle GET RPC's */
-    if (sch_is_executable (qschema))
+    sch_node *rpcschema = rest_rpc_schema (qschema);
+    if (rpcschema)
     {
         /* Check RPC supports GET */
-        if (flags & FLAGS_RESTCONF || !sch_is_readable (qschema))
+        if (flags & FLAGS_RESTCONF || !sch_is_readable (rpcschema))
         {
             VERBOSE ("REST: GET RPC not supported for %s\n", path);
             error_tag = REST_E_TAG_OPER_NOT_SUPPORTED;
@@ -704,7 +719,7 @@ rest_api_get (int flags, const char *path, const char *if_none_match, const char
         }
         else
         {
-            resp = rest_rpc (flags, qnode, rschema, NULL);
+            resp = rest_rpc (flags, qnode, rpcschema, NULL);
         }
         goto exit;
     }
@@ -915,7 +930,6 @@ rest_api_post (int flags, const char *path, const char *data, int length, const 
     char *location = NULL;
     int schflags = 0;
     uint64_t ts = 0;
-    bool isrpc;
     bool res;
     int rc;
     rest_e_tag error_tag = REST_E_TAG_NONE;
@@ -937,8 +951,14 @@ rest_api_post (int flags, const char *path, const char *data, int length, const 
         error_tag = REST_E_TAG_INVALID_VALUE;
         goto exit;
     }
-    isrpc = sch_is_executable (api_subtree);
-    if (sch_is_leaf (api_subtree) && !sch_is_writable (api_subtree))
+
+    /* Check if this is an RPC */
+    sch_node *rpcschema = rest_rpc_schema (api_subtree);
+    if (rpcschema)
+        api_subtree = api_subtree;
+
+    /* Make sure any leaf nodes are writable */
+    if ((sch_is_leaf (api_subtree) && !sch_is_writable (api_subtree)))
     {
         VERBOSE ("REST: Path \"%s\" not writable\n", path);
         rc = HTTP_CODE_FORBIDDEN;
@@ -951,7 +971,7 @@ rest_api_post (int flags, const char *path, const char *data, int length, const 
     while (child && g_node_first_child (child))
         child = g_node_first_child (child);
 
-    if (!isrpc)
+    if (!rpcschema)
     {
         /* Get a timestamp for the apteryx path */
         apath = apteryx_node_path (child);
@@ -1016,7 +1036,7 @@ rest_api_post (int flags, const char *path, const char *data, int length, const 
     else if (length)
     {
         json = json_loads (data, 0, &error);
-        if (!json && isrpc && !(flags & FLAGS_RESTCONF))
+        if (!json && rpcschema && !(flags & FLAGS_RESTCONF))
         {
             /* In non RESTCONF mode we support single input parameters without keys in RPC's */
             sch_node *ischema = sch_node_child (api_subtree, "input");
@@ -1045,9 +1065,9 @@ rest_api_post (int flags, const char *path, const char *data, int length, const 
     }
 
     /* Handle rpc's */
-    if (isrpc)
+    if (rpcschema)
     {
-        resp = rest_rpc (flags, child, api_subtree, json);
+        resp = rest_rpc (flags, child, rpcschema, json);
         goto exit;
     }
 
@@ -1204,7 +1224,8 @@ rest_api_delete (int flags, const char *path, const char *remote_user, const cha
     }
 
     /* Handle DELETE RPC's */
-    if (sch_is_executable (api_subtree))
+    sch_node *rpcschema = rest_rpc_schema (api_subtree);
+    if (rpcschema)
     {
         /* Do not support DELETE when using pure restconf */
         if (flags & FLAGS_RESTCONF)
@@ -1214,7 +1235,7 @@ rest_api_delete (int flags, const char *path, const char *remote_user, const cha
         }
         else
         {
-            resp = rest_rpc (flags, query, api_subtree, NULL);
+            resp = rest_rpc (flags, query, rpcschema, NULL);
         }
         apteryx_free_tree (query);
         goto exit;
