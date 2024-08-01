@@ -1223,6 +1223,8 @@ rest_api_delete (int flags, const char *path, const char *remote_user, const cha
         goto exit;
     }
 
+    int query_depth = g_node_max_height (query);
+
     /* Handle DELETE RPC's */
     sch_node *rpcschema = rest_rpc_schema (api_subtree);
     if (rpcschema)
@@ -1235,13 +1237,11 @@ rest_api_delete (int flags, const char *path, const char *remote_user, const cha
         }
         else
         {
-            resp = rest_rpc (flags, query, rpcschema, NULL);
+            resp = rest_rpc (flags, get_response_node (query, query_depth), rpcschema, NULL);
         }
         apteryx_free_tree (query);
         goto exit;
     }
-
-    int query_depth = g_node_max_height (query);
 
     /* We may want to get everything from here down */
     if (sch_node_child_first (api_subtree))

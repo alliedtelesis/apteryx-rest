@@ -2022,6 +2022,16 @@ def test_restapi_rpc_wildcard_with_input():
     assert apteryx_get("/t4:test/state/users/fred/age") == "74"
 
 
+def test_restapi_rpc_delete_list_entry():
+    apteryx_set("/t4:test/state/users/fred/name", "fred")
+    apteryx_set("/t4:test/state/users/fred/age", "73")
+    response = requests.delete("{}{}/t4:test/state/users/fred".format(server_uri, docroot), verify=False, auth=server_auth)
+    assert response.status_code == 200 or response.status_code == 204
+    assert len(response.content) == 0
+    assert apteryx_get("/t4:test/state/users/fred/name") == "Not found"
+    assert apteryx_get("/t4:test/state/users/fred/age") == "Not found"
+
+
 def test_restapi_rpc_get_rpcs():
     headers = {"X-JSON-Types": "on", "X-JSON-Array": "on", "X-JSON-Namespace": "on"}
     response = requests.get("{}{}/operations/testing-4:get-rpcs".format(server_uri, docroot), auth=server_auth, headers=headers)
@@ -2037,7 +2047,8 @@ def test_restapi_rpc_get_rpcs():
         { "methods": ["GET", "POST"], "path": "/t4:test/state/reset" },
         { "methods": ["GET", "POST"], "path": "/t4:test/state/get-last-reset-time" },
         { "methods": ["GET", "POST"], "path": "/t4:test/state/get-reset-history" },
-        { "methods": ["POST"], "path": "/t4:test/state/users/*/set-age" }
+        { "methods": ["POST"], "path": "/t4:test/state/users/*/set-age" },
+        { "methods": ["DELETE"], "path": "/t4:test/state/users/*" }
     ]
 }
 """)
