@@ -40,9 +40,21 @@ rpc_free (struct rpc_handler *rpc)
     free (rpc);
 }
 
+static int
+char_count (const char *s, char c)
+{
+    int count = 0;
+    while (*s++)
+        if (*s == c) count++;
+    return count;
+}
+
 static gint
 rpc_cmp (struct rpc_handler *rpc, const char *path)
 {
+    /* Match with wildcards but only with the same number of path nodes */
+    if (char_count (rpc->path, '/') != char_count (path, '/'))
+        return -1;
     return fnmatch (rpc->path, path, 0);
 }
 
