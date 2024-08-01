@@ -292,11 +292,16 @@ rest_api_html (req_handle handle)
 sch_node *
 rest_rpc_schema (sch_node *schema)
 {
+    sch_node *_schema;
+
     /* Executable nodes are RPC's */
     if (sch_is_executable (schema))
         return schema;
     /* Special case to support a container that also has an RPC with the same name */
-    sch_node *_schema = sch_node_child (schema, "_");
+    if (sch_is_list (schema))
+        _schema = sch_node_child (sch_node_child_first (schema), "_");
+    else
+        _schema = sch_node_child (schema, "_");
     if (_schema && sch_is_executable (_schema))
         return _schema;
     /* Not an RPC */
@@ -955,7 +960,7 @@ rest_api_post (int flags, const char *path, const char *data, int length, const 
     /* Check if this is an RPC */
     sch_node *rpcschema = rest_rpc_schema (api_subtree);
     if (rpcschema)
-        api_subtree = api_subtree;
+        api_subtree = rpcschema;
 
     /* Make sure any leaf nodes are writable */
     if ((sch_is_leaf (api_subtree) && !sch_is_writable (api_subtree)))

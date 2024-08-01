@@ -2022,7 +2022,37 @@ def test_restapi_rpc_wildcard_with_input():
     assert apteryx_get("/t4:test/state/users/fred/age") == "74"
 
 
-def test_restapi_rpc_delete_list_entry():
+def test_restapi_rpc_list_get():
+    apteryx_set("/t4:test/state/users/fred/name", "fred")
+    apteryx_set("/t4:test/state/users/fred/age", "24")
+    response = requests.get("{}{}/t4:test/state/users".format(server_uri, docroot), auth=server_auth, headers=json_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/json"
+    assert response.json() == json.loads("""{ "users": [{ "name": "fred", "age": 24 }]}""")
+
+
+def test_restapi_rpc_list_create_entry():
+    data = """{ "name": "fred", "age": 74 }"""
+    response = requests.post("{}{}/t4:test/state/users".format(server_uri, docroot), verify=False, auth=server_auth, data=data)
+    assert response.status_code == 200 or response.status_code == 204 or response.status_code == 201
+    assert len(response.content) == 0
+    assert apteryx_get("/t4:test/state/users/fred/name") == "fred"
+    assert apteryx_get("/t4:test/state/users/fred/age") == "74"
+
+
+def test_restapi_rpc_list_modify_entry():
+    apteryx_set("/t4:test/state/users/fred/name", "fred")
+    apteryx_set("/t4:test/state/users/fred/age", "56")
+    data = """{ "age": 33 }"""
+    response = requests.put("{}{}/t4:test/state/users/fred".format(server_uri, docroot), verify=False, auth=server_auth, data=data)
+    assert response.status_code == 200 or response.status_code == 204
+    assert len(response.content) == 0
+    assert apteryx_get("/t4:test/state/users/fred/name") == "fred"
+    assert apteryx_get("/t4:test/state/users/fred/age") == "33"
+
+
+def test_restapi_rpc_list_delete_entry():
     apteryx_set("/t4:test/state/users/fred/name", "fred")
     apteryx_set("/t4:test/state/users/fred/age", "73")
     response = requests.delete("{}{}/t4:test/state/users/fred".format(server_uri, docroot), verify=False, auth=server_auth)
@@ -2047,8 +2077,9 @@ def test_restapi_rpc_get_rpcs():
         { "methods": ["GET", "POST"], "path": "/t4:test/state/reset" },
         { "methods": ["GET", "POST"], "path": "/t4:test/state/get-last-reset-time" },
         { "methods": ["GET", "POST"], "path": "/t4:test/state/get-reset-history" },
-        { "methods": ["POST"], "path": "/t4:test/state/users/*/set-age" },
-        { "methods": ["DELETE"], "path": "/t4:test/state/users/*" }
+        { "methods": ["GET", "POST"], "path": "/t4:test/state/users" },
+        { "methods": ["PUT", "DELETE"], "path": "/t4:test/state/users/*" },
+        { "methods": ["POST"], "path": "/t4:test/state/users/*/set-age" }
     ]
 }
 """)
