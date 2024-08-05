@@ -378,12 +378,85 @@ def test_restconf_get_leaf_list_node():
     """)
 
 
+def test_restconf_get_list_integer_index():
+    apteryx_set("/test/settings/rules/1/index", "1")
+    apteryx_set("/test/settings/rules/1/name", "name1")
+    apteryx_set("/test/settings/rules/99/index", "99")
+    apteryx_set("/test/settings/rules/99/name", "name99")
+    apteryx_set("/test/settings/rules/9/index", "9")
+    apteryx_set("/test/settings/rules/9/name", "name9")
+    apteryx_set("/test/settings/rules/10/index", "10")
+    apteryx_set("/test/settings/rules/10/name", "name10")
+    apteryx_set("/test/settings/rules/5/index", "5")
+    apteryx_set("/test/settings/rules/5/name", "name5")
+    apteryx_set("/test/settings/rules/33/index", "33")
+    apteryx_set("/test/settings/rules/33/name", "name33")
+    apteryx_set("/test/settings/rules/3/index", "3")
+    apteryx_set("/test/settings/rules/3/name", "name3")
+    apteryx_set("/test/settings/rules/111/index", "111")
+    apteryx_set("/test/settings/rules/111/name", "name111")
+    apteryx_set("/test/settings/rules/2/index", "2")
+    apteryx_set("/test/settings/rules/2/name", "name2")
+    response = requests.get("{}{}/data/testing:test/settings/rules".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.json() == json.loads("""
+{
+    "testing:rules": [
+        {
+            "index": 1,
+            "name": "name1"
+        },
+        {
+            "index": 2,
+            "name": "name2"
+        },
+        {
+            "index": 3,
+            "name": "name3"
+        },
+        {
+            "index": 5,
+            "name": "name5"
+        },
+        {
+            "index": 9,
+            "name": "name9"
+        },
+        {
+            "index": 10,
+            "name": "name10"
+        },
+        {
+            "index": 33,
+            "name": "name33"
+        },
+        {
+            "index": 99,
+            "name": "name99"
+        },
+        {
+            "index": 111,
+            "name": "name111"
+        }
+    ]
+}
+    """)
+
+
 def test_restconf_get_leaf_list_integers():
     apteryx_set("/test/settings/users/alfred/name", "alfred")
     apteryx_set("/test/settings/users/alfred/age", "87")
     apteryx_set("/test/settings/users/alfred/groups/1", "1")
-    apteryx_set("/test/settings/users/alfred/groups/5", "5")
+    apteryx_set("/test/settings/users/alfred/groups/99", "99")
     apteryx_set("/test/settings/users/alfred/groups/9", "9")
+    apteryx_set("/test/settings/users/alfred/groups/10", "10")
+    apteryx_set("/test/settings/users/alfred/groups/5", "5")
+    apteryx_set("/test/settings/users/alfred/groups/33", "33")
+    apteryx_set("/test/settings/users/alfred/groups/3", "3")
+    apteryx_set("/test/settings/users/alfred/groups/111", "111")
+    apteryx_set("/test/settings/users/alfred/groups/2", "2")
     response = requests.get("{}{}/data/testing:test/settings/users=alfred/groups".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
@@ -392,8 +465,14 @@ def test_restconf_get_leaf_list_integers():
 {
     "testing:groups": [
         1,
+        2,
+        3,
         5,
-        9
+        9,
+        10,
+        33,
+        99,
+        111
     ]
 }
     """)
