@@ -1083,10 +1083,26 @@ rest_api_post (int flags, const char *path, const char *data, int length, const 
         json_decref (json);
     }
 
-    if (tree && (flags & FLAGS_RESTCONF) && (flags & (FLAGS_METHOD_PUT | FLAGS_METHOD_PATCH)))
+    if (tree && (flags & FLAGS_RESTCONF))
     {
-        /* For a restconf PUT or PATCH do not allow the change of an existing list key field */
-        if (restconf_is_list_key_leaf_update (api_subtree, child, tree->children))
+        bool not_supported = false;
+        if (flags & (FLAGS_METHOD_PUT | FLAGS_METHOD_PATCH))
+        {
+            /* For a restconf PUT or PATCH do not allow the change of an existing list key field */
+            if (restconf_is_list_key_leaf_update (api_subtree, child, tree->children))
+            {
+                not_supported = true;
+            }
+        }
+
+        if (flags & (FLAGS_METHOD_PUT | FLAGS_METHOD_PATCH | FLAGS_METHOD_POST) &&
+            sch_is_leaf_list (api_subtree))
+        {
+            /* A leaf list entry should be fully defined in the data portion of the set */
+            not_supported = true;
+        }
+
+        if (not_supported)
         {
             apteryx_free_tree (tree);
             tree = NULL;

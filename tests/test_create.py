@@ -375,6 +375,37 @@ def test_restconf_create_list_leaf_integer_invalid():
     assert apteryx_get("/test/settings/users/fred/groups/5") != "5"
 
 
+def test_restconf_create_list_leaf_integer_invalid_path():
+    tree = """
+{
+    "groups": [
+        "cat"
+    ]
+}
+"""
+    apteryx_set("/test/settings/users/fred/name", "fred")
+    response = requests.post("{}{}/data/test/settings/users=fred/groups".format(server_uri, docroot), auth=server_auth, data=tree, headers=set_restconf_headers)
+    assert response.status_code == 405
+    assert len(response.content) > 0
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.json() == json.loads("""
+{
+    "ietf-restconf:errors": {
+        "error": [
+            {
+                "error-message": "requested operation is not supported",
+                "error-tag": "operation-not-supported",
+                "error-type": "application"
+            }
+        ]
+    }
+}
+    """)
+    print(apteryx_traverse("/test/settings/users"))
+    assert apteryx_get("/test/settings/users/fred/groups/cat") != "cat"
+
+
 def test_restconf_create_complex_ok():
     tree = """
 {
