@@ -940,7 +940,7 @@ rest_api_post (int flags, const char *path, const char *data, int length, const 
     rest_e_tag error_tag = REST_E_TAG_NONE;
 
     /* Parsing options - always set arrays and types */
-    schflags = SCH_F_JSON_ARRAYS | SCH_F_JSON_TYPES;
+    schflags = SCH_F_JSON_ARRAYS | SCH_F_JSON_TYPES | SCH_F_MODIFY_DATA;
     if (verbose)
         schflags |= SCH_F_DEBUG;
     if (flags & FLAGS_JSON_FORMAT_NS)
@@ -1196,7 +1196,7 @@ rest_api_delete (int flags, const char *path, const char *remote_user, const cha
     char *name = NULL;
     int rc = HTTP_CODE_NO_CONTENT;
     rest_e_tag error_tag = REST_E_TAG_NONE;
-    int schflags = 0;
+    int schflags = SCH_F_MODIFY_DATA; /* We are going to modify the tree */
 
     /* Parsing options */
     if (verbose)

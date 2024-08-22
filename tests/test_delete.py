@@ -180,3 +180,26 @@ def test_restconf_delete_proxy_list_select_one():
     assert apteryx_get("/test/animals/animal/cat/name") == 'cat'
     assert apteryx_get('/test/animals/animal/dog/name') == "Not found"
     assert apteryx_get('/test/animals/animal/dog/colour') == "Not found"
+
+
+def test_restconf_delete_proxy_list_select_one_read_only():
+    apteryx_set("/logical-elements/logical-element-ro/loop/name", "loopy")
+    apteryx_set("/logical-elements/logical-element-ro/loop/root", "root")
+    apteryx_set("/apteryx/sockets/E18FE205",  "tcp://127.0.0.1:9999")
+    apteryx_proxy("/logical-elements/logical-element-ro/loopy/*", "tcp://127.0.0.1:9999")
+    response = requests.delete("{}{}/data/logical-elements:logical-elements/logical-element-ro/loopy/testing:test/animals/animal=dog".format(server_uri, docroot),
+                               auth=server_auth, headers=set_restconf_headers)
+    assert response.status_code == 404
+    assert response.json() == json.loads("""
+{
+    "ietf-restconf:errors" : {
+        "error" : [
+        {
+            "error-message": "uri path not found",
+            "error-type" : "application",
+            "error-tag" : "invalid-value"
+        }
+        ]
+    }
+}
+    """)
