@@ -443,3 +443,28 @@ def test_restconf_create_proxy_string():
     assert response.status_code == 201
     assert len(response.content) == 0
     assert apteryx_get("/test/settings/description") == "this is a description via a proxy"
+
+
+def test_restconf_create_proxy_string_read_only():
+    apteryx_set("/logical-elements/logical-element-ro/loop/name", "loopy")
+    apteryx_set("/logical-elements/logical-element-ro/loop/root", "root")
+    apteryx_set("/apteryx/sockets/E18FE205",  "tcp://127.0.0.1:9999")
+    apteryx_proxy("/logical-elements/logical-element-ro/loopy/*", "tcp://127.0.0.1:9999")
+    apteryx_set("/test/settings/description", "")
+    data = """{"description": "this is a description via a proxy"}"""
+    response = requests.post("{}{}/data/logical-elements:logical-elements-ro/logical-element/loopy/test/settings".format(server_uri, docroot),
+                             auth=server_auth, headers=set_restconf_headers, data=data)
+    assert response.status_code == 404
+    assert response.json() == json.loads("""
+{
+    "ietf-restconf:errors" : {
+        "error" : [
+        {
+            "error-message": "uri path not found",
+            "error-type" : "application",
+            "error-tag" : "invalid-value"
+        }
+        ]
+    }
+}
+    """)
