@@ -84,6 +84,10 @@ def test_restconf_yang_library_tree():
                         "revision": "2024-04-04"
                     },
                     {
+                        "feature": [
+                            "dummy",
+                            "test-time"
+                        ],
                         "name": "testing",
                         "namespace": "http://test.com/ns/yang/testing",
                         "revision": "2023-01-01"
@@ -174,6 +178,10 @@ def test_restconf_yang_library_data():
                         "revision": "2024-04-04"
                     },
                     {
+                        "feature": [
+                            "dummy",
+                            "test-time"
+                        ],
                         "name": "testing",
                         "namespace": "http://test.com/ns/yang/testing",
                         "revision": "2023-01-01"

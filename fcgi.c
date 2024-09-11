@@ -167,6 +167,8 @@ get_flags (FCGX_Request * r)
         flags |= FLAGS_JSON_FORMAT_NS;
     if (param && strcmp (param, "off") == 0)
         flags &= ~FLAGS_JSON_FORMAT_NS;
+    if (flags & FLAGS_RESTCONF)
+        flags |= FLAGS_CONDITIONS | FLAGS_IDREF_VALUES;
 
     return flags;
 }

@@ -80,6 +80,8 @@ typedef enum
 #define FLAGS_EVENT_STREAM          (1 << 16)
 #define FLAGS_APPLICATION_STREAM    (1 << 17)
 #define FLAGS_RESTCONF              (1 << 18)
+#define FLAGS_CONDITIONS            (1 << 19)
+#define FLAGS_IDREF_VALUES          (1 << 20)
 extern int default_accept_encoding;
 extern int default_content_encoding;
 typedef void *req_handle;

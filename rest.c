@@ -347,6 +347,8 @@ rest_rpc (int flags, GNode *node, sch_node *schema, json_t *json)
         schflags |= SCH_F_JSON_TYPES;
     if (flags & FLAGS_JSON_FORMAT_NS)
         schflags |= (SCH_F_NS_MODEL_NAME|SCH_F_NS_PREFIX);
+    if (flags & FLAGS_CONDITIONS)
+        schflags |= SCH_F_CONDITIONS;
 
     if (json)
     {
@@ -643,7 +645,9 @@ rest_api_get (int flags, const char *path, const char *if_none_match, const char
         schflags |= SCH_F_JSON_ARRAYS;
     if (flags & FLAGS_JSON_FORMAT_TYPES)
         schflags |= SCH_F_JSON_TYPES;
-    if (flags & FLAGS_RESTCONF)
+    if (flags & FLAGS_CONDITIONS)
+        schflags |= SCH_F_CONDITIONS;
+    if (flags & FLAGS_IDREF_VALUES)
         schflags |= SCH_F_IDREF_VALUES;
     if (flags & FLAGS_JSON_FORMAT_NS)
     {
@@ -928,6 +932,7 @@ rest_api_post (int flags, const char *path, const char *data, int length, const 
     sch_node *api_subtree = NULL;
     GNode *child = NULL;
     GNode *node;
+    GNode *children = NULL;
     json_t *json = NULL;
     json_error_t error;
     char *resp = NULL;
@@ -1140,12 +1145,30 @@ rest_api_post (int flags, const char *path, const char *data, int length, const 
 
     /* Write the combinded tree to apteryx */
     child->children = tree->children;
+    children = tree->children;
+    tree->children = NULL;
+
+    /* Fixup the parent pointers for the children that now in the root tree */
+    for (GNode *cnode = child->children; cnode; cnode = cnode->next)
+        cnode->parent = child;
+
+    if ((flags & FLAGS_CONDITIONS) &&
+        (flags & (FLAGS_METHOD_PUT | FLAGS_METHOD_PATCH | FLAGS_METHOD_POST)))
+    {
+        if (!sch_apply_conditions (g_schema, NULL, root, schflags))
+        {
+            rc = HTTP_CODE_NOT_FOUND;
+            error_tag = REST_E_TAG_INVALID_VALUE;
+            goto exit;
+        }
+    }
+
     if (flags & FLAGS_RESTCONF && flags & FLAGS_METHOD_POST)
     {
         res = apteryx_cas_tree (root, 0);
         if (res)
             location = g_strdup_printf ("https://%s:%s%s/%s", server_name, server_port,
-                                        path, APTERYX_NAME (tree->children));
+                                        path, APTERYX_NAME (children));
     }
     else
         res = apteryx_set_tree (root);
@@ -1163,11 +1186,6 @@ rest_api_post (int flags, const char *path, const char *data, int length, const 
         rc = HTTP_CODE_FORBIDDEN;
         error_tag = REST_E_TAG_ACCESS_DENIED;
     }
-
-    /* Fixup the combined tree for logging and freeing */
-    for (GNode *cnode = child->children; cnode; cnode = cnode->next)
-        cnode->parent = child;
-    tree->children = NULL;
 
 exit:
     if (logging)
@@ -1401,6 +1419,8 @@ watch_callback (GNode * root, void *arg)
         schflags |= SCH_F_JSON_TYPES;
     if (req->flags & FLAGS_JSON_FORMAT_NS)
         schflags |= (SCH_F_NS_MODEL_NAME|SCH_F_NS_PREFIX);
+    if (req->flags & FLAGS_CONDITIONS)
+        schflags |= SCH_F_CONDITIONS;
 
     json = sch_gnode_to_json (g_schema, req->api, node, schflags);
     if (!json || (data = json_dumps (json, JSON_ENCODE_ANY)) == NULL)
@@ -1675,6 +1695,10 @@ rest_init (const char *path)
 
     yang_library_create (g_schema);
     restconf_monitoring_create (g_schema);
+
+    /* Register with the YANG condition parser */
+    sch_condition_register (debug, verbose);
+
 
     return true;
 }
