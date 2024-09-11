@@ -1,6 +1,6 @@
 import json
 import requests
-from conftest import server_uri, server_auth, docroot, apteryx_set, apteryx_get, apteryx_traverse, set_restconf_headers, apteryx_proxy
+from conftest import server_uri, server_auth, docroot, apteryx_set, apteryx_get, apteryx_traverse, set_restconf_headers, apteryx_proxy, apteryx_prune
 
 
 def test_restconf_create_single_node_ns_none():
@@ -484,6 +484,136 @@ def test_restconf_create_proxy_string_read_only():
     apteryx_set("/test/settings/description", "")
     data = """{"description": "this is a description via a proxy"}"""
     response = requests.post("{}{}/data/logical-elements:logical-elements-ro/logical-element/loopy/test/settings".format(server_uri, docroot),
+                             auth=server_auth, headers=set_restconf_headers, data=data)
+    assert response.status_code == 404
+    assert response.json() == json.loads("""
+{
+    "ietf-restconf:errors" : {
+        "error" : [
+        {
+            "error-message": "uri path not found",
+            "error-type" : "application",
+            "error-tag" : "invalid-value"
+        }
+        ]
+    }
+}
+    """)
+
+
+def test_restconf_create_if_feature_false():
+    data = """{"days": "1"}"""
+    response = requests.post("{}{}/data/test/settings/magictime".format(server_uri, docroot),
+                             auth=server_auth, headers=set_restconf_headers, data=data)
+    assert response.status_code == 404
+    assert response.json() == json.loads("""
+{
+    "ietf-restconf:errors" : {
+        "error" : [
+        {
+            "error-message": "uri path not found",
+            "error-type" : "application",
+            "error-tag" : "invalid-value"
+        }
+        ]
+    }
+}
+    """)
+
+
+def test_restconf_create_if_feature_true():
+    data = """{"days": "1"}"""
+    response = requests.post("{}{}/data/test/settings/testtime".format(server_uri, docroot),
+                             auth=server_auth, headers=set_restconf_headers, data=data)
+    assert response.status_code == 201
+    assert len(response.content) == 0
+    assert apteryx_get("/test/settings/testtime/days") == "1"
+
+
+def test_restconf_create_when_condition_true():
+    tree = """
+{
+    "house": [
+        "kennel"
+    ]
+}
+"""
+    response = requests.post("{}{}/data/test/animals/animal/dog/houses".format(server_uri, docroot),
+                             auth=server_auth, headers=set_restconf_headers, data=tree)
+    assert response.status_code == 201
+    assert len(response.content) == 0
+    assert apteryx_get("/test/animals/animal/dog/houses/house/kennel") == "kennel"
+
+
+def test_restconf_create_when_condition_false():
+    tree = """
+{
+    "house": [
+        "cattery"
+    ]
+}
+"""
+    response = requests.post("{}{}/data/test/animals/animal/cat/houses".format(server_uri, docroot),
+                             auth=server_auth, headers=set_restconf_headers, data=tree)
+    assert response.status_code == 404
+    assert response.json() == json.loads("""
+{
+    "ietf-restconf:errors" : {
+        "error" : [
+        {
+            "error-message": "uri path not found",
+            "error-type" : "application",
+            "error-tag" : "invalid-value"
+        }
+        ]
+    }
+}
+    """)
+
+
+def test_restconf_when_condition_true():
+    apteryx_set("/test/animals/animal/wombat/name", "wombat")
+    data = """{"claws": "5"}"""
+    response = requests.post("{}{}/data/test/animals/animal/cat".format(server_uri, docroot),
+                             auth=server_auth, headers=set_restconf_headers, data=data)
+    assert response.status_code == 201
+    assert len(response.content) == 0
+    assert apteryx_get("/test/animals/animal/cat/claws") == "5"
+
+
+def test_restconf_when_condition_false():
+    data = """{"claws": "5"}"""
+    response = requests.post("{}{}/data/test/animals/animal/cat".format(server_uri, docroot),
+                             auth=server_auth, headers=set_restconf_headers, data=data)
+    assert response.status_code == 404
+    assert response.json() == json.loads("""
+{
+    "ietf-restconf:errors" : {
+        "error" : [
+        {
+            "error-message": "uri path not found",
+            "error-type" : "application",
+            "error-tag" : "invalid-value"
+        }
+        ]
+    }
+}
+    """)
+
+
+def test_restconf_must_condition_true():
+    data = """{"friend": "ben"}"""
+    response = requests.post("{}{}/data/test/animals/animal/dog".format(server_uri, docroot),
+                             auth=server_auth, headers=set_restconf_headers, data=data)
+    assert response.status_code == 201
+    assert len(response.content) == 0
+    assert apteryx_get("/test/animals/animal/dog/friend") == "ben"
+
+
+def test_restconf_must_condition_false():
+    apteryx_prune("/test/animals/animal/cat")
+    data = """{"friend": "ben"}"""
+    response = requests.post("{}{}/data/test/animals/animal/dog".format(server_uri, docroot),
                              auth=server_auth, headers=set_restconf_headers, data=data)
     assert response.status_code == 404
     assert response.json() == json.loads("""

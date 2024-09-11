@@ -1,9 +1,10 @@
 import json
 import requests
-from conftest import server_uri, server_auth, docroot, set_restconf_headers, apteryx_get, apteryx_set
+from conftest import server_uri, server_auth, docroot, set_restconf_headers, apteryx_get, apteryx_set, apteryx_prune
 
 
 def test_restconf_rpc_no_input():
+    apteryx_prune("/system/reboot-info")
     response = requests.post("{}{}/operations/testing-4:reboot".format(server_uri, docroot), auth=server_auth, headers=set_restconf_headers)
     assert response.status_code == 204
     assert len(response.content) == 0
@@ -13,6 +14,7 @@ def test_restconf_rpc_no_input():
 
 
 def test_restconf_rpc_empty_input():
+    apteryx_prune("/system/reboot-info")
     data = ""
     response = requests.post("{}{}/operations/testing-4:reboot".format(server_uri, docroot), auth=server_auth, headers=set_restconf_headers, data=data)
     assert response.status_code == 204
