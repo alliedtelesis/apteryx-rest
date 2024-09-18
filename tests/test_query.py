@@ -220,7 +220,7 @@ def test_restconf_query_depth_1_trunk():
     assert response.status_code == 200
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
-    assert response.json() == json.loads("""{}""")
+    assert response.json() == json.loads("""{"settings": {}}""")
 
 
 def test_restconf_query_depth_1_list():
@@ -231,7 +231,18 @@ def test_restconf_query_depth_1_list():
     assert response.status_code == 200
     assert len(response.content) > 0
     print(json.dumps(response.json(), indent=4, sort_keys=True))
-    assert response.json() == json.loads("""{}""")
+    assert response.json() == json.loads("""
+{
+    "users": [
+        {}
+    ]
+}
+    """) or response.json() == json.loads("""
+{
+    "users": [
+    ]
+}
+    """)
 
 
 def test_restconf_query_depth_2_trunk():
@@ -252,6 +263,8 @@ def test_restconf_query_depth_2_trunk():
         "enable": true,
         "priority": 1,
         "readonly": "yes",
+        "time": {},
+        "users": [],
         "volume": "1"
     }
 }
@@ -273,13 +286,13 @@ def test_restconf_query_depth_2_list():
 {
     "users": [
         {
-            "name": "alfred",
+            "active": true,
             "age": 87,
-            "active": true
+            "name": "alfred"
         }
     ]
 }
-    """)
+   """)
 
 
 def test_restconf_query_depth_3():
@@ -307,9 +320,9 @@ def test_restconf_query_depth_3():
         },
         "users": [
             {
-                "name": "alfred",
+                "active": true,
                 "age": 87,
-                "active": true
+                "name": "alfred"
             }
         ],
         "volume": "1"
@@ -318,7 +331,153 @@ def test_restconf_query_depth_3():
     """)
 
 
-def test_restconf_query_depth_4():
+def test_restconf_query_animals_animal_depth_1():
+    response = requests.get("{}{}/data/test/animals/animal?depth=1".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    assert response.status_code == 200
+    assert len(response.content) > 0
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.json() == json.loads("""
+{
+    "animal": [
+        {}
+    ]
+}
+    """) or response.json() == json.loads("""
+{
+    "animal": [
+    ]
+}
+    """)
+
+
+def test_restconf_query_animals_depth_2():
+    response = requests.get("{}{}/data/test/animals?depth=2".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    assert response.status_code == 200
+    assert len(response.content) > 0
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.json() == json.loads("""
+{
+    "animals": {
+        "animal": []
+    }
+}
+    """)
+
+
+def test_restconf_query_animals_animal_depth_2():
+    response = requests.get("{}{}/data/test/animals/animal?depth=2".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    assert response.status_code == 200
+    assert len(response.content) > 0
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.json() == json.loads("""
+{
+    "animal": [
+        {
+            "name": "cat",
+            "type": "animal-testing-types:big"
+        },
+        {
+            "colour": "brown",
+            "name": "dog"
+        },
+        {
+            "food": [],
+            "name": "hamster",
+            "type": "animal-testing-types:little"
+        },
+        {
+            "colour": "grey",
+            "name": "mouse",
+            "type": "animal-testing-types:little"
+        },
+        {
+            "colour": "blue",
+            "name": "parrot",
+            "toys": {},
+            "type": "animal-testing-types:big"
+        }
+    ]
+}
+    """)
+
+
+def test_restconf_query_animals_depth_3():
+    response = requests.get("{}{}/data/test/animals?depth=3".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    assert response.status_code == 200
+    assert len(response.content) > 0
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.json() == json.loads("""
+{
+    "animals": {
+        "animal": [
+            {
+                "name": "cat",
+                "type": "animal-testing-types:big"
+            },
+            {
+                "colour": "brown",
+                "name": "dog"
+            },
+            {
+                "food": [],
+                "name": "hamster",
+                "type": "animal-testing-types:little"
+            },
+            {
+                "colour": "grey",
+                "name": "mouse",
+                "type": "animal-testing-types:little"
+            },
+            {
+                "colour": "blue",
+                "name": "parrot",
+                "toys": {},
+                "type": "animal-testing-types:big"
+            }
+        ]
+    }
+}
+    """)
+
+
+def test_restconf_query_animals_animal_depth_3():
+    response = requests.get("{}{}/data/test/animals/animal?depth=3".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    assert response.status_code == 200
+    assert len(response.content) > 0
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.json() == json.loads("""
+{
+    "animal": [
+        {
+            "name": "cat",
+            "type": "animal-testing-types:big"
+        },
+        {
+            "colour": "brown",
+            "name": "dog"
+        },
+        {
+            "food": [],
+            "name": "hamster",
+            "type": "animal-testing-types:little"
+        },
+        {
+            "colour": "grey",
+            "name": "mouse",
+            "type": "animal-testing-types:little"
+        },
+        {
+            "colour": "blue",
+            "name": "parrot",
+            "toys": {},
+            "type": "animal-testing-types:big"
+        }
+    ]
+}
+    """)
+
+
+def test_restconf_query_animals_depth_4():
     response = requests.get("{}{}/data/test/animals?depth=4".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
     assert len(response.content) > 0
@@ -336,16 +495,7 @@ def test_restconf_query_depth_4():
                 "name": "dog"
             },
             {
-                "food": [
-                    {
-                        "name": "banana",
-                        "type": "fruit"
-                    },
-                    {
-                        "name": "nuts",
-                        "type": "kibble"
-                    }
-                ],
+                "food": [],
                 "name": "hamster",
                 "type": "animal-testing-types:little"
             },
@@ -357,6 +507,7 @@ def test_restconf_query_depth_4():
             {
                 "colour": "blue",
                 "name": "parrot",
+                "toys": {},
                 "type": "animal-testing-types:big"
             }
         ]
@@ -365,7 +516,58 @@ def test_restconf_query_depth_4():
     """)
 
 
-def test_restconf_query_depth_5():
+def test_restconf_query_animals_animal_depth_4():
+    response = requests.get("{}{}/data/test/animals/animal?depth=4".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    assert response.status_code == 200
+    assert len(response.content) > 0
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.json() == json.loads("""
+{
+    "animal": [
+        {
+            "name": "cat",
+            "type": "animal-testing-types:big"
+        },
+        {
+            "colour": "brown",
+            "name": "dog"
+        },
+        {
+            "food": [
+                {
+                    "name": "banana",
+                    "type": "fruit"
+                },
+                {
+                    "name": "nuts",
+                    "type": "kibble"
+                }
+            ],
+            "name": "hamster",
+            "type": "animal-testing-types:little"
+        },
+        {
+            "colour": "grey",
+            "name": "mouse",
+            "type": "animal-testing-types:little"
+        },
+        {
+            "colour": "blue",
+            "name": "parrot",
+            "toys": {
+                "toy": [
+                    "puzzles",
+                    "rings"
+                ]
+            },
+            "type": "animal-testing-types:big"
+        }
+    ]
+}
+    """)
+
+
+def test_restconf_query_animals_depth_5():
     response = requests.get("{}{}/data/test/animals?depth=5".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
     assert len(response.content) > 0
