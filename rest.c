@@ -623,6 +623,7 @@ rest_api_get (int flags, const char *path, const char *if_none_match, const char
     char *resp = NULL;
     int schflags = 0;
     int qdepth, rdepth;
+    int param_depth = 0;
     int diff;
 
     /* If a request is made to /restconf/data (in which case the path is now empty) it is analogous to a
@@ -767,7 +768,7 @@ rest_api_get (int flags, const char *path, const char *if_none_match, const char
     if (qmark)
     {
         /* Parse the query and attach to the tree */
-        if (!sch_query_to_gnode (g_schema, qschema, qnode, qmark, schflags, &schflags))
+        if (!sch_query_to_gnode (g_schema, qschema, qnode, qmark, schflags, &schflags, &param_depth))
         {
             rc = HTTP_CODE_BAD_REQUEST;
             error_tag = REST_E_TAG_INVALID_VALUE;
@@ -821,6 +822,12 @@ rest_api_get (int flags, const char *path, const char *if_none_match, const char
             sch_traverse_tree (g_schema, rschema, rnode, schflags | SCH_F_TRIM_DEFAULTS, 0);
         }
 
+        if ((schflags & SCH_F_DEPTH) && param_depth)
+        {
+            rnode = get_response_node (tree, rdepth);
+            sch_trim_tree_by_depth (g_schema, rschema, rnode, schflags, param_depth);
+        }
+
         /* Convert the result to JSON */
         rnode = get_response_node (tree, rdepth);
         if (rnode)
@@ -856,7 +863,10 @@ rest_api_get (int flags, const char *path, const char *if_none_match, const char
     }
     else
     {
-        json = json_object();
+        if ((schflags & SCH_F_DEPTH) && qschema && qnode)
+            json = sch_gnode_to_json (g_schema, qschema, qnode, schflags);
+        else
+            json = json_object();
     }
 
     json_string = json_dumps (json, JSON_ENCODE_ANY);
