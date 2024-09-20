@@ -82,6 +82,8 @@ typedef enum
 #define FLAGS_RESTCONF              (1 << 18)
 #define FLAGS_CONDITIONS            (1 << 19)
 #define FLAGS_IDREF_VALUES          (1 << 20)
+#define FLAGS_PUT_KEY_VALUE_DATA    (1 << 21)   /* PUT data must be a key:value object */
+#define FLAGS_PUT_REPLACE           (1 << 22)   /* PUT data replaces current contents */
 extern int default_accept_encoding;
 extern int default_content_encoding;
 typedef void *req_handle;

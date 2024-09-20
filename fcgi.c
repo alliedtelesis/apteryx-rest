@@ -169,7 +169,9 @@ get_flags (FCGX_Request * r)
         flags &= ~FLAGS_JSON_FORMAT_NS;
     if (flags & FLAGS_RESTCONF)
         flags |= FLAGS_CONDITIONS | FLAGS_IDREF_VALUES;
-
+    /* PUT flags for RESTCONF compliance */
+    if (flags & FLAGS_RESTCONF)
+        flags |= FLAGS_PUT_KEY_VALUE_DATA | FLAGS_PUT_REPLACE;
     return flags;
 }
 
