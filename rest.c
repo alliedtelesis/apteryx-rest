@@ -893,19 +893,36 @@ exit:
 static bool
 restconf_is_list_key_leaf_update (sch_node *api_subtree, GNode *child, GNode *tnode)
 {
-    sch_node *parent = sch_node_parent (api_subtree);
+    sch_node *parent1 = sch_node_parent (api_subtree);
+    sch_node *parent2 = sch_node_parent (parent1);   /* Might need to go up another level */
+    sch_node *list_parent = NULL;
     bool key_update = false;
+    bool case1 = true;
 
-    if (parent && sch_is_list (parent))
+    if (parent1 && sch_is_list (parent1))
     {
-        char *key = sch_list_key (parent);
+        list_parent = parent1;
+    }
+    else if (parent2 && sch_is_list (parent2))
+    {
+        list_parent = parent2;
+        case1 = false;
+    }
+    if (list_parent)
+    {
+        char *key = sch_list_key (list_parent);
+        char *list_name = sch_name (list_parent);
+        if (g_strcmp0 (list_name, APTERYX_NAME (tnode)) == 0)
+        {
+            tnode = tnode->children;
+        }
         for (GNode *node = g_node_first_sibling (tnode); node; node = g_node_next_sibling (node))
         {
             if (g_strcmp0 (key, APTERYX_NAME (node)) == 0 && node->children)
             {
                 char *value = APTERYX_NAME (node->children);
                 char *path = apteryx_node_path (child);
-                char *query = g_strdup_printf ("%s/%s", path, key);
+                char *query = case1 ? g_strdup_printf ("%s/%s", path, key) : g_strdup (path);
                 char *res = apteryx_get (query);
                 if (res && g_strcmp0 (res, value))
                     key_update = true;
@@ -916,6 +933,7 @@ restconf_is_list_key_leaf_update (sch_node *api_subtree, GNode *child, GNode *tn
                 break;
             }
         }
+        g_free (list_name);
         g_free (key);
     }
     return key_update;
@@ -1011,8 +1029,37 @@ rest_api_post (int flags, const char *path, const char *data, int length, const 
         }
     }
 
+    /* Run check For PUT requiring data to be a key/value object. */
+    if (flags & FLAGS_PUT_KEY_VALUE_DATA && flags & FLAGS_METHOD_PUT)
+    {
+        char *data_resource_name;
+        sch_node *parent = sch_node_parent (api_subtree);
+        json_t *put_value = json_loadb (data, strlen (data), JSON_DECODE_ANY, &error);
+
+        /* Find the data resource node name - go up one if we are at a list key node */
+        if (sch_is_list (parent))
+        {
+            data_resource_name = sch_name (parent);
+            api_subtree = parent;
+        }
+        else
+        {
+            data_resource_name = sch_name (api_subtree);
+        }
+        if (json_object_size (put_value) != 1 || json_object_get (put_value, data_resource_name) == NULL)
+        {
+            VERBOSE ("RESTCONF: Data \"%s\" is not a single key:value (child=%s, schema=%s)\n", data, data_resource_name,
+                     sch_name (api_subtree));
+            rc = HTTP_CODE_BAD_REQUEST;
+            error_tag = REST_E_TAG_INVALID_VALUE;
+            g_free (data_resource_name);
+            goto exit;
+        }
+        json = put_value;
+        g_free (data_resource_name);
+    }
     /* Parse the JSON data (support full path to leaf value) */
-    if (length && sch_is_leaf (api_subtree))
+    else if (length && sch_is_leaf (api_subtree))
     {
         char *name;
         sch_node *pschema = sch_node_parent (api_subtree);
@@ -1084,7 +1131,14 @@ rest_api_post (int flags, const char *path, const char *data, int length, const 
     /* Convert to GNode and validate the data */
     if (json)
     {
-        tree = sch_json_to_gnode (g_schema, api_subtree, json, schflags);
+        if (flags & FLAGS_PUT_KEY_VALUE_DATA && flags & FLAGS_METHOD_PUT)
+        {
+            tree = sch_json_to_gnode (g_schema, sch_node_parent (api_subtree), json, schflags);
+        }
+        else
+        {
+            tree = sch_json_to_gnode (g_schema, api_subtree, json, schflags);
+        }
         json_decref (json);
     }
 
@@ -1139,11 +1193,26 @@ rest_api_post (int flags, const char *path, const char *data, int length, const 
         goto exit;
     }
 
-    /* Check for replace */
-    if (flags & FLAGS_RESTCONF && flags & FLAGS_METHOD_PUT)
-        sch_traverse_tree (g_schema, api_subtree, tree, schflags | SCH_F_ADD_MISSING_NULL, 0);
+    /* Check for replace  - don't traverse tree if PUT is just setting a leaf */
+    if (flags & FLAGS_PUT_REPLACE && flags & FLAGS_METHOD_PUT)
+    {
+        GNode *node;
 
-    /* Write the combinded tree to apteryx */
+        /* Adjust the tree by ditching the first node under the root node. */
+        node = tree;
+        tree = tree->children;
+        g_node_unlink (tree);
+        g_free (node->data);
+        g_node_destroy (node);
+        g_free (tree->data);
+        tree->data = g_strdup ("/");
+        if (!sch_is_leaf (api_subtree))
+        {
+            sch_traverse_tree (g_schema, api_subtree, tree, schflags | SCH_F_ADD_MISSING_NULL, 0);
+        }
+    }
+
+    /* Write the combined tree to apteryx */
     child->children = tree->children;
     children = tree->children;
     tree->children = NULL;

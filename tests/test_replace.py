@@ -15,7 +15,7 @@ def test_restconf_replace_list_entry_new():
     ]
 }
 """
-    response = requests.put("{}{}/data/test/animals".format(server_uri, docroot), auth=server_auth, data=tree, headers=set_restconf_headers)
+    response = requests.put("{}{}/data/test/animals/animal".format(server_uri, docroot), auth=server_auth, data=tree, headers=set_restconf_headers)
     assert response.status_code == 204
 
 
@@ -30,7 +30,7 @@ def test_restconf_replace_list_entry_exists():
     ]
 }
 """
-    response = requests.put("{}{}/data/test/animals".format(server_uri, docroot), auth=server_auth, data=tree, headers=set_restconf_headers)
+    response = requests.put("{}{}/data/test/animals/animal".format(server_uri, docroot), auth=server_auth, data=tree, headers=set_restconf_headers)
     assert response.status_code == 204
     print(apteryx_traverse("/test/animals/animal/cat"))
     assert apteryx_get("/test/animals/animal/cat") == "Not found"
@@ -154,11 +154,11 @@ def test_restconf_replace_if_match_namespace():
 
 def test_restconf_replace_existing_list_key():
     data = '{"name" : "fox"}'
-    response = requests.put("{}{}/data/test/animals/animal=cat".format(server_uri, docroot), auth=server_auth, data=data, headers=set_restconf_headers)
+    response = requests.put("{}{}/data/test/animals/animal=cat/name".format(server_uri, docroot), auth=server_auth, data=data, headers=set_restconf_headers)
     assert response.status_code == 405
 
 
 def test_restconf_replace_existing_list_non_key():
     data = '{"colour" : "pink"}'
-    response = requests.put("{}{}/data/test/animals/animal=cat".format(server_uri, docroot), auth=server_auth, data=data, headers=set_restconf_headers)
+    response = requests.put("{}{}/data/test/animals/animal=cat/colour".format(server_uri, docroot), auth=server_auth, data=data, headers=set_restconf_headers)
     assert response.status_code == 204
