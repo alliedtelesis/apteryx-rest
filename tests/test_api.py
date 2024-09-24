@@ -397,12 +397,21 @@ def test_restconf_unsupported_encoding():
     assert response.status_code == 415
 
 
-def test_restconf_options():
-    response = requests.options("{}{}/data/".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+def test_restconf_options_rw():
+    response = requests.options("{}{}/data/test/settings/priority".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
     assert len(response.content) == 0
-    assert response.headers["allow"] == "GET,POST,PUT,PATCH,DELETE,HEAD,OPTIONS"
-    # assert response.headers["accept-patch"] == "application/yang-data+xml, application/yang-data+json"
+    assert response.headers["allow"] == "GET,HEAD,OPTIONS,POST,PUT,PATCH,DELETE"
+    assert response.headers["accept-patch"] == "application/yang-data+json"
+    assert response.headers["accept-patch"] == "application/yang-data+json"
+
+
+def test_restconf_options_r():
+    response = requests.options("{}{}/data/test/state/counter".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    assert response.status_code == 200
+    assert len(response.content) == 0
+    assert response.headers["allow"] == "GET,HEAD,OPTIONS"
+    assert response.headers["accept-patch"] == "application/yang-data+json"
     assert response.headers["accept-patch"] == "application/yang-data+json"
 
 
