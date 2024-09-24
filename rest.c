@@ -1439,6 +1439,91 @@ exit:
     return resp;
 }
 
+static char *
+rest_api_options (int flags, const char *path)
+{
+    sch_node *schema;
+    sch_ns *ns;
+    char *resp = NULL;
+    char *error_string = NULL;
+    char *options = NULL;
+    char *key;
+    char *colon;
+    char *_path = g_strdup (path);
+    char *ptr = strchr (_path, '=');
+    int len = 0;
+    int rc = HTTP_CODE_NOT_FOUND;
+
+    /* Substitute key equals value with a slash to make the sch_lookup work */
+    while (ptr)
+    {
+        *ptr = '/';
+        ptr = strchr (ptr, '=');
+    }
+
+    ptr = _path;
+    if (ptr[0] == '/')
+    {
+        ptr++;
+    }
+
+    key = strchr (ptr, '/');
+    if (key)
+    {
+        len = key - ptr;
+        key = g_strndup (ptr, len);
+    }
+    else
+    {
+        key = g_strdup (ptr);
+    }
+
+    colon = strchr (key, ':');
+    if (colon)
+    {
+        *colon = '\0';
+        colon++;
+        ptr += colon - key;
+    }
+
+    ns = sch_lookup_ns (g_schema, NULL, key, SCH_F_NS_MODEL_NAME, false);
+    schema = sch_lookup_with_ns (g_schema, ns, ptr);
+    g_free (_path);
+    g_free (key);
+
+    if (schema)
+    {
+        options = g_strdup_printf ("%s%s%s", sch_is_readable (schema) ? "GET,HEAD,OPTIONS" : "",
+                                    sch_is_writable (schema) ? "," : "",
+                                    sch_is_writable (schema) ? "POST,PUT,PATCH,DELETE" : "");
+        rc = HTTP_CODE_OK;
+    }
+
+    if (rc == HTTP_CODE_OK)
+    {
+        resp = g_strdup_printf ("Status: %u\r\n"
+                        "Allow: %s\r\n"
+                        "Accept-Patch: %s\r\n"
+                        "Content-Type: text/html\r\n\r\n", rc, options,
+                        flags & FLAGS_RESTCONF ? "application/yang-data+json" : "application/json");
+        g_free (options);
+    }
+    else
+    {
+        if (flags & FLAGS_RESTCONF)
+        {
+            error_string = restconf_error (rc, REST_E_TAG_INVALID_VALUE);
+        }
+        resp = g_strdup_printf ("Status: %d\r\n"
+                                "Content-Type: %s\r\n"
+                                "\r\n" "%s", rc,
+                                flags & FLAGS_RESTCONF ? "application/yang-data+json" : "application/json",
+                                error_string ? : "");
+        free (error_string);
+    }
+    return resp;
+}
+
 typedef struct WatchRequest
 {
     req_handle handle;
@@ -1711,6 +1796,13 @@ rest_api (req_handle handle, int flags, const char *rpath, const char *path,
         else
             resp = rest_api_get (flags, path, if_none_match, if_modified_since,
                                  remote_user, remote_addr);
+        if ((flags & FLAGS_METHOD_HEAD) && resp)
+        {
+            g_free (resp);
+            resp = g_strdup_printf ("Status: %d\r\n"
+                        "Content-Type: %s\r\n\r\n", HTTP_CODE_OK,
+                        flags & FLAGS_RESTCONF ? "application/yang-data+json" : "application/json");
+        }
     }
     else if (flags & (FLAGS_METHOD_POST|FLAGS_METHOD_PUT|FLAGS_METHOD_PATCH))
         resp = rest_api_post (flags, path, data, length, if_match, if_unmodified_since,
@@ -1718,13 +1810,8 @@ rest_api (req_handle handle, int flags, const char *rpath, const char *path,
     else if (flags & FLAGS_METHOD_DELETE)
         resp = rest_api_delete (flags, path, remote_user, remote_addr);
     else if (flags & FLAGS_METHOD_OPTIONS)
-    {
-        resp = g_strdup_printf ("Status: 200\r\n"
-                        "Allow: GET,POST,PUT,PATCH,DELETE,HEAD,OPTIONS\r\n"
-                        "Accept-Patch: %s\r\n"
-                        "Content-Type: text/html\r\n\r\n",
-                        flags & FLAGS_RESTCONF ? "application/yang-data+json" : "application/json");
-    }
+        resp = rest_api_options (flags, path);
+
     if (!resp)
     {
         resp = g_strdup_printf ("Status: 501\r\n"
