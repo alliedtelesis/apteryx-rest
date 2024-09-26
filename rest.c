@@ -1019,7 +1019,7 @@ rest_api_post (int flags, const char *path, const char *data, int length, const 
             time_t realtime;
             strptime (if_unmodified_since, "%a, %d %b %Y %H:%M:%S GMT", &last_modified);
             realtime = timegm (&last_modified);
-            if ((ts / 1000000) != (realtime - g_boottime))
+            if ((ts / 1000000) > (realtime - g_boottime))
             {
                 VERBOSE ("REST: Path \"%s\" modified since Time:%s\n", path, if_unmodified_since);
                 rc =  HTTP_CODE_PRECONDITION_FAILED;
