@@ -17,14 +17,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 #include "internal.h"
-#include "models/ietf-yang-library.h"
 #include "models/ietf-restconf-monitoring.h"
-
-/* Name for the set of modules */
-#define MODULES_STR "modules"
-#define SCHEMA_STR "schema"
-#define DATASTORE_STR "datastore"
-#define COMMON_STR "common"
 
 /* List of supported capabilities. This is hard-coded for now, if we add a
  * capability in the code, we need to update this table. Null terminate it
@@ -87,119 +80,6 @@ add_leaf_strdup (GNode *root, const char *node_name, const char *value)
     }
 
     return NULL;
-}
-
-/**
- * Add an entry to the apteryx database for each model known to resconf
- *
- * @param root - The node the leaf will be added to
- */
-static void
-schema_set_model_information (sch_instance *schema, GNode *root)
-{
-    GNode *gnode;
-    sch_loaded_model *loaded;
-    GList *list;
-    GList *loaded_models = sch_get_loaded_models (schema);
-
-    for (list = g_list_first (loaded_models); list; list = g_list_next (list))
-    {
-        loaded = list->data;
-
-        if (loaded->model && strlen (loaded->model))
-        {
-            gnode = add_leaf_strdup (root, YANG_LIBRARY_MODULE_SET_MODULE_PATH,
-                                     loaded->model);
-
-            add_leaf_strdup (gnode, MODULES_STATE_MODULE_NAME, loaded->model);
-            if (loaded->version)
-            {
-                add_leaf_strdup (gnode, MODULES_STATE_MODULE_REVISION,
-                                 loaded->version);
-            }
-            if (loaded->ns_href)
-            {
-                add_leaf_strdup (gnode, MODULES_STATE_MODULE_NAMESPACE, loaded->ns_href);
-            }
-            if (loaded->features)
-            {
-                gchar **split;
-                int count;
-                int i;
-
-                split = g_strsplit (loaded->features, ",", 0);
-                count = g_strv_length (split);
-                for (i = 0; i < count; i++)
-                {
-                    char *feature_path;
-                    feature_path =
-                        g_strdup_printf ("%s/%s", YANG_LIBRARY_MODULE_SET_MODULE_FEATURE, split[i]);
-                    add_leaf_strdup (gnode, feature_path, split[i]);
-                    g_free (feature_path);
-                }
-                g_strfreev (split);
-            }
-            if (loaded->deviations)
-            {
-                gchar **split;
-                int count;
-                int i;
-
-                split = g_strsplit (loaded->deviations, ",", 0);
-                count = g_strv_length (split);
-                for (i = 0; i < count; i++)
-                {
-                    char *deviation_path;
-                    deviation_path =
-                        g_strdup_printf ("%s/%s", YANG_LIBRARY_MODULE_SET_MODULE_DEVIATION, split[i]);
-                    add_leaf_strdup (gnode, deviation_path, split[i]);
-                    g_free (deviation_path);
-                }
-                g_strfreev (split);
-            }
-        }
-    }
-}
-
-/**
- * Given a schema create the Apteryx data for the ietf-yang-library model required
- * by restconf.
- *
- * @param g_schema - The root schema xml node
- */
-void
-yang_library_create (sch_instance *schema)
-{
-    GNode *root;
-    GNode *modules;
-    GNode *datastore;
-    GNode *tmp;
-    GNode *sch_tmp;
-    time_t now = time (NULL);
-    char set_id[24];
-
-    root = APTERYX_NODE (NULL, g_strdup (YANG_LIBRARY_PATH));
-    modules = add_leaf_strdup (root, YANG_LIBRARY_SCHEMA_MODULE_SET, COMMON_STR);
-    add_leaf_strdup (modules, YANG_LIBRARY_MODULE_SET_NAME, COMMON_STR);
-    schema_set_model_information (schema, modules);
-
-    tmp = add_leaf_strdup (root, SCHEMA_STR, SCHEMA_STR);
-    add_leaf_strdup (tmp, YANG_LIBRARY_SCHEMA_NAME, COMMON_STR);
-    sch_tmp = add_leaf_strdup (tmp, YANG_LIBRARY_SCHEMA_MODULE_SET, COMMON_STR);
-    add_leaf_strdup (sch_tmp, COMMON_STR, COMMON_STR);
-
-
-    datastore = add_leaf_strdup (root, DATASTORE_STR, DATASTORE_STR);
-    add_leaf_strdup (datastore, YANG_LIBRARY_DATASTORE_NAME, "ietf-datastores:running");
-    add_leaf_strdup (datastore, YANG_LIBRARY_DATASTORE_SCHEMA, COMMON_STR);
-
-    apteryx_set_tree (root);
-    apteryx_free_tree (root);
-
-    /* Each time this routine is run the content-id will be set to a unique id based
-     * on the clock */
-    snprintf (set_id, sizeof (set_id), "%" PRIx64 "", now);
-    apteryx_set (YANG_LIBRARY_CONTENT_ID, set_id);
 }
 
 /**

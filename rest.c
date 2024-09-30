@@ -1968,13 +1968,12 @@ rest_init (const char *path)
     g_boottime += (monotime.tv_sec - monotime_raw.tv_sec);
 
     /* Load Data Models */
-    g_schema = sch_load (path);
+    g_schema = sch_load_model_list_yang_library (path);
     if (!g_schema)
     {
         return false;
     }
 
-    yang_library_create (g_schema);
     restconf_monitoring_create (g_schema);
 
     /* Register with the YANG condition parser */
