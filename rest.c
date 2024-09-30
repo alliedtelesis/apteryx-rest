@@ -1674,24 +1674,18 @@ rest_decode_uri (char *path)
 
     while (*in)
     {
-        if(*in == '%' && strlen (in) > 2 && isxdigit (in[1]) && isxdigit (in[2]))
+        uint8_t value;
+
+        /* We decode all escaped special characters except '/'. W3C
+           recommendations suggest that while '/' in a path indicates
+           hierarchical structure, '%2F' does not and is only interpreted
+           by the application layer. Hence we conclude that it is not
+           likely that a user would encode a '/' that was supposed to
+           be part of the path.
+         */
+        if (sscanf (in, "%%%02hhx", &value) == 1 && value != 0x2F)
         {
-            char char_1;
-            char char_2;
-
-            char_1 = toupper (in[1]);
-            if(char_1 >= 'A')
-                char_1 -= ('A' - 10);
-            else
-                char_1 -= '0';
-
-            char_2 = toupper (in[2]);
-            if(char_2 >= 'A')
-                char_2 -= ('A' - 10);
-            else
-                char_2 -= '0';
-
-            *out++ = (char_1 * 16) + char_2;
+            *out++ = (char) value;
             in +=3;
         }
         else

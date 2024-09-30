@@ -1046,6 +1046,21 @@ def test_restapi_set_leaf_list_invalid():
     assert response.status_code == 400
 
 
+def test_restapi_set_leaf_list_array():
+    data = """
+{
+    "toy": [
+        "ball",
+        "mouse"
+    ]
+}
+    """
+    response = requests.post("{}{}/test/animals/animal/cat/toys".format(server_uri, docroot), verify=False, auth=server_auth, headers={"X-JSON-Array": "on"}, data=data)
+    assert response.status_code == 201
+    assert apteryx_get("/test/animals/animal/cat/toys/toy/ball") == "ball"
+    assert apteryx_get("/test/animals/animal/cat/toys/toy/mouse") == "mouse"
+
+
 def test_restapi_set_tree_list_full_arrays():
     tree = """
 {
