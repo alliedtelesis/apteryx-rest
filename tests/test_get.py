@@ -346,6 +346,21 @@ def test_restconf_get_list_select_one_by_path_trunk():
     """)
 
 
+def test_restconf_get_list_reserved_in_key():
+    characters = "-._~!$&()*+;=@,: /"
+    escaped = "/"
+    apteryx_prune("/test/animals")
+    for c in characters:
+        key = f"skinny%{ord(c):02X}frog" if (c in escaped) else f"skinny{c}frog"
+        apteryx_set(f"/test/animals/animal/{key}/name", f"skinny{c}frog")
+    response = requests.get("{}{}/data/test/animals".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    for c in characters:
+        assert next((x for x in response.json()['animals']['animal'] if x['name'] == f"skinny{c}frog"), None)
+
+
 def test_restconf_get_list_select_two_trunk():
     response = requests.get("{}{}/data/testing:test/animals/animal=hamster/food=banana".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -473,6 +488,41 @@ def test_restconf_get_leaf_list_integers():
         33,
         99,
         111
+    ]
+}
+    """)
+
+
+def test_restconf_get_list_leaf_reserved_in_key():
+    characters = "-._~!$&()*+;=@,: /"
+    escaped = "/"
+    for c in characters:
+        key = f"red%{ord(c):02X}ball" if (c in escaped) else f"red{c}ball"
+        apteryx_set(f"/test/animals/animal/cat/toys/toy/{key}", f"red{c}ball")
+    response = requests.get("{}{}/data/test/animals/animal=cat/toys".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    for c in characters:
+        assert f"red{c}ball" in response.json()['toys']['toy']
+
+
+def test_restconf_get_list_leaf_entry_escaped():
+    characters = "-._~!$&()*+;=@,: /"
+    escaped = "/"
+    for c in characters:
+        key = f"red%{ord(c):02X}ball" if (c in escaped) else f"red{c}ball"
+        apteryx_set(f"/test/animals/animal/cat/toys/toy/{key}", f"red{c}ball")
+    for c in characters:
+        response = requests.get("{}{}/data/test/animals/animal=cat/toys/toy={}".format(server_uri, docroot, f"red%{ord(c):02X}ball"),
+                                auth=server_auth, headers=get_restconf_headers)
+        print(json.dumps(response.json(), indent=4, sort_keys=True))
+        assert response.status_code == 200
+        assert response.headers["Content-Type"] == "application/yang-data+json"
+        assert response.json() == json.loads("""
+{
+    "toy": [
+        """ + f'"red{c}ball"' + """
     ]
 }
     """)

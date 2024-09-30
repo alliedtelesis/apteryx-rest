@@ -309,6 +309,24 @@ def test_restconf_create_list_entry_ok():
     assert apteryx_get("/test/animals/animal/frog/name") == "frog"
 
 
+def test_restconf_create_list_entry_reserved_key():
+    characters = "-._~!$&()*+;=@,: /"
+    escaped = "/"
+    tree = """
+{
+    "animal" : [
+        """ + '{"name": "skinny' + 'frog"},\n\t{"name": "skinny'.join(characters) + 'frog"}' + """
+    ]
+}
+"""
+    response = requests.post("{}{}/data/test/animals".format(server_uri, docroot), auth=server_auth, data=tree, headers=set_restconf_headers)
+    assert response.status_code == 201
+    print(apteryx_traverse("/test/animals/animal"))
+    for c in characters:
+        key = f"skinny%{ord(c):02X}frog" if (c in escaped) else f"skinny{c}frog"
+        assert apteryx_get(f"/test/animals/animal/{key}/name") == f"skinny{c}frog"
+
+
 def test_restconf_create_list_leaf_string_ok():
     tree = """
 {
@@ -323,6 +341,23 @@ def test_restconf_create_list_leaf_string_ok():
     print(apteryx_traverse("/test/animals/animal/cat"))
     assert apteryx_get("/test/animals/animal/cat/toys/toy/ball") == "ball"
     assert apteryx_get("/test/animals/animal/cat/toys/toy/mouse") == "mouse"
+
+
+def test_restconf_create_list_leaf_reserved_in_key():
+    characters = "-._~!$&()*+;=@,: /"
+    escaped = "/"
+    tree = """
+{
+    "toy": [
+        """ + '"red' + 'ball","red'.join(characters) + 'ball"' + """
+    ]
+}
+    """
+    response = requests.post("{}{}/data/test/animals/animal=cat/toys".format(server_uri, docroot), auth=server_auth, data=tree, headers=set_restconf_headers)
+    assert response.status_code == 201
+    for c in characters:
+        key = f"red%{ord(c):02X}ball" if (c in escaped) else f"red{c}ball"
+        assert apteryx_get(f"/test/animals/animal/cat/toys/toy/{key}") == f"red{c}ball"
 
 
 def test_restconf_create_list_leaf_integer_ok():

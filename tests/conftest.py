@@ -65,11 +65,11 @@ db_default = [
 
 
 def apteryx_set(path, value):
-    assert subprocess.check_output('%s -s %s%s -- "%s"' % (APTERYX, APTERYX_URL, path, value), shell=True).strip().decode('utf-8') != "Failed"
+    assert subprocess.check_output("%s -s '%s%s' -- '%s'" % (APTERYX, APTERYX_URL, path, value), shell=True).strip().decode('utf-8') != "Failed"
 
 
 def apteryx_get(path):
-    return subprocess.check_output("%s -g %s%s" % (APTERYX, APTERYX_URL, path), shell=True).strip().decode('utf-8')
+    return subprocess.check_output("%s -g '%s%s'" % (APTERYX, APTERYX_URL, path), shell=True).strip().decode('utf-8')
 
 
 def apteryx_prune(path):
