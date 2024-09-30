@@ -19,7 +19,7 @@
 #include "internal.h"
 /* From libapteryx */
 extern bool add_callback (const char *type, const char *path, void *fn, bool value,
-                          void *data, uint32_t flags);
+                          void *data, uint32_t flags, guint timeout_ms);
 extern bool delete_callback (const char *type, const char *path, void *fn, void *data);
 #include <jansson.h>
 
@@ -951,8 +951,8 @@ restconf_is_list_key_leaf_update (sch_node *api_subtree, GNode *child, GNode *tn
 
 static char *
 rest_api_post (int flags, const char *path, const char *data, int length, const char *if_match,
-               const char *if_unmodified_since, const char *server_name, const char *server_port,
-               const char *remote_user, const char *remote_addr)
+               const char *if_unmodified_since, const char *if_none_match, const char *server_name,
+               const char *server_port, const char *remote_user, const char *remote_addr)
 {
     GNode *root = NULL;
     GNode *tree = NULL;
@@ -1019,6 +1019,14 @@ rest_api_post (int flags, const char *path, const char *data, int length, const 
             ts != strtoull (if_match, NULL, 16))
         {
             VERBOSE ("REST: Path \"%s\" modified since ETag:%s\n", path, if_match);
+            rc = HTTP_CODE_PRECONDITION_FAILED;
+            error_tag = REST_E_TAG_OPER_FAILED;
+            goto exit;
+        }
+        if (if_none_match && if_none_match[0] != '\0' &&
+            ts == strtoull (if_none_match, NULL, 16))
+        {
+            VERBOSE ("REST: Path \"%s\" unmodified since ETag:%s\n", path, if_none_match);
             rc = HTTP_CODE_PRECONDITION_FAILED;
             error_tag = REST_E_TAG_OPER_FAILED;
             goto exit;
@@ -1641,7 +1649,7 @@ rest_api_watch (req_handle handle, int flags, const char *path)
     g_watch_requests = g_list_append (g_watch_requests, req);
     pthread_mutex_unlock (&g_watch_lock);
     add_callback (APTERYX_WATCHERS_PATH, req->wpath, (void *) watch_callback, true,
-                  (void *) req, 1);
+                  (void *) req, 1, 0);
 
     send_response (handle, "Status: 200\r\n", false);
     send_response (handle, "Connection: 'keep-alive'\r\n", false);
@@ -1816,7 +1824,7 @@ rest_api (req_handle handle, int flags, const char *rpath, const char *path,
     }
     else if (flags & (FLAGS_METHOD_POST|FLAGS_METHOD_PUT|FLAGS_METHOD_PATCH))
         resp = rest_api_post (flags, path, data, length, if_match, if_unmodified_since,
-                              server_name, server_port, remote_user, remote_addr);
+                              if_none_match, server_name, server_port, remote_user, remote_addr);
     else if (flags & FLAGS_METHOD_DELETE)
         resp = rest_api_delete (flags, path, remote_user, remote_addr);
     else if (flags & FLAGS_METHOD_OPTIONS)
@@ -1837,6 +1845,12 @@ rest_api (req_handle handle, int flags, const char *rpath, const char *path,
     return;
 }
 
+static bool
+rest_yang_library_callback (const char *model, int flags, const char *features)
+{
+    return sch_update_model (g_schema, model, flags, features);
+}
+
 gboolean
 rest_init (const char *path)
 {
@@ -1852,14 +1866,16 @@ rest_init (const char *path)
     clock_gettime(CLOCK_MONOTONIC_RAW, &monotime_raw);
     g_boottime += (monotime.tv_sec - monotime_raw.tv_sec);
 
+    /* Initialize the yang library */
+    yang_library_init (rest_yang_library_callback);
+
     /* Load Data Models */
-    g_schema = sch_load (path);
+    g_schema = sch_load_model_list_yang_library (path, true);
     if (!g_schema)
     {
         return false;
     }
 
-    yang_library_create (g_schema);
     restconf_monitoring_create (g_schema);
 
     /* Register with the YANG condition parser */
@@ -1872,6 +1888,8 @@ rest_init (const char *path)
 void
 rest_shutdown (void)
 {
+    yang_library_shutdown ();
+
     /* Cleanup datamodels */
     if (g_schema)
         sch_free (g_schema);
