@@ -230,6 +230,32 @@ def test_restconf_get_if_none_match_namespace():
     assert response.json() == json.loads('{ "testing:enable": false }')
 
 
+def test_restconf_get_if_none_match_put():
+    response = requests.get(f"{server_uri}{docroot}/test/settings/enable", auth=server_auth, headers=get_restconf_headers)
+    assert response.status_code == 200
+    assert len(response.content) > 0
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    etag = response.headers.get("Etag")
+    assert response.json() == json.loads('{ "enable": true }')
+    headers_get_inm = {**set_restconf_headers, 'If-None-Match': etag}
+    response = requests.get(f"{server_uri}{docroot}/test/settings/enable", auth=server_auth, headers=headers_get_inm)
+    assert response.status_code == 304
+    assert len(response.content) == 0
+    data = """{"enable": "false"}"""
+    headers = {**set_restconf_headers, 'If-None-Match': etag}
+    response = requests.put(f"{server_uri}{docroot}/test/settings/enable", data=data, auth=server_auth, headers=headers)
+    assert response.status_code == 412
+    headers = {**set_restconf_headers}
+    response = requests.put(f"{server_uri}{docroot}/test/settings/enable", data=data, auth=server_auth, headers=headers)
+    assert response.status_code == 204
+    response = requests.get(f"{server_uri}{docroot}/test/settings/enable", auth=server_auth, headers=headers_get_inm)
+    assert response.status_code == 200
+    assert len(response.content) > 0
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.headers.get("Etag") is not None and response.headers.get("Etag") != etag
+    assert response.json() == json.loads('{ "enable": false }')
+
+
 # TODO 3.5.3. Any reserved characters MUST be percent-encoded, according to Sections 2.1 and 2.5 of [RFC3986].
 # TODO 3.5.4.  Default Handling
 
