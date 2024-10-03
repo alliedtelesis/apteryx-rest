@@ -890,7 +890,7 @@ exit:
                                 "Content-Type: %s\r\n"
                                 "\r\n" "%s", rc, last_modified, ts,
                                 flags & FLAGS_RESTCONF ? "application/yang-data+json" : "application/json",
-                                json_string ? : "");
+                                json_string && (flags & FLAGS_METHOD_HEAD) == 0 ? json_string : "");
     }
     free (json_string);
     if (json)
@@ -1800,13 +1800,6 @@ rest_api (req_handle handle, int flags, const char *rpath, const char *path,
         else
             resp = rest_api_get (flags, path, if_none_match, if_modified_since,
                                  remote_user, remote_addr);
-        if ((flags & FLAGS_METHOD_HEAD) && resp)
-        {
-            g_free (resp);
-            resp = g_strdup_printf ("Status: %d\r\n"
-                        "Content-Type: %s\r\n\r\n", HTTP_CODE_OK,
-                        flags & FLAGS_RESTCONF ? "application/yang-data+json" : "application/json");
-        }
     }
     else if (flags & (FLAGS_METHOD_POST|FLAGS_METHOD_PUT|FLAGS_METHOD_PATCH))
         resp = rest_api_post (flags, path, data, length, if_match, if_unmodified_since,
