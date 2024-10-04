@@ -1249,6 +1249,25 @@ def test_restapi_delete_list_entry():
     assert apteryx.get('/test/animals/animal/dog/colour') == 'brown'
 
 
+def test_restapi_delete_list_entry_with_sublist():
+    apteryx.set("/test/settings/users/fred/name", "fred")
+    apteryx.set("/test/settings/users/fred/groups/admin", "admin")
+    response = requests.delete("{}{}/test/settings/users/fred".format(server_uri, docroot), verify=False, auth=server_auth)
+    assert response.status_code == 200 or response.status_code == 204
+    assert len(response.content) == 0
+    print(apteryx.get_tree("/test/settings/users"))
+    assert not apteryx.search("/test/settings/users/")
+
+
+def test_restapi_delete_list_entry_with_empty_sublist():
+    apteryx.set("/test/settings/users/fred/name", "fred")
+    response = requests.delete("{}{}/test/settings/users/fred".format(server_uri, docroot), verify=False, auth=server_auth)
+    assert response.status_code == 200 or response.status_code == 204
+    assert len(response.content) == 0
+    print(apteryx.get_tree("/test/settings/users"))
+    assert not apteryx.search("/test/settings/users/")
+
+
 def test_restapi_search_node():
     response = requests.get("{}{}/test/settings/enable/".format(server_uri, docroot), verify=False, auth=server_auth)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
