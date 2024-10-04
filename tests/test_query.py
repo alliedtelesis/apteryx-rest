@@ -1,7 +1,8 @@
+import apteryx
 import json
 import pytest
 import requests
-from conftest import server_uri, server_auth, docroot, apteryx_set, get_restconf_headers, apteryx_proxy
+from conftest import server_uri, server_auth, docroot, get_restconf_headers
 
 
 def test_restconf_query_empty():
@@ -67,12 +68,12 @@ def test_restconf_query_invalid_queries():
 
 
 def test_restconf_query_content_all():
-    apteryx_set("/test/settings/time/day", "5")
-    apteryx_set("/test/settings/time/hour", "12")
-    apteryx_set("/test/settings/time/active", "true")
-    apteryx_set("/test/settings/users/alfred/name", "alfred")
-    apteryx_set("/test/settings/users/alfred/age", "87")
-    apteryx_set("/test/settings/users/alfred/active", "true")
+    apteryx.set("/test/settings/time/day", "5")
+    apteryx.set("/test/settings/time/hour", "12")
+    apteryx.set("/test/settings/time/active", "true")
+    apteryx.set("/test/settings/users/alfred/name", "alfred")
+    apteryx.set("/test/settings/users/alfred/age", "87")
+    apteryx.set("/test/settings/users/alfred/active", "true")
     response = requests.get("{}{}/data/test/settings?content=all".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
     assert len(response.content) > 0
@@ -101,12 +102,12 @@ def test_restconf_query_content_all():
 
 
 def test_restconf_query_content_config():
-    apteryx_set("/test/settings/time/day", "5")
-    apteryx_set("/test/settings/time/hour", "12")
-    apteryx_set("/test/settings/time/active", "true")
-    apteryx_set("/test/settings/users/alfred/name", "alfred")
-    apteryx_set("/test/settings/users/alfred/age", "87")
-    apteryx_set("/test/settings/users/alfred/active", "true")
+    apteryx.set("/test/settings/time/day", "5")
+    apteryx.set("/test/settings/time/hour", "12")
+    apteryx.set("/test/settings/time/active", "true")
+    apteryx.set("/test/settings/users/alfred/name", "alfred")
+    apteryx.set("/test/settings/users/alfred/age", "87")
+    apteryx.set("/test/settings/users/alfred/active", "true")
     response = requests.get("{}{}/data/test/settings?content=config".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
     assert len(response.content) > 0
@@ -136,12 +137,12 @@ def test_restconf_query_content_config():
 
 
 def test_restconf_query_content_nonconfig():
-    apteryx_set("/test/settings/time/day", "5")
-    apteryx_set("/test/settings/time/hour", "12")
-    apteryx_set("/test/settings/time/active", "true")
-    apteryx_set("/test/settings/users/alfred/name", "alfred")
-    apteryx_set("/test/settings/users/alfred/age", "87")
-    apteryx_set("/test/settings/users/alfred/active", "true")
+    apteryx.set("/test/settings/time/day", "5")
+    apteryx.set("/test/settings/time/hour", "12")
+    apteryx.set("/test/settings/time/active", "true")
+    apteryx.set("/test/settings/users/alfred/name", "alfred")
+    apteryx.set("/test/settings/users/alfred/age", "87")
+    apteryx.set("/test/settings/users/alfred/active", "true")
     response = requests.get("{}{}/data/test/settings?content=nonconfig".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
     assert len(response.content) > 0
@@ -162,12 +163,12 @@ def test_restconf_query_content_nonconfig():
 
 
 def test_restconf_query_depth_unbounded():
-    apteryx_set("/test/settings/time/day", "5")
-    apteryx_set("/test/settings/time/hour", "12")
-    apteryx_set("/test/settings/time/active", "true")
-    apteryx_set("/test/settings/users/alfred/name", "alfred")
-    apteryx_set("/test/settings/users/alfred/age", "87")
-    apteryx_set("/test/settings/users/alfred/active", "true")
+    apteryx.set("/test/settings/time/day", "5")
+    apteryx.set("/test/settings/time/hour", "12")
+    apteryx.set("/test/settings/time/active", "true")
+    apteryx.set("/test/settings/users/alfred/name", "alfred")
+    apteryx.set("/test/settings/users/alfred/age", "87")
+    apteryx.set("/test/settings/users/alfred/active", "true")
     response = requests.get("{}{}/data/test/settings?depth=unbounded".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
     assert len(response.content) > 0
@@ -210,12 +211,12 @@ def test_restconf_query_depth_1_leaf():
 
 
 def test_restconf_query_depth_1_trunk():
-    apteryx_set("/test/settings/time/day", "5")
-    apteryx_set("/test/settings/time/hour", "12")
-    apteryx_set("/test/settings/time/active", "true")
-    apteryx_set("/test/settings/users/alfred/name", "alfred")
-    apteryx_set("/test/settings/users/alfred/age", "87")
-    apteryx_set("/test/settings/users/alfred/active", "true")
+    apteryx.set("/test/settings/time/day", "5")
+    apteryx.set("/test/settings/time/hour", "12")
+    apteryx.set("/test/settings/time/active", "true")
+    apteryx.set("/test/settings/users/alfred/name", "alfred")
+    apteryx.set("/test/settings/users/alfred/age", "87")
+    apteryx.set("/test/settings/users/alfred/active", "true")
     response = requests.get("{}{}/data/test/settings?depth=1".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
     assert len(response.content) > 0
@@ -224,9 +225,9 @@ def test_restconf_query_depth_1_trunk():
 
 
 def test_restconf_query_depth_1_list():
-    apteryx_set("/test/settings/users/alfred/name", "alfred")
-    apteryx_set("/test/settings/users/alfred/age", "87")
-    apteryx_set("/test/settings/users/alfred/active", "true")
+    apteryx.set("/test/settings/users/alfred/name", "alfred")
+    apteryx.set("/test/settings/users/alfred/age", "87")
+    apteryx.set("/test/settings/users/alfred/active", "true")
     response = requests.get("{}{}/data/test/settings/users?depth=1".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
     assert len(response.content) > 0
@@ -246,12 +247,12 @@ def test_restconf_query_depth_1_list():
 
 
 def test_restconf_query_depth_2_trunk():
-    apteryx_set("/test/settings/time/day", "5")
-    apteryx_set("/test/settings/time/hour", "12")
-    apteryx_set("/test/settings/time/active", "true")
-    apteryx_set("/test/settings/users/alfred/name", "alfred")
-    apteryx_set("/test/settings/users/alfred/age", "87")
-    apteryx_set("/test/settings/users/alfred/active", "true")
+    apteryx.set("/test/settings/time/day", "5")
+    apteryx.set("/test/settings/time/hour", "12")
+    apteryx.set("/test/settings/time/active", "true")
+    apteryx.set("/test/settings/users/alfred/name", "alfred")
+    apteryx.set("/test/settings/users/alfred/age", "87")
+    apteryx.set("/test/settings/users/alfred/active", "true")
     response = requests.get("{}{}/data/test/settings?depth=2".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
     assert len(response.content) > 0
@@ -272,12 +273,12 @@ def test_restconf_query_depth_2_trunk():
 
 
 def test_restconf_query_depth_2_list():
-    apteryx_set("/test/settings/time/day", "5")
-    apteryx_set("/test/settings/time/hour", "12")
-    apteryx_set("/test/settings/time/active", "true")
-    apteryx_set("/test/settings/users/alfred/name", "alfred")
-    apteryx_set("/test/settings/users/alfred/age", "87")
-    apteryx_set("/test/settings/users/alfred/active", "true")
+    apteryx.set("/test/settings/time/day", "5")
+    apteryx.set("/test/settings/time/hour", "12")
+    apteryx.set("/test/settings/time/active", "true")
+    apteryx.set("/test/settings/users/alfred/name", "alfred")
+    apteryx.set("/test/settings/users/alfred/age", "87")
+    apteryx.set("/test/settings/users/alfred/active", "true")
     response = requests.get("{}{}/data/test/settings/users?depth=2".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
     assert len(response.content) > 0
@@ -296,12 +297,12 @@ def test_restconf_query_depth_2_list():
 
 
 def test_restconf_query_depth_3():
-    apteryx_set("/test/settings/time/day", "5")
-    apteryx_set("/test/settings/time/hour", "12")
-    apteryx_set("/test/settings/time/active", "true")
-    apteryx_set("/test/settings/users/alfred/name", "alfred")
-    apteryx_set("/test/settings/users/alfred/age", "87")
-    apteryx_set("/test/settings/users/alfred/active", "true")
+    apteryx.set("/test/settings/time/day", "5")
+    apteryx.set("/test/settings/time/hour", "12")
+    apteryx.set("/test/settings/time/active", "true")
+    apteryx.set("/test/settings/users/alfred/name", "alfred")
+    apteryx.set("/test/settings/users/alfred/age", "87")
+    apteryx.set("/test/settings/users/alfred/active", "true")
     response = requests.get("{}{}/data/test/settings?depth=3".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
     assert len(response.content) > 0
@@ -1042,7 +1043,7 @@ def test_restconf_query_field_ns_bad():
 
 
 def test_restconf_query_with_defaults_explicit_leaf():
-    apteryx_set("/test/settings/debug", "0")
+    apteryx.set("/test/settings/debug", "0")
     response = requests.get("{}{}/data/test/settings/debug?with-defaults=explicit".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
     assert len(response.content) > 0
@@ -1055,7 +1056,7 @@ def test_restconf_query_with_defaults_explicit_leaf():
 
 
 def test_restconf_query_with_defaults_trim_leaf():
-    apteryx_set("/test/settings/debug", "0")
+    apteryx.set("/test/settings/debug", "0")
     response = requests.get("{}{}/data/test/settings/debug?with-defaults=trim".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
     assert len(response.content) > 0
@@ -1067,7 +1068,7 @@ def test_restconf_query_with_defaults_trim_leaf():
 
 
 def test_restconf_query_with_defaults_report_all_leaf():
-    apteryx_set("/test/settings/debug", "")
+    apteryx.set("/test/settings/debug", "")
     response = requests.get("{}{}/data/test/settings/debug?with-defaults=report-all".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
     assert len(response.content) > 0
@@ -1097,7 +1098,7 @@ def test_restconf_query_with_defaults_report_all_tagged():
 
 
 def test_restconf_query_with_defaults_explicit_trunk():
-    apteryx_set("/test/settings/debug", "0")
+    apteryx.set("/test/settings/debug", "0")
     response = requests.get("{}{}/data/test/settings?with-defaults=explicit".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
     assert len(response.content) > 0
@@ -1117,10 +1118,10 @@ def test_restconf_query_with_defaults_explicit_trunk():
 
 
 def test_restconf_query_with_defaults_trim_trunk_data():
-    apteryx_set("/test/settings/users/alfred/name", "alfred")
-    apteryx_set("/test/settings/users/alfred/age", "87")
-    apteryx_set("/test/settings/users/alfred/active", "false")
-    apteryx_set("/test/settings/debug", "0")
+    apteryx.set("/test/settings/users/alfred/name", "alfred")
+    apteryx.set("/test/settings/users/alfred/age", "87")
+    apteryx.set("/test/settings/users/alfred/active", "false")
+    apteryx.set("/test/settings/debug", "0")
     response = requests.get("{}{}/data/test/settings?with-defaults=trim".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
     assert len(response.content) > 0
@@ -1144,9 +1145,9 @@ def test_restconf_query_with_defaults_trim_trunk_data():
 
 
 def test_restconf_query_with_defaults_report_all_trunk_data():
-    apteryx_set("/test/settings/users/alfred/name", "alfred")
-    apteryx_set("/test/settings/users/alfred/age", "87")
-    apteryx_set("/test/settings/debug", "")
+    apteryx.set("/test/settings/users/alfred/name", "alfred")
+    apteryx.set("/test/settings/users/alfred/age", "87")
+    apteryx.set("/test/settings/debug", "")
     response = requests.get("{}{}/data/test/settings?with-defaults=report-all".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
     assert len(response.content) > 0
@@ -1175,12 +1176,12 @@ def test_restconf_query_with_defaults_report_all_trunk_data():
 
 
 def test_restconf_query_with_defaults_report_all_trunk_empty():
-    apteryx_set("/test/settings/debug", "")
-    apteryx_set("/test/settings/enable", "")
-    apteryx_set("/test/settings/priority", "")
-    apteryx_set("/test/settings/hidden", "")
-    apteryx_set("/test/settings/readonly", "")
-    apteryx_set("/test/settings/volume", "")
+    apteryx.set("/test/settings/debug", "")
+    apteryx.set("/test/settings/enable", "")
+    apteryx.set("/test/settings/priority", "")
+    apteryx.set("/test/settings/hidden", "")
+    apteryx.set("/test/settings/readonly", "")
+    apteryx.set("/test/settings/volume", "")
     response = requests.get("{}{}/data/test/settings?with-defaults=report-all".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
     assert len(response.content) > 0
@@ -1221,7 +1222,7 @@ def test_restconf_query_with_defaults_empty_list():
 
 
 def test_restconf_query_with_defaults_empty_leaf_list():
-    apteryx_set("/test/settings/users/fred/name", "fred")
+    apteryx.set("/test/settings/users/fred/name", "fred")
     response = requests.get("{}{}/data/test/settings/users=fred/groups?with-defaults=report-all".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
     assert len(response.content) > 0
@@ -1236,12 +1237,12 @@ def test_restconf_query_with_defaults_empty_leaf_list():
 
 
 def test_restconf_query_with_defaults_explicit_list():
-    apteryx_set("/test/settings/users/alfred/name", "alfred")
-    apteryx_set("/test/settings/users/alfred/age", "87")
-    apteryx_set("/test/settings/users/alfred/active", "true")
-    apteryx_set("/test/settings/users/mildred/name", "mildred")
-    apteryx_set("/test/settings/users/mildred/age", "84")
-    apteryx_set("/test/settings/users/mildred/active", "false")
+    apteryx.set("/test/settings/users/alfred/name", "alfred")
+    apteryx.set("/test/settings/users/alfred/age", "87")
+    apteryx.set("/test/settings/users/alfred/active", "true")
+    apteryx.set("/test/settings/users/mildred/name", "mildred")
+    apteryx.set("/test/settings/users/mildred/age", "84")
+    apteryx.set("/test/settings/users/mildred/active", "false")
     response = requests.get("{}{}/data/test/settings/users?with-defaults=explicit".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
     assert len(response.content) > 0
@@ -1266,12 +1267,12 @@ def test_restconf_query_with_defaults_explicit_list():
 
 
 def test_restconf_query_with_defaults_trim_list():
-    apteryx_set("/test/settings/users/alfred/name", "alfred")
-    apteryx_set("/test/settings/users/alfred/age", "87")
-    apteryx_set("/test/settings/users/alfred/active", "true")
-    apteryx_set("/test/settings/users/mildred/name", "mildred")
-    apteryx_set("/test/settings/users/mildred/age", "84")
-    apteryx_set("/test/settings/users/mildred/active", "false")
+    apteryx.set("/test/settings/users/alfred/name", "alfred")
+    apteryx.set("/test/settings/users/alfred/age", "87")
+    apteryx.set("/test/settings/users/alfred/active", "true")
+    apteryx.set("/test/settings/users/mildred/name", "mildred")
+    apteryx.set("/test/settings/users/mildred/age", "84")
+    apteryx.set("/test/settings/users/mildred/active", "false")
     response = requests.get("{}{}/data/test/settings/users?with-defaults=trim".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
     assert len(response.content) > 0
@@ -1295,11 +1296,11 @@ def test_restconf_query_with_defaults_trim_list():
 
 
 def test_restconf_query_with_defaults_report_all_list():
-    apteryx_set("/test/settings/users/alfred/name", "alfred")
-    apteryx_set("/test/settings/users/alfred/age", "87")
-    apteryx_set("/test/settings/users/alfred/active", "true")
-    apteryx_set("/test/settings/users/mildred/name", "mildred")
-    apteryx_set("/test/settings/users/mildred/age", "84")
+    apteryx.set("/test/settings/users/alfred/name", "alfred")
+    apteryx.set("/test/settings/users/alfred/age", "87")
+    apteryx.set("/test/settings/users/alfred/active", "true")
+    apteryx.set("/test/settings/users/mildred/name", "mildred")
+    apteryx.set("/test/settings/users/mildred/age", "84")
     response = requests.get("{}{}/data/test/settings/users?with-defaults=report-all".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
     assert len(response.content) > 0
@@ -1323,11 +1324,11 @@ def test_restconf_query_with_defaults_report_all_list():
 
 
 def test_restconf_query_proxy_with_defaults_report_all_leaf():
-    apteryx_set("/logical-elements/logical-element/loop/name", "loopy")
-    apteryx_set("/logical-elements/logical-element/loop/root", "root")
-    apteryx_set("/apteryx/sockets/E18FE205",  "tcp://127.0.0.1:9999")
-    apteryx_proxy("/logical-elements/logical-element/loopy/*", "tcp://127.0.0.1:9999")
-    apteryx_set("/test/settings/debug", "")
+    apteryx.set("/logical-elements/logical-element/loop/name", "loopy")
+    apteryx.set("/logical-elements/logical-element/loop/root", "root")
+    apteryx.set("/apteryx/sockets/E18FE205",  "tcp://127.0.0.1:9999")
+    apteryx.proxy("/logical-elements/logical-element/loopy/*", "tcp://127.0.0.1:9999")
+    apteryx.set("/test/settings/debug", "")
     response = requests.get("{}{}/data/logical-elements:logical-elements/logical-element/loopy/test/settings/debug?with-defaults=report-all".format(server_uri, docroot),
                             auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
