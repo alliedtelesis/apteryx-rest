@@ -1,6 +1,7 @@
+import apteryx
 import json
 import requests
-from conftest import server_uri, server_auth, docroot, apteryx_set, apteryx_prune, get_restconf_headers, apteryx_proxy
+from conftest import server_uri, server_auth, docroot, get_restconf_headers
 
 
 def test_restconf_get_single_node_ns_none():
@@ -65,7 +66,7 @@ def test_restconf_get_integer():
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/yang-data+json"
     assert response.json() == json.loads('{ "testing:priority": 1 }')
-    apteryx_set("/test/settings/priority", "2")
+    apteryx.set("/test/settings/priority", "2")
     response = requests.get("{}{}/data/testing:test/settings/priority".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
@@ -74,11 +75,11 @@ def test_restconf_get_integer():
 
 def test_restconf_get_uint64():
     # /test/settings/volume uint64 range="0..18446744073709551615"
-    apteryx_set("/test/settings/volume", "0")
+    apteryx.set("/test/settings/volume", "0")
     response = requests.get("{}{}/data/test/settings/volume".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.json() == json.loads('{ "volume": "0" }')
-    apteryx_set("/test/settings/volume", "18446744073709551615")
+    apteryx.set("/test/settings/volume", "18446744073709551615")
     response = requests.get("{}{}/data/test/settings/volume".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.json() == json.loads('{ "volume": "18446744073709551615" }')
@@ -86,22 +87,22 @@ def test_restconf_get_uint64():
 
 def test_restconf_get_int64():
     # /t2:test/settings/speed int64 range="-9223372036854775808..9223372036854775807"
-    apteryx_set("/t2:test/settings/speed", "-9223372036854775808")
+    apteryx.set("/t2:test/settings/speed", "-9223372036854775808")
     response = requests.get("{}{}/data/testing-2:test/settings/speed".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.json() == json.loads('{ "testing2-augmented:speed": "-9223372036854775808" }')
-    apteryx_set("/t2:test/settings/speed", "0")
+    apteryx.set("/t2:test/settings/speed", "0")
     response = requests.get("{}{}/data/testing-2:test/settings/speed".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.json() == json.loads('{ "testing2-augmented:speed": "0" }')
-    apteryx_set("/t2:test/settings/speed", "9223372036854775807")
+    apteryx.set("/t2:test/settings/speed", "9223372036854775807")
     response = requests.get("{}{}/data/testing-2:test/settings/speed".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.json() == json.loads('{ "testing2-augmented:speed": "9223372036854775807" }')
 
 
 def test_restconf_get_string_string():
-    apteryx_set("/test/settings/description", "This is a description")
+    apteryx.set("/test/settings/description", "This is a description")
     response = requests.get("{}{}/data/testing:test/settings/description".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
@@ -109,7 +110,7 @@ def test_restconf_get_string_string():
 
 
 def test_restconf_get_string_number():
-    apteryx_set("/test/settings/description", "123")
+    apteryx.set("/test/settings/description", "123")
     response = requests.get("{}{}/data/testing:test/settings/description".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
@@ -122,7 +123,7 @@ def test_restconf_get_boolean():
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/yang-data+json"
     assert response.json() == json.loads('{ "testing:enable": true }')
-    apteryx_set("/test/settings/enable", "false")
+    apteryx.set("/test/settings/enable", "false")
     response = requests.get("{}{}/data/testing:test/settings/enable".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
@@ -135,7 +136,7 @@ def test_restconf_get_value_string():
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/yang-data+json"
     assert response.json() == json.loads('{ "testing:debug": "enable" }')
-    apteryx_set("/test/settings/debug", "disable")
+    apteryx.set("/test/settings/debug", "disable")
     response = requests.get("{}{}/data/testing:test/settings/debug".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/yang-data+json"
@@ -143,7 +144,7 @@ def test_restconf_get_value_string():
 
 
 def test_restconf_get_node_null():
-    apteryx_set("/test/settings/debug", "")
+    apteryx.set("/test/settings/debug", "")
     response = requests.get("{}{}/data/testing:test/settings/debug".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     if len(response.content) != 0:
         print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -151,7 +152,7 @@ def test_restconf_get_node_null():
 
 
 def test_restconf_get_node_empty():
-    apteryx_set("/test/settings/empty", "empty")
+    apteryx.set("/test/settings/empty", "empty")
     response = requests.get("{}{}/data/testing:test/settings/empty".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
@@ -159,7 +160,7 @@ def test_restconf_get_node_empty():
 
 
 def test_restconf_get_trunk_node_empty():
-    apteryx_set("/test/settings/empty", "empty")
+    apteryx.set("/test/settings/empty", "empty")
     response = requests.get("{}{}/data/testing:test/settings".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
@@ -349,10 +350,10 @@ def test_restconf_get_list_select_one_by_path_trunk():
 def test_restconf_get_list_reserved_in_key():
     characters = "-._~!$&()*+;=@,: /"
     escaped = "/"
-    apteryx_prune("/test/animals")
+    apteryx.prune("/test/animals")
     for c in characters:
         key = f"skinny%{ord(c):02X}frog" if (c in escaped) else f"skinny{c}frog"
-        apteryx_set(f"/test/animals/animal/{key}/name", f"skinny{c}frog")
+        apteryx.set(f"/test/animals/animal/{key}/name", f"skinny{c}frog")
     response = requests.get("{}{}/data/test/animals".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
@@ -394,24 +395,24 @@ def test_restconf_get_leaf_list_node():
 
 
 def test_restconf_get_list_integer_index():
-    apteryx_set("/test/settings/rules/1/index", "1")
-    apteryx_set("/test/settings/rules/1/name", "name1")
-    apteryx_set("/test/settings/rules/99/index", "99")
-    apteryx_set("/test/settings/rules/99/name", "name99")
-    apteryx_set("/test/settings/rules/9/index", "9")
-    apteryx_set("/test/settings/rules/9/name", "name9")
-    apteryx_set("/test/settings/rules/10/index", "10")
-    apteryx_set("/test/settings/rules/10/name", "name10")
-    apteryx_set("/test/settings/rules/5/index", "5")
-    apteryx_set("/test/settings/rules/5/name", "name5")
-    apteryx_set("/test/settings/rules/33/index", "33")
-    apteryx_set("/test/settings/rules/33/name", "name33")
-    apteryx_set("/test/settings/rules/3/index", "3")
-    apteryx_set("/test/settings/rules/3/name", "name3")
-    apteryx_set("/test/settings/rules/111/index", "111")
-    apteryx_set("/test/settings/rules/111/name", "name111")
-    apteryx_set("/test/settings/rules/2/index", "2")
-    apteryx_set("/test/settings/rules/2/name", "name2")
+    apteryx.set("/test/settings/rules/1/index", "1")
+    apteryx.set("/test/settings/rules/1/name", "name1")
+    apteryx.set("/test/settings/rules/99/index", "99")
+    apteryx.set("/test/settings/rules/99/name", "name99")
+    apteryx.set("/test/settings/rules/9/index", "9")
+    apteryx.set("/test/settings/rules/9/name", "name9")
+    apteryx.set("/test/settings/rules/10/index", "10")
+    apteryx.set("/test/settings/rules/10/name", "name10")
+    apteryx.set("/test/settings/rules/5/index", "5")
+    apteryx.set("/test/settings/rules/5/name", "name5")
+    apteryx.set("/test/settings/rules/33/index", "33")
+    apteryx.set("/test/settings/rules/33/name", "name33")
+    apteryx.set("/test/settings/rules/3/index", "3")
+    apteryx.set("/test/settings/rules/3/name", "name3")
+    apteryx.set("/test/settings/rules/111/index", "111")
+    apteryx.set("/test/settings/rules/111/name", "name111")
+    apteryx.set("/test/settings/rules/2/index", "2")
+    apteryx.set("/test/settings/rules/2/name", "name2")
     response = requests.get("{}{}/data/testing:test/settings/rules".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
@@ -461,17 +462,17 @@ def test_restconf_get_list_integer_index():
 
 
 def test_restconf_get_leaf_list_integers():
-    apteryx_set("/test/settings/users/alfred/name", "alfred")
-    apteryx_set("/test/settings/users/alfred/age", "87")
-    apteryx_set("/test/settings/users/alfred/groups/1", "1")
-    apteryx_set("/test/settings/users/alfred/groups/99", "99")
-    apteryx_set("/test/settings/users/alfred/groups/9", "9")
-    apteryx_set("/test/settings/users/alfred/groups/10", "10")
-    apteryx_set("/test/settings/users/alfred/groups/5", "5")
-    apteryx_set("/test/settings/users/alfred/groups/33", "33")
-    apteryx_set("/test/settings/users/alfred/groups/3", "3")
-    apteryx_set("/test/settings/users/alfred/groups/111", "111")
-    apteryx_set("/test/settings/users/alfred/groups/2", "2")
+    apteryx.set("/test/settings/users/alfred/name", "alfred")
+    apteryx.set("/test/settings/users/alfred/age", "87")
+    apteryx.set("/test/settings/users/alfred/groups/1", "1")
+    apteryx.set("/test/settings/users/alfred/groups/99", "99")
+    apteryx.set("/test/settings/users/alfred/groups/9", "9")
+    apteryx.set("/test/settings/users/alfred/groups/10", "10")
+    apteryx.set("/test/settings/users/alfred/groups/5", "5")
+    apteryx.set("/test/settings/users/alfred/groups/33", "33")
+    apteryx.set("/test/settings/users/alfred/groups/3", "3")
+    apteryx.set("/test/settings/users/alfred/groups/111", "111")
+    apteryx.set("/test/settings/users/alfred/groups/2", "2")
     response = requests.get("{}{}/data/testing:test/settings/users=alfred/groups".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
@@ -498,7 +499,7 @@ def test_restconf_get_list_leaf_reserved_in_key():
     escaped = "/"
     for c in characters:
         key = f"red%{ord(c):02X}ball" if (c in escaped) else f"red{c}ball"
-        apteryx_set(f"/test/animals/animal/cat/toys/toy/{key}", f"red{c}ball")
+        apteryx.set(f"/test/animals/animal/cat/toys/toy/{key}", f"red{c}ball")
     response = requests.get("{}{}/data/test/animals/animal=cat/toys".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
@@ -512,7 +513,7 @@ def test_restconf_get_list_leaf_entry_escaped():
     escaped = "/"
     for c in characters:
         key = f"red%{ord(c):02X}ball" if (c in escaped) else f"red{c}ball"
-        apteryx_set(f"/test/animals/animal/cat/toys/toy/{key}", f"red{c}ball")
+        apteryx.set(f"/test/animals/animal/cat/toys/toy/{key}", f"red{c}ball")
     for c in characters:
         response = requests.get("{}{}/data/test/animals/animal=cat/toys/toy={}".format(server_uri, docroot, f"red%{ord(c):02X}ball"),
                                 auth=server_auth, headers=get_restconf_headers)
@@ -546,17 +547,17 @@ def test_restconf_get_percent_encoded_fields():
 
 
 def test_restconf_get_proxy_value_string():
-    apteryx_set("/logical-elements/logical-element/loop/name", "loopy")
-    apteryx_set("/logical-elements/logical-element/loop/root", "root")
-    apteryx_set("/apteryx/sockets/E18FE205",  "tcp://127.0.0.1:9999")
-    apteryx_proxy("/logical-elements/logical-element/loopy/*", "tcp://127.0.0.1:9999")
+    apteryx.set("/logical-elements/logical-element/loop/name", "loopy")
+    apteryx.set("/logical-elements/logical-element/loop/root", "root")
+    apteryx.set("/apteryx/sockets/E18FE205",  "tcp://127.0.0.1:9999")
+    apteryx.proxy("/logical-elements/logical-element/loopy/*", "tcp://127.0.0.1:9999")
     response = requests.get("{}{}/data/logical-elements:logical-elements/logical-element/loopy/testing:test/settings/debug".format(server_uri, docroot),
                             auth=server_auth, headers=get_restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/yang-data+json"
     assert response.json() == json.loads('{ "testing:debug": "enable" }')
-    apteryx_set("/test/settings/debug", "disable")
+    apteryx.set("/test/settings/debug", "disable")
     response = requests.get("{}{}/data/testing:test/settings/debug".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
@@ -571,10 +572,10 @@ def test_restconf_get_proxy_value_string():
 
 
 def test_restconf_get_proxy_list_select_one_trunk():
-    apteryx_set("/logical-elements/logical-element/loop/name", "loopy")
-    apteryx_set("/logical-elements/logical-element/loop/root", "root")
-    apteryx_set("/apteryx/sockets/E18FE205",  "tcp://127.0.0.1:9999")
-    apteryx_proxy("/logical-elements/logical-element/loopy/*", "tcp://127.0.0.1:9999")
+    apteryx.set("/logical-elements/logical-element/loop/name", "loopy")
+    apteryx.set("/logical-elements/logical-element/loop/root", "root")
+    apteryx.set("/apteryx/sockets/E18FE205",  "tcp://127.0.0.1:9999")
+    apteryx.proxy("/logical-elements/logical-element/loopy/*", "tcp://127.0.0.1:9999")
     response = requests.get("{}{}/data/logical-elements:logical-elements/logical-element/loopy/testing:test/animals/animal=cat".format(server_uri, docroot),
                             auth=server_auth, headers=get_restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -593,7 +594,7 @@ def test_restconf_get_proxy_list_select_one_trunk():
 
 
 def test_restconf_get_when_derived_from():
-    apteryx_set("/test/animals/animal/cat/n-type", "big")
+    apteryx.set("/test/animals/animal/cat/n-type", "big")
     response = requests.get("{}{}/data/testing:test/animals/animal=cat".format(server_uri, docroot),
                             auth=server_auth, headers=get_restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
@@ -613,8 +614,8 @@ def test_restconf_get_when_derived_from():
 
 
 def test_restconf_get_when_condition_true():
-    apteryx_set("/test/animals/animal/wombat/name", "wombat")
-    apteryx_set("/test/animals/animal/cat/claws", "5")
+    apteryx.set("/test/animals/animal/wombat/name", "wombat")
+    apteryx.set("/test/animals/animal/cat/claws", "5")
     response = requests.get("{}{}/data/testing:test/animals/animal=cat".format(server_uri, docroot),
                             auth=server_auth, headers=get_restconf_headers)
 
@@ -635,7 +636,7 @@ def test_restconf_get_when_condition_true():
 
 
 def test_restconf_get_when_condition_false():
-    apteryx_set("/test/animals/animal/cat/claws", "5")
+    apteryx.set("/test/animals/animal/cat/claws", "5")
     response = requests.get("{}{}/data/testing:test/animals/animal=cat".format(server_uri, docroot),
                             auth=server_auth, headers=get_restconf_headers)
 
@@ -655,7 +656,7 @@ def test_restconf_get_when_condition_false():
 
 
 def test_restconf_get_must_condition_true():
-    apteryx_set("/test/animals/animal/dog/friend", "ben")
+    apteryx.set("/test/animals/animal/dog/friend", "ben")
     response = requests.get("{}{}/data/testing:test/animals/animal=dog".format(server_uri, docroot),
                             auth=server_auth, headers=get_restconf_headers)
 
@@ -676,8 +677,8 @@ def test_restconf_get_must_condition_true():
 
 
 def test_restconf_get_must_condition_false():
-    apteryx_set("/test/animals/animal/dog/friend", "ben")
-    apteryx_prune("/test/animals/animal/cat")
+    apteryx.set("/test/animals/animal/dog/friend", "ben")
+    apteryx.prune("/test/animals/animal/cat")
     response = requests.get("{}{}/data/testing:test/animals/animal=dog".format(server_uri, docroot),
                             auth=server_auth, headers=get_restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))

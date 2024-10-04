@@ -1,15 +1,16 @@
+import apteryx
 import pytest
 import requests
 import json
 from lxml import etree
-from conftest import server_uri, server_auth, docroot, apteryx_set, apteryx_get
+from conftest import server_uri, server_auth, docroot
 
 
 # TEST CONFIGURATION
 # docroot = '/api'
 search_etag = True
 json_types = True
-APTERYX_URL = ''
+apteryx.URL = ''
 
 
 # TEST HELPERS
@@ -91,7 +92,7 @@ def test_restapi_get_boolean_string():
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/json"
     assert response.json() == json.loads('{ "enable": "true" }')
-    apteryx_set("/test/settings/enable", "false")
+    apteryx.set("/test/settings/enable", "false")
     response = requests.get("{}{}/test/settings/enable".format(server_uri, docroot), verify=False, auth=server_auth)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
@@ -106,7 +107,7 @@ def test_restapi_get_boolean_boolean():
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/json"
     assert response.json() == json.loads('{ "enable": true }')
-    apteryx_set("/test/settings/enable", "false")
+    apteryx.set("/test/settings/enable", "false")
     response = requests.get("{}{}/test/settings/enable".format(server_uri, docroot), verify=False, auth=server_auth, headers=json_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
@@ -120,7 +121,7 @@ def test_restapi_get_enum_value():
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/json"
     assert response.json() == json.loads('{ "debug": "1" }')
-    apteryx_set("/test/settings/debug", "0")
+    apteryx.set("/test/settings/debug", "0")
     response = requests.get("{}{}/test/settings/debug".format(server_uri, docroot), verify=False, auth=server_auth)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
@@ -134,7 +135,7 @@ def test_restapi_get_enum_name():
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/json"
     assert response.json() == json.loads('{ "debug": "enable" }')
-    apteryx_set("/test/settings/debug", "0")
+    apteryx.set("/test/settings/debug", "0")
     response = requests.get("{}{}/test/settings/debug".format(server_uri, docroot), verify=False, auth=server_auth, headers=json_headers)
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/json"
@@ -142,7 +143,7 @@ def test_restapi_get_enum_name():
 
 
 def test_restapi_get_node_null():
-    apteryx_set("/test/settings/debug", "")
+    apteryx.set("/test/settings/debug", "")
     response = requests.get("{}{}/test/settings/debug".format(server_uri, docroot), verify=False, auth=server_auth, headers=json_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
@@ -151,7 +152,7 @@ def test_restapi_get_node_null():
 
 
 def test_restapi_get_node_empty():
-    apteryx_set("/test/settings/empty", "empty")
+    apteryx.set("/test/settings/empty", "empty")
     response = requests.get("{}{}/test/settings/empty".format(server_uri, docroot), verify=False, auth=server_auth, headers=json_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
@@ -160,7 +161,7 @@ def test_restapi_get_node_empty():
 
 
 def test_restapi_get_trunk_node_empty():
-    apteryx_set("/test/settings/empty", "empty")
+    apteryx.set("/test/settings/empty", "empty")
     response = requests.get("{}{}/test/settings".format(server_uri, docroot), verify=False, auth=server_auth, headers=json_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
@@ -368,8 +369,8 @@ def test_restapi_get_list_select_one_strings():
 
 
 def test_restapi_get_list_select_one_with_colon():
-    apteryx_set("/test/animals/animal/cat:ty/name", "cat:ty")
-    apteryx_set("/test/animals/animal/cat:ty/type", "1")
+    apteryx.set("/test/animals/animal/cat:ty/name", "cat:ty")
+    apteryx.set("/test/animals/animal/cat:ty/type", "1")
     response = requests.get("{}{}/test/animals/animal/cat:ty".format(server_uri, docroot), verify=False, auth=server_auth)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
@@ -385,7 +386,7 @@ def test_restapi_get_list_select_one_with_colon():
 
 
 def test_restapi_get_list_select_one_ns_with_colon():
-    apteryx_set("/t2:test/settings/users/fre:dy/name", "fre:dy")
+    apteryx.set("/t2:test/settings/users/fre:dy/name", "fre:dy")
     response = requests.get("{}{}/t2:test/settings/users/fre:dy".format(server_uri, docroot), verify=False, auth=server_auth)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
@@ -485,7 +486,7 @@ def test_restapi_get_etag_changes():
     print(response.headers.get("ETag"))
     assert response.status_code == 200
     assert tag1 == response.headers.get("ETag")
-    apteryx_set("/test/settings/enable", "false")
+    apteryx.set("/test/settings/enable", "false")
     response = requests.get("{}{}/test/settings/enable".format(server_uri, docroot), verify=False, auth=server_auth)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     print(response.headers.get("ETag"))
@@ -510,7 +511,7 @@ def test_restapi_get_etag_not_modified():
 
 
 def test_restapi_get_etag_zero():
-    apteryx_set("/test/settings/enable", "")
+    apteryx.set("/test/settings/enable", "")
     response = requests.get("{}{}/test/settings/enable".format(server_uri, docroot), verify=False, auth=server_auth)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     print(response.headers.get("ETag"))
@@ -539,11 +540,11 @@ def test_restapi_get_hidden_node():
 
 
 def test_restapi_get_hidden_tree():
-    apteryx_set("/test/settings/debug", "")
-    apteryx_set("/test/settings/enable", "")
-    apteryx_set("/test/settings/priority", "")
-    apteryx_set("/test/settings/readonly", "")
-    apteryx_set("/test/settings/volume", "")
+    apteryx.set("/test/settings/debug", "")
+    apteryx.set("/test/settings/enable", "")
+    apteryx.set("/test/settings/priority", "")
+    apteryx.set("/test/settings/readonly", "")
+    apteryx.set("/test/settings/volume", "")
     response = requests.get("{}{}/test/settings".format(server_uri, docroot), verify=False, auth=server_auth)
     assert response.status_code == 200
     assert response.json() == json.loads('{}')
@@ -551,7 +552,7 @@ def test_restapi_get_hidden_tree():
 
 # FLAGS_JSON_FORMAT_ROOT=off
 def test_restapi_get_drop_root_string():
-    apteryx_set("/test/settings/description", "This is a description")
+    apteryx.set("/test/settings/description", "This is a description")
     response = requests.get("{}{}/test/settings/description".format(server_uri, docroot), verify=False, auth=server_auth, headers={"X-JSON-Root": "off"})
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
@@ -632,63 +633,63 @@ def test_restapi_set_nonjson_string_unquoted():
     response = requests.post("{}{}/test/settings/description".format(server_uri, docroot), verify=False, auth=server_auth, data="This is a description")
     assert response.status_code == 200 or response.status_code == 201
     assert len(response.content) == 0
-    assert apteryx_get("/test/settings/description") == "This is a description"
+    assert apteryx.get("/test/settings/description") == "This is a description"
 
 
 def test_restapi_set_nonjson_string_quoted():
     response = requests.post("{}{}/test/settings/description".format(server_uri, docroot), verify=False, auth=server_auth, data='"This is a description"')
     assert response.status_code == 200 or response.status_code == 201
     assert len(response.content) == 0
-    assert apteryx_get("/test/settings/description") == "This is a description"
+    assert apteryx.get("/test/settings/description") == "This is a description"
 
 
 def test_restapi_set_nonjson_number_unquoted():
     response = requests.post("{}{}/test/settings/priority".format(server_uri, docroot), verify=False, auth=server_auth, data='5')
     assert response.status_code == 200 or response.status_code == 201
     assert len(response.content) == 0
-    assert apteryx_get("/test/settings/priority") == "5"
+    assert apteryx.get("/test/settings/priority") == "5"
 
 
 def test_restapi_set_nonjson_number_quoted():
     response = requests.post("{}{}/test/settings/priority".format(server_uri, docroot), verify=False, auth=server_auth, data='"5"')
     assert response.status_code == 200 or response.status_code == 201
     assert len(response.content) == 0
-    assert apteryx_get("/test/settings/priority") == "5"
+    assert apteryx.get("/test/settings/priority") == "5"
 
 
 def test_restapi_set_nonjson_value_unquoted():
     response = requests.post("{}{}/test/settings/debug".format(server_uri, docroot), verify=False, auth=server_auth, data="disable")
     assert response.status_code == 200 or response.status_code == 201
     assert len(response.content) == 0
-    assert apteryx_get("/test/settings/debug") == "0"
+    assert apteryx.get("/test/settings/debug") == "0"
 
 
 def test_restapi_set_nonjson_value_quoted():
     response = requests.post("{}{}/test/settings/debug".format(server_uri, docroot), verify=False, auth=server_auth, data='"disable"')
     assert response.status_code == 200 or response.status_code == 201
     assert len(response.content) == 0
-    assert apteryx_get("/test/settings/debug") == "0"
+    assert apteryx.get("/test/settings/debug") == "0"
 
 
 def test_restapi_set_nonjson_writeonly():
     response = requests.post("{}{}/test/settings/writeonly".format(server_uri, docroot), verify=False, auth=server_auth, data='"123"')
     assert response.status_code == 200 or response.status_code == 201
     assert len(response.content) == 0
-    assert apteryx_get("/test/settings/writeonly") == "123"
+    assert apteryx.get("/test/settings/writeonly") == "123"
 
 
 def test_restapi_set_nonjson_readonly():
     response = requests.post("{}{}/test/state/counter".format(server_uri, docroot), verify=False, auth=server_auth, data='"123"')
     assert response.status_code == 403
     assert len(response.content) == 0
-    assert apteryx_get("/test/state/counter") == "42"
+    assert apteryx.get("/test/state/counter") == "42"
 
 
 def test_restapi_set_single_node():
     response = requests.post("{}{}/test/settings".format(server_uri, docroot), verify=False, auth=server_auth, data="""{"priority": "5"}""")
     assert response.status_code == 200 or response.status_code == 201
     assert len(response.content) == 0
-    assert apteryx_get("/test/settings/priority") == "5"
+    assert apteryx.get("/test/settings/priority") == "5"
 
 
 def test_restapi_set_explicit_content_type():
@@ -696,7 +697,7 @@ def test_restapi_set_explicit_content_type():
     response = requests.post("{}{}/test/settings".format(server_uri, docroot), verify=False, auth=server_auth, data="""{"priority": "5"}""", headers=headers)
     assert response.status_code == 200 or response.status_code == 201
     assert len(response.content) == 0
-    assert apteryx_get("/test/settings/priority") == "5"
+    assert apteryx.get("/test/settings/priority") == "5"
 
 
 @pytest.mark.skipif(not json_types, reason="do not support JSON types")
@@ -704,22 +705,22 @@ def test_restapi_set_value_name():
     response = requests.post("{}{}/test/settings".format(server_uri, docroot), verify=False, auth=server_auth, data="""{"debug": "disable"}""")
     assert response.status_code == 200 or response.status_code == 201
     assert len(response.content) == 0
-    assert apteryx_get("/test/settings/debug") == "0"
+    assert apteryx.get("/test/settings/debug") == "0"
     response = requests.post("{}{}/test/settings".format(server_uri, docroot), verify=False, auth=server_auth, data="""{"debug": "enable"}""")
     assert response.status_code == 200 or response.status_code == 201
     assert len(response.content) == 0
-    assert apteryx_get("/test/settings/debug") == "1"
+    assert apteryx.get("/test/settings/debug") == "1"
 
 
 def test_restapi_set_value_value():
     response = requests.post("{}{}/test/settings".format(server_uri, docroot), verify=False, auth=server_auth, data="""{"debug": "0"}""")
     assert response.status_code == 200 or response.status_code == 201
     assert len(response.content) == 0
-    assert apteryx_get("/test/settings/debug") == "0"
+    assert apteryx.get("/test/settings/debug") == "0"
     response = requests.post("{}{}/test/settings".format(server_uri, docroot), verify=False, auth=server_auth, data="""{"debug": "1"}""")
     assert response.status_code == 200 or response.status_code == 201
     assert len(response.content) == 0
-    assert apteryx_get("/test/settings/debug") == "1"
+    assert apteryx.get("/test/settings/debug") == "1"
 
 
 def test_restapi_set_node_null():
@@ -735,35 +736,35 @@ def test_restapi_set_invalid_path():
     response = requests.post("{}{}/test/cabbage".format(server_uri, docroot), verify=False, auth=server_auth, data="""{"debug": "enable"}""")
     assert response.status_code == 404
     assert len(response.content) == 0
-    assert apteryx_get("/test/cabbage/debug") == "Not found"
+    assert apteryx.get("/test/cabbage/debug") is None
 
 
 def test_restapi_set_invalid_enum_value():
     response = requests.post("{}{}/test/settings".format(server_uri, docroot), verify=False, auth=server_auth, data="""{"debug": "cabbage"}""")
     assert response.status_code == 400
     assert len(response.content) == 0
-    assert apteryx_get("/test/settings/debug") == "1"
+    assert apteryx.get("/test/settings/debug") == "1"
 
 
 def test_restapi_set_readonly():
     response = requests.post("{}{}/test/state".format(server_uri, docroot), verify=False, auth=server_auth, data="""{"counter": "123"}""")
     assert response.status_code == 403
     assert len(response.content) == 0
-    assert apteryx_get("/test/state/counter") == "42"
+    assert apteryx.get("/test/state/counter") == "42"
 
 
 def test_restapi_set_writeonly():
     response = requests.post("{}{}/test/settings".format(server_uri, docroot), verify=False, auth=server_auth, data="""{"writeonly": "123"}""")
     assert response.status_code == 200 or response.status_code == 201
     assert len(response.content) == 0
-    assert apteryx_get("/test/settings/writeonly") == "123"
+    assert apteryx.get("/test/settings/writeonly") == "123"
 
 
 def test_restapi_set_hidden():
     response = requests.post("{}{}/test/settings".format(server_uri, docroot), verify=False, auth=server_auth, data="""{"hidden": "cabbage"}""")
     assert response.status_code == 403
     assert len(response.content) == 0
-    assert apteryx_get("/test/settings/hidden") == "friend"
+    assert apteryx.get("/test/settings/hidden") == "friend"
 
 
 def test_restapi_set_out_of_range_integer_string():
@@ -775,7 +776,7 @@ def test_restapi_set_out_of_range_integer_string():
     assert response.status_code == 400
     response = requests.post("{}{}/test/settings".format(server_uri, docroot), verify=False, auth=server_auth, data="""{"priority": "55"}""")
     assert response.status_code == 400
-    assert apteryx_get("/test/settings/priority") == "1"
+    assert apteryx.get("/test/settings/priority") == "1"
 
 
 @pytest.mark.skipif(not json_types, reason="do not support JSON types")
@@ -788,7 +789,7 @@ def test_restapi_set_out_of_range_integer_integer():
     assert response.status_code == 400
     response = requests.post("{}{}/test/settings".format(server_uri, docroot), verify=False, auth=server_auth, data="""{"priority": 55}""")
     assert response.status_code == 400
-    assert apteryx_get("/test/settings/priority") == "1"
+    assert apteryx.get("/test/settings/priority") == "1"
 
 
 def test_restapi_set_tree_static():
@@ -1030,18 +1031,18 @@ def test_restapi_set_tree_list_key_ns_colon():
 def test_restapi_set_leaf_list_string():
     response = requests.post("{}{}/test/animals/animal/cat/toys/toy/ball".format(server_uri, docroot), verify=False, auth=server_auth, data="ball")
     assert response.status_code == 201
-    assert apteryx_get("/test/animals/animal/cat/toys/toy/ball") == "ball"
+    assert apteryx.get("/test/animals/animal/cat/toys/toy/ball") == "ball"
 
 
 def test_restapi_set_leaf_list_integer():
-    apteryx_set("/test/settings/users/fred/name", "fred")
+    apteryx.set("/test/settings/users/fred/name", "fred")
     response = requests.post("{}{}/test/settings/users/fred/groups/1".format(server_uri, docroot), verify=False, auth=server_auth, data="1")
     assert response.status_code == 201
-    assert apteryx_get("/test/settings/users/fred/groups/1") == "1"
+    assert apteryx.get("/test/settings/users/fred/groups/1") == "1"
 
 
 def test_restapi_set_leaf_list_invalid():
-    apteryx_set("/test/settings/users/fred/name", "fred")
+    apteryx.set("/test/settings/users/fred/name", "fred")
     response = requests.post("{}{}/test/settings/users/fred/groups/1".format(server_uri, docroot), verify=False, auth=server_auth, data="cat")
     assert response.status_code == 400
 
@@ -1057,8 +1058,8 @@ def test_restapi_set_leaf_list_array():
     """
     response = requests.post("{}{}/test/animals/animal/cat/toys".format(server_uri, docroot), verify=False, auth=server_auth, headers={"X-JSON-Array": "on"}, data=data)
     assert response.status_code == 201
-    assert apteryx_get("/test/animals/animal/cat/toys/toy/ball") == "ball"
-    assert apteryx_get("/test/animals/animal/cat/toys/toy/mouse") == "mouse"
+    assert apteryx.get("/test/animals/animal/cat/toys/toy/ball") == "ball"
+    assert apteryx.get("/test/animals/animal/cat/toys/toy/mouse") == "mouse"
 
 
 def test_restapi_set_tree_list_full_arrays():
@@ -1176,20 +1177,20 @@ def test_restapi_set_tree_list_full_arrays():
 def test_restapi_set_true_false_string():
     response = requests.post("{}{}/test/settings".format(server_uri, docroot), verify=False, auth=server_auth, data="""{"enable": "false"}""")
     assert response.status_code == 200 or response.status_code == 201
-    assert apteryx_get("/test/settings/enable") == "false"
+    assert apteryx.get("/test/settings/enable") == "false"
     response = requests.post("{}{}/test/settings".format(server_uri, docroot), verify=False, auth=server_auth, data="""{"enable": "true"}""")
     assert response.status_code == 200 or response.status_code == 201
-    assert apteryx_get("/test/settings/enable") == "true"
+    assert apteryx.get("/test/settings/enable") == "true"
 
 
 @pytest.mark.skipif(not json_types, reason="do not support JSON types")
 def test_restapi_set_true_false_boolean():
     response = requests.post("{}{}/test/settings".format(server_uri, docroot), verify=False, auth=server_auth, data="""{"enable": false}""")
     assert response.status_code == 200 or response.status_code == 201
-    assert apteryx_get("/test/settings/enable") == "false"
+    assert apteryx.get("/test/settings/enable") == "false"
     response = requests.post("{}{}/test/settings".format(server_uri, docroot), verify=False, auth=server_auth, data="""{"enable": true}""")
     assert response.status_code == 200 or response.status_code == 201
-    assert apteryx_get("/test/settings/enable") == "true"
+    assert apteryx.get("/test/settings/enable") == "true"
 
 
 def test_restapi_delete_not_found():
@@ -1234,18 +1235,18 @@ def test_restapi_delete_single_node():
 def test_restapi_delete_trunk():
     response = requests.delete("{}{}/test/settings".format(server_uri, docroot), verify=False, auth=server_auth)
     assert response.status_code == 200 or response.status_code == 204
-    assert apteryx_get("/test/settings/readonly") == "0"
-    assert apteryx_get("/test/settings/hidden") == "friend"
+    assert apteryx.get("/test/settings/readonly") == "0"
+    assert apteryx.get("/test/settings/hidden") == "friend"
 
 
 def test_restapi_delete_list_entry():
     response = requests.delete("{}{}/test/animals/animal/cat".format(server_uri, docroot), verify=False, auth=server_auth)
     assert response.status_code == 200 or response.status_code == 204
     assert len(response.content) == 0
-    assert apteryx_get("/test/animals/animal/cat/name") == "Not found"
-    assert apteryx_get("/test/animals/animal/cat/type") == "Not found"
-    assert apteryx_get('/test/animals/animal/dog/name') == 'dog'
-    assert apteryx_get('/test/animals/animal/dog/colour') == 'brown'
+    assert apteryx.get("/test/animals/animal/cat/name") is None
+    assert apteryx.get("/test/animals/animal/cat/type") is None
+    assert apteryx.get('/test/animals/animal/dog/name') == 'dog'
+    assert apteryx.get('/test/animals/animal/dog/colour') == 'brown'
 
 
 def test_restapi_search_node():
@@ -1261,11 +1262,11 @@ def test_restapi_search_node():
 
 
 def test_restapi_search_empty():
-    apteryx_set("/test/settings/debug", "")
-    apteryx_set("/test/settings/enable", "")
-    apteryx_set("/test/settings/priority", "")
-    apteryx_set("/test/settings/readonly", "")
-    apteryx_set("/test/settings/volume", "")
+    apteryx.set("/test/settings/debug", "")
+    apteryx.set("/test/settings/enable", "")
+    apteryx.set("/test/settings/priority", "")
+    apteryx.set("/test/settings/readonly", "")
+    apteryx.set("/test/settings/volume", "")
     response = requests.get("{}{}/test/settings/".format(server_uri, docroot), verify=False, auth=server_auth)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
@@ -1351,7 +1352,7 @@ def test_restapi_stream_event_node():
     url = "{}{}/test/settings/priority".format(server_uri, docroot)
     response = requests.get(url, stream=True, verify=False, auth=server_auth, headers={'Accept': 'text/event-stream'}, timeout=5)
     assert response.status_code == 200
-    apteryx_set("/test/settings/priority", "2")
+    apteryx.set("/test/settings/priority", "2")
     for line in response.iter_lines(decode_unicode=True):
         print(line)
         if line == 'data: {"priority": 2}':
@@ -1362,7 +1363,7 @@ def test_restapi_stream_json_node():
     url = "{}{}/test/settings/priority".format(server_uri, docroot)
     response = requests.get(url, stream=True, verify=False, auth=server_auth, headers={'Accept': 'application/stream+json'}, timeout=5)
     assert response.status_code == 200
-    apteryx_set("/test/settings/priority", "2")
+    apteryx.set("/test/settings/priority", "2")
     for line in response.iter_lines(decode_unicode=True):
         print(line)
         if line and json.loads(line.decode("utf-8")) == json.loads(b'{"priority": 2}'):
@@ -1852,20 +1853,20 @@ def test_restapi_query_field_no_index_2():
 
 
 def test_restapi_rpc_native():
-    apteryx_set("/t4:test/state/age", "100")
+    apteryx.set("/t4:test/state/age", "100")
     response = requests.post("{}{}/t4:test/state/reset".format(server_uri, docroot), auth=server_auth)
     assert response.status_code == 204
     assert len(response.content) == 0
-    assert apteryx_get("/t4:test/state/age") == "Not found"
+    assert apteryx.get("/t4:test/state/age") is None
 
 
 def test_restapi_rpc_root_namespace():
     headers = {"X-JSON-Types": "on", "X-JSON-Array": "on", "X-JSON-Namespace": "on"}
-    apteryx_set("/t4:test/state/age", "100")
+    apteryx.set("/t4:test/state/age", "100")
     response = requests.post("{}{}/testing-4:test/state/reset".format(server_uri, docroot), auth=server_auth, headers=headers)
     assert response.status_code == 204
     assert len(response.content) == 0
-    assert apteryx_get("/t4:test/state/age") == "Not found"
+    assert apteryx.get("/t4:test/state/age") is None
 
 
 def test_restapi_rpc_namespace():
@@ -1876,12 +1877,12 @@ def test_restapi_rpc_namespace():
 
 
 def test_restapi_rpc_empty_input():
-    apteryx_set("/t4:test/state/age", "100")
+    apteryx.set("/t4:test/state/age", "100")
     data = ""
     response = requests.post("{}{}/t4:test/state/reset".format(server_uri, docroot), auth=server_auth, data=data)
     assert response.status_code == 204
     assert len(response.content) == 0
-    assert apteryx_get("/t4:test/state/age") == "Not found"
+    assert apteryx.get("/t4:test/state/age") is None
 
 
 def test_restapi_rpc_with_input():
@@ -1889,7 +1890,7 @@ def test_restapi_rpc_with_input():
     response = requests.post("{}{}/t4:test/state/reset".format(server_uri, docroot), auth=server_auth, data=data)
     assert response.status_code == 204
     assert len(response.content) == 0
-    assert apteryx_get("/t4:test/state/age") == "55"
+    assert apteryx.get("/t4:test/state/age") == "55"
 
 
 def test_restapi_rpc_with_input_invalid():
@@ -1897,7 +1898,7 @@ def test_restapi_rpc_with_input_invalid():
     response = requests.post("{}{}/t4:test/state/reset".format(server_uri, docroot), auth=server_auth, data=data)
     assert response.status_code == 400
     assert len(response.content) == 0
-    assert apteryx_get("/t4:test/state/age") == "Not found"
+    assert apteryx.get("/t4:test/state/age") is None
 
 
 def test_restapi_rpc_with_simple_input_integer():
@@ -1905,7 +1906,7 @@ def test_restapi_rpc_with_simple_input_integer():
     response = requests.post("{}{}/t4:test/state/reset".format(server_uri, docroot), auth=server_auth, data=data)
     assert response.status_code == 204
     assert len(response.content) == 0
-    assert apteryx_get("/t4:test/state/age") == "55"
+    assert apteryx.get("/t4:test/state/age") == "55"
 
 
 def test_restapi_rpc_with_simple_input_quoted():
@@ -1913,7 +1914,7 @@ def test_restapi_rpc_with_simple_input_quoted():
     response = requests.post("{}{}/t4:test/state/reset".format(server_uri, docroot), auth=server_auth, data=data)
     assert response.status_code == 204
     assert len(response.content) == 0
-    assert apteryx_get("/t4:test/state/age") == "55"
+    assert apteryx.get("/t4:test/state/age") == "55"
 
 
 def test_restapi_rpc_with_simple_input_invalid():
@@ -1921,7 +1922,7 @@ def test_restapi_rpc_with_simple_input_invalid():
     response = requests.post("{}{}/t4:test/state/reset".format(server_uri, docroot), auth=server_auth, data=data)
     assert response.status_code == 400
     assert len(response.content) == 0
-    assert apteryx_get("/t4:test/state/age") == "Not found"
+    assert apteryx.get("/t4:test/state/age") is None
 
 
 def test_restapi_rpc_with_simple_input_integer_outofrange():
@@ -1929,11 +1930,11 @@ def test_restapi_rpc_with_simple_input_integer_outofrange():
     response = requests.post("{}{}/t4:test/state/reset".format(server_uri, docroot), auth=server_auth, data=data)
     assert response.status_code == 400
     assert len(response.content) == 0
-    assert apteryx_get("/t4:test/state/age") == "Not found"
+    assert apteryx.get("/t4:test/state/age") is None
 
 
 def test_restapi_rpc_alternate_operation():
-    apteryx_set("/t4:test/state/age", "5")
+    apteryx.set("/t4:test/state/age", "5")
     response = requests.get("{}{}/t4:test/state/reset".format(server_uri, docroot), auth=server_auth, headers=json_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
@@ -1949,7 +1950,7 @@ def test_restapi_rpc_invalid_operation():
 
 
 def test_restapi_rpc_with_output_string():
-    apteryx_set("/t4:test/state/age", "5")
+    apteryx.set("/t4:test/state/age", "5")
     response = requests.post("{}{}/t4:test/state/get-last-reset-time".format(server_uri, docroot), auth=server_auth)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
@@ -1958,7 +1959,7 @@ def test_restapi_rpc_with_output_string():
 
 
 def test_restapi_rpc_with_output_integer():
-    apteryx_set("/t4:test/state/age", "5")
+    apteryx.set("/t4:test/state/age", "5")
     response = requests.post("{}{}/t4:test/state/get-last-reset-time".format(server_uri, docroot), auth=server_auth, headers=json_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
@@ -1967,7 +1968,7 @@ def test_restapi_rpc_with_output_integer():
 
 
 def test_restapi_rpc_with_output_no_root_string():
-    apteryx_set("/t4:test/state/age", "5")
+    apteryx.set("/t4:test/state/age", "5")
     response = requests.post("{}{}/t4:test/state/get-last-reset-time".format(server_uri, docroot), auth=server_auth, headers={"X-JSON-Root": "off"})
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
@@ -1976,7 +1977,7 @@ def test_restapi_rpc_with_output_no_root_string():
 
 
 def test_restapi_rpc_with_output_no_root_json():
-    apteryx_set("/t4:test/state/age", "5")
+    apteryx.set("/t4:test/state/age", "5")
     response = requests.post("{}{}/t4:test/state/get-last-reset-time".format(server_uri, docroot), auth=server_auth, headers={"X-JSON-Types": "on", "X-JSON-Root": "off"})
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
@@ -1985,8 +1986,8 @@ def test_restapi_rpc_with_output_no_root_json():
 
 
 def test_restapi_rpc_with_output_list():
-    apteryx_set("/t4:test/state/history/1", "5")
-    apteryx_set("/t4:test/state/history/2", "55")
+    apteryx.set("/t4:test/state/history/1", "5")
+    apteryx.set("/t4:test/state/history/2", "55")
     response = requests.post("{}{}/t4:test/state/get-reset-history".format(server_uri, docroot), auth=server_auth, headers=json_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
@@ -1995,9 +1996,9 @@ def test_restapi_rpc_with_output_list():
 
 
 def test_restapi_rpc_with_output_multiple():
-    apteryx_set("/t4:test/state/age", "5")
-    apteryx_set("/t4:test/state/history/1", "5")
-    apteryx_set("/t4:test/state/history/2", "55")
+    apteryx.set("/t4:test/state/age", "5")
+    apteryx.set("/t4:test/state/history/1", "5")
+    apteryx.set("/t4:test/state/history/2", "55")
     response = requests.post("{}{}/t4:test/state/get-reset-history".format(server_uri, docroot), auth=server_auth, headers=json_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
@@ -2014,7 +2015,7 @@ def test_restapi_rpc_with_output_list_empty():
 
 
 def test_restapi_rpc_get_with_output():
-    apteryx_set("/t4:test/state/age", "5")
+    apteryx.set("/t4:test/state/age", "5")
     response = requests.get("{}{}/t4:test/state/get-last-reset-time".format(server_uri, docroot), auth=server_auth)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
@@ -2026,7 +2027,7 @@ def test_restapi_rpc_wildcard_no_input():
     response = requests.post("{}{}/t4:test/state/users/fred/set-age".format(server_uri, docroot), auth=server_auth)
     assert response.status_code == 204
     assert len(response.content) == 0
-    assert apteryx_get("/t4:test/state/users/fred/age") == "Not found"
+    assert apteryx.get("/t4:test/state/users/fred/age") is None
 
 
 def test_restapi_rpc_wildcard_with_input():
@@ -2034,12 +2035,12 @@ def test_restapi_rpc_wildcard_with_input():
     response = requests.post("{}{}/t4:test/state/users/fred/set-age".format(server_uri, docroot), auth=server_auth, data=data)
     assert response.status_code == 204
     assert len(response.content) == 0
-    assert apteryx_get("/t4:test/state/users/fred/age") == "74"
+    assert apteryx.get("/t4:test/state/users/fred/age") == "74"
 
 
 def test_restapi_rpc_list_get():
-    apteryx_set("/t4:test/state/users/fred/name", "fred")
-    apteryx_set("/t4:test/state/users/fred/age", "24")
+    apteryx.set("/t4:test/state/users/fred/name", "fred")
+    apteryx.set("/t4:test/state/users/fred/age", "24")
     response = requests.get("{}{}/t4:test/state/users".format(server_uri, docroot), auth=server_auth, headers=json_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.status_code == 200
@@ -2052,29 +2053,29 @@ def test_restapi_rpc_list_create_entry():
     response = requests.post("{}{}/t4:test/state/users".format(server_uri, docroot), verify=False, auth=server_auth, data=data)
     assert response.status_code == 200 or response.status_code == 204 or response.status_code == 201
     assert len(response.content) == 0
-    assert apteryx_get("/t4:test/state/users/fred/name") == "fred"
-    assert apteryx_get("/t4:test/state/users/fred/age") == "74"
+    assert apteryx.get("/t4:test/state/users/fred/name") == "fred"
+    assert apteryx.get("/t4:test/state/users/fred/age") == "74"
 
 
 def test_restapi_rpc_list_modify_entry():
-    apteryx_set("/t4:test/state/users/fred/name", "fred")
-    apteryx_set("/t4:test/state/users/fred/age", "56")
+    apteryx.set("/t4:test/state/users/fred/name", "fred")
+    apteryx.set("/t4:test/state/users/fred/age", "56")
     data = """{ "age": 33 }"""
     response = requests.put("{}{}/t4:test/state/users/fred".format(server_uri, docroot), verify=False, auth=server_auth, data=data)
     assert response.status_code == 200 or response.status_code == 204
     assert len(response.content) == 0
-    assert apteryx_get("/t4:test/state/users/fred/name") == "fred"
-    assert apteryx_get("/t4:test/state/users/fred/age") == "33"
+    assert apteryx.get("/t4:test/state/users/fred/name") == "fred"
+    assert apteryx.get("/t4:test/state/users/fred/age") == "33"
 
 
 def test_restapi_rpc_list_delete_entry():
-    apteryx_set("/t4:test/state/users/fred/name", "fred")
-    apteryx_set("/t4:test/state/users/fred/age", "73")
+    apteryx.set("/t4:test/state/users/fred/name", "fred")
+    apteryx.set("/t4:test/state/users/fred/age", "73")
     response = requests.delete("{}{}/t4:test/state/users/fred".format(server_uri, docroot), verify=False, auth=server_auth)
     assert response.status_code == 200 or response.status_code == 204
     assert len(response.content) == 0
-    assert apteryx_get("/t4:test/state/users/fred/name") == "Not found"
-    assert apteryx_get("/t4:test/state/users/fred/age") == "Not found"
+    assert apteryx.get("/t4:test/state/users/fred/name") is None
+    assert apteryx.get("/t4:test/state/users/fred/age") is None
 
 
 def test_restapi_rpc_get_rpcs():

@@ -1,8 +1,9 @@
+import apteryx
 import json
 import requests
 import time
 import re
-from conftest import server_uri, server_auth, docroot, apteryx_set, apteryx_get, apteryx_traverse, get_restconf_headers, set_restconf_headers
+from conftest import server_uri, server_auth, docroot, get_restconf_headers, set_restconf_headers
 
 
 def test_restconf_replace_list_entry_new():
@@ -33,11 +34,11 @@ def test_restconf_replace_list_entry_exists():
 """
     response = requests.put("{}{}/data/test/animals/animal".format(server_uri, docroot), auth=server_auth, data=tree, headers=set_restconf_headers)
     assert response.status_code == 204
-    print(apteryx_traverse("/test/animals/animal/cat"))
-    assert apteryx_get("/test/animals/animal/cat") == "Not found"
-    assert apteryx_get("/test/animals/animal/cat/name") == "cat"
-    assert apteryx_get("/test/animals/animal/cat/colour") == "purple"
-    assert apteryx_get("/test/animals/animal/cat/type") == "Not found"
+    print(apteryx.get_tree("/test/animals/animal/cat"))
+    assert apteryx.get("/test/animals/animal/cat") is None
+    assert apteryx.get("/test/animals/animal/cat/name") == "cat"
+    assert apteryx.get("/test/animals/animal/cat/colour") == "purple"
+    assert apteryx.get("/test/animals/animal/cat/type") is None
 
 
 def test_restconf_replace_if_not_modified_since():
@@ -48,7 +49,7 @@ def test_restconf_replace_if_not_modified_since():
     assert response.status_code == 200 and len(response.content) > 0 and response.json() == json.loads('{ "priority": 1 }')
     last_modified = response.headers.get("Last-Modified")
     time.sleep(1)
-    apteryx_set("/test/settings/priority", "2")
+    apteryx.set("/test/settings/priority", "2")
     headers = {**get_restconf_headers, 'If-Unmodified-Since': last_modified}
     response = requests.put("{}{}/data/test/settings/priority".format(server_uri, docroot), auth=server_auth, headers=headers, data="""{"priority": "3"}""")
     assert response.status_code == 412
@@ -68,7 +69,7 @@ def test_restconf_replace_if_not_modified_since():
     }
 }
     """)
-    assert apteryx_get("/test/settings/priority") == "2"
+    assert apteryx.get("/test/settings/priority") == "2"
 
 
 def test_restconf_replace_if_not_modified_since_2():
@@ -100,7 +101,7 @@ def test_restconf_replace_if_not_modified_since_2():
     headers = {**get_restconf_headers, 'If-Unmodified-Since': last_modified}
     response = requests.put("{}{}/data/test/settings/priority".format(server_uri, docroot), auth=server_auth, headers=headers, data="""{"priority": 3}""")
     assert response.status_code == 204
-    assert apteryx_get("/test/settings/priority") == "3"
+    assert apteryx.get("/test/settings/priority") == "3"
 
 
 def test_restconf_replace_if_not_modified_since_namespace():
@@ -108,7 +109,7 @@ def test_restconf_replace_if_not_modified_since_namespace():
     assert response.status_code == 200 and len(response.content) > 0 and response.json() == json.loads('{ "testing:priority": 1 }')
     last_modified = response.headers.get("Last-Modified")
     time.sleep(1)
-    apteryx_set("/test/settings/priority", "2")
+    apteryx.set("/test/settings/priority", "2")
     headers = {**get_restconf_headers, 'If-Unmodified-Since': last_modified}
     response = requests.put("{}{}/data/testing:test/settings".format(server_uri, docroot), auth=server_auth, headers=headers, data="""{"testing:priority": "3"}""")
     assert response.status_code == 412
@@ -128,7 +129,7 @@ def test_restconf_replace_if_not_modified_since_namespace():
     }
 }
     """)
-    assert apteryx_get("/test/settings/priority") == "2"
+    assert apteryx.get("/test/settings/priority") == "2"
 
 
 def test_restconf_replace_if_match():
@@ -136,7 +137,7 @@ def test_restconf_replace_if_match():
     assert response.status_code == 200 and len(response.content) > 0 and response.json() == json.loads('{ "priority": 1 }')
     etag = response.headers.get("Etag")
     time.sleep(1)
-    apteryx_set("/test/settings/priority", "2")
+    apteryx.set("/test/settings/priority", "2")
     data = """{"priority": "3"}"""
     headers = {**set_restconf_headers, 'If-Match': etag}
     response = requests.put("{}{}/data/test/settings".format(server_uri, docroot), auth=server_auth, headers=headers, data=data)
@@ -157,7 +158,7 @@ def test_restconf_replace_if_match():
     }
 }
     """)
-    assert apteryx_get("/test/settings/priority") == "2"
+    assert apteryx.get("/test/settings/priority") == "2"
 
 
 def test_restconf_replace_if_match_namespace():
@@ -165,7 +166,7 @@ def test_restconf_replace_if_match_namespace():
     assert response.status_code == 200 and len(response.content) > 0 and response.json() == json.loads('{ "testing:priority": 1 }')
     etag = response.headers.get("Etag")
     time.sleep(1)
-    apteryx_set("/test/settings/priority", "2")
+    apteryx.set("/test/settings/priority", "2")
     headers = {**set_restconf_headers, 'If-Match': etag}
     response = requests.put("{}{}/data/testing:test/settings".format(server_uri, docroot), auth=server_auth, headers=headers, data="""{"testing:priority": "3"}""")
     assert response.status_code == 412
@@ -185,7 +186,7 @@ def test_restconf_replace_if_match_namespace():
     }
 }
     """)
-    assert apteryx_get("/test/settings/priority") == "2"
+    assert apteryx.get("/test/settings/priority") == "2"
 
 
 def test_restconf_replace_existing_list_key():

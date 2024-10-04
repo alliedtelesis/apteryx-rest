@@ -1,8 +1,9 @@
+import apteryx
 import json
 import pytest
 import requests
 import time
-from conftest import server_uri, server_auth, docroot, apteryx_set, get_restconf_headers, set_restconf_headers
+from conftest import server_uri, server_auth, docroot, get_restconf_headers, set_restconf_headers
 
 
 @pytest.mark.skip(reason="requires target specific http server configuration")
@@ -88,7 +89,7 @@ def test_restconf_get_timestamp_config_changes():
     print(response.headers.get("Last-Modified"))
     timestamp = response.headers.get("Last-Modified")
     time.sleep(1)
-    apteryx_set("/test/settings/enable", "false")
+    apteryx.set("/test/settings/enable", "false")
     response = requests.get("{}{}/data/test/settings".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.headers.get("Last-Modified") is not None and response.headers.get("Last-Modified") != timestamp
 
@@ -99,7 +100,7 @@ def test_restconf_get_timestamp_state_no_change():
     print(response.headers.get("Last-Modified"))
     timestamp = response.headers.get("Last-Modified")
     time.sleep(1)
-    apteryx_set("/test/settings/readonly", "false")
+    apteryx.set("/test/settings/readonly", "false")
     response = requests.get("{}{}/data/test/settings".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.headers.get("Last-Modified") is not None and response.headers.get("Last-Modified") == timestamp
 
@@ -116,7 +117,7 @@ def test_restconf_get_if_modified_since():
     assert response.status_code == 304
     assert len(response.content) == 0
     time.sleep(1)
-    apteryx_set("/test/settings/enable", "false")
+    apteryx.set("/test/settings/enable", "false")
     response = requests.get("{}{}/data/test/settings/enable".format(server_uri, docroot), auth=server_auth, headers=headers)
     assert response.status_code == 200
     assert len(response.content) > 0
@@ -137,7 +138,7 @@ def test_restconf_get_if_modified_since_namespace():
     assert response.status_code == 304
     assert len(response.content) == 0
     time.sleep(1)
-    apteryx_set("/test/settings/enable", "false")
+    apteryx.set("/test/settings/enable", "false")
     response = requests.get("{}{}/data/testing:test/settings/enable".format(server_uri, docroot), auth=server_auth, headers=headers)
     assert response.status_code == 200
     assert len(response.content) > 0
@@ -176,7 +177,7 @@ def test_restconf_get_etag_config_changes():
     response = requests.get("{}{}/data/test/settings".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     print(response.headers.get("ETag"))
     etag = response.headers.get("ETag")
-    apteryx_set("/test/settings/enable", "false")
+    apteryx.set("/test/settings/enable", "false")
     response = requests.get("{}{}/data/test/settings".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.headers.get("ETag") is not None and response.headers.get("ETag") != etag
 
@@ -186,7 +187,7 @@ def test_restconf_get_etag_state_no_change():
     response = requests.get("{}{}/data/test/settings".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     print(response.headers.get("ETag"))
     etag = response.headers.get("ETag")
-    apteryx_set("/test/settings/readonly", "false")
+    apteryx.set("/test/settings/readonly", "false")
     response = requests.get("{}{}/data/test/settings".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     assert response.headers.get("ETag") is not None and response.headers.get("ETag") == etag
 
@@ -201,7 +202,7 @@ def test_restconf_get_if_none_match():
     response = requests.get("{}{}/data/test/settings/enable".format(server_uri, docroot), auth=server_auth, headers={**get_restconf_headers, 'If-None-Match': etag})
     assert response.status_code == 304
     assert len(response.content) == 0
-    apteryx_set("/test/settings/enable", "false")
+    apteryx.set("/test/settings/enable", "false")
     response = requests.get("{}{}/data/test/settings/enable".format(server_uri, docroot), auth=server_auth, headers={**get_restconf_headers, 'If-None-Match': etag})
     assert response.status_code == 200
     assert len(response.content) > 0
@@ -221,7 +222,7 @@ def test_restconf_get_if_none_match_namespace():
     response = requests.get("{}{}/data/testing:test/settings/enable".format(server_uri, docroot), auth=server_auth, headers=headers)
     assert response.status_code == 304
     assert len(response.content) == 0
-    apteryx_set("/test/settings/enable", "false")
+    apteryx.set("/test/settings/enable", "false")
     response = requests.get("{}{}/data/testing:test/settings/enable".format(server_uri, docroot), auth=server_auth, headers=headers)
     assert response.status_code == 200
     assert len(response.content) > 0
