@@ -199,3 +199,49 @@ def test_restconf_replace_existing_list_non_key():
     data = '{"colour" : "pink"}'
     response = requests.put("{}{}/data/test/animals/animal=cat/colour".format(server_uri, docroot), auth=server_auth, data=data, headers=set_restconf_headers)
     assert response.status_code == 204
+
+
+def test_restconf_replace_with_condition_set_in_request():
+    """
+    Set up a state where a change cannot be made by a certain condition, then try it with a request that sets the appropriate condition.
+    """
+    req1 = '{"toy":["ball","ring"]}'
+    req2 = '{"animal":[{"name":"cat","config":{"type":"little"},"toys":{"toy":["ball","bat"]}}]}'
+    # req1 should work since config/type not set to 1
+    resp = requests.put(f"{server_uri}{docroot}/data/test/animals/animal=cat/toys/toy", auth=server_auth, data=req1, headers=set_restconf_headers)
+    assert resp.status_code == 204
+    # Set config/type to 1, request should now fail
+    apteryx.set("/test/animals/animal/cat/config/type", "1")
+    resp = requests.put(f"{server_uri}{docroot}/data/test/animals/animal=cat/toys/toy", auth=server_auth, data=req1, headers=set_restconf_headers)
+    assert resp.status_code == 404
+    # The fuller request should work though since we set config/type to the right value
+    resp = requests.put(f"{server_uri}{docroot}/data/test/animals/animal=cat", auth=server_auth, data=req2, headers=set_restconf_headers)
+    assert resp.status_code == 204
+
+
+def test_restconf_replace_with_index_in_path():
+    """
+    Replace an animal but make sure it works with the index in the path.
+    """
+    tree = '{"animal":[{"name":"cat","colour":"purple"}]}'
+    response = requests.put(f"{server_uri}{docroot}/data/test/animals/animal=cat", auth=server_auth, data=tree, headers=set_restconf_headers)
+    assert response.status_code == 204
+    print(apteryx.get_tree("/test/animals/animal/cat"))
+    assert apteryx.get("/test/animals/animal/cat") is None
+    assert apteryx.get("/test/animals/animal/cat/name") == "cat"
+    assert apteryx.get("/test/animals/animal/cat/colour") == "purple"
+    assert apteryx.get("/test/animals/animal/cat/type") is None
+
+
+def test_restconf_replace_with_index_in_path_not_in_data():
+    """
+    Try to replace an animal but fails since key not in data.
+    """
+    tree = '{"animal":[{"colour":"purple"}]}'
+    response = requests.put(f"{server_uri}{docroot}/data/test/animals/animal=cat", auth=server_auth, data=tree, headers=set_restconf_headers)
+    assert response.status_code == 400
+    print(apteryx.get_tree("/test/animals/animal/cat"))
+    assert apteryx.get("/test/animals/animal/cat") is None
+    assert apteryx.get("/test/animals/animal/cat/name") == "cat"
+    assert apteryx.get("/test/animals/animal/cat/colour") is None
+    assert apteryx.get("/test/animals/animal/cat/type") == "1"

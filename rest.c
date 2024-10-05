@@ -949,6 +949,55 @@ restconf_is_list_key_leaf_update (sch_node *api_subtree, GNode *child, GNode *tn
     return key_update;
 }
 
+/*
+ * Adjust a data tree for the PUT case where the data is a key/value pair. The top node has to be
+ * removed, and if the path includes a key value, there should be only one node under the
+ * top node and this can also be removed.
+ * child - either points to a node matching the first child of tree or a key under a list node
+ *         that matches the first child of tree.
+ * tree - points to a root node ('/'), under which is the data being PUT, which if it is a
+ *        list, could have multiple children for multiple list elements in the tree.
+ */
+static void
+_rest_adjust_tree_for_key_value (GNode *tree, GNode **child, sch_node *api_subtree)
+{
+    GNode *parent = (*child)->parent;
+    GNode *node;
+    bool child_is_key = false;
+    bool is_list = sch_is_list (api_subtree);
+    bool tree_parent_match = parent == NULL ? false : g_strcmp0 (APTERYX_NAME (parent), APTERYX_NAME (tree->children)) == 0;
+
+    /* Look for parent of child that matches top of tree - this means child is a key */
+    if (is_list && tree_parent_match)
+    {
+        child_is_key = true;
+    }
+
+    /* Adjust the tree by ditching the first node under the root node. */
+    node = tree->children;
+    tree->children = node->children;
+    g_free (node->data);
+    node->children = NULL;
+    node->parent = NULL;
+    g_node_destroy (node);
+    for (node = tree->children; node; node = node->next)
+    {
+        node->parent = tree;
+    }
+
+
+    /* If child is key, remove it, it will be one of tree's children. */
+    if (child_is_key)
+    {
+        /* parent must be valid, otherwise child_is_key could not be true */
+        parent->children = NULL;
+        (*child)->parent = NULL;
+        g_free ((*child)->data);
+        g_node_destroy (*child);
+        *child = parent;
+    }
+}
+
 static char *
 rest_api_post (int flags, const char *path, const char *data, int length, const char *if_match,
                const char *if_unmodified_since, const char *if_none_match, const char *server_name,
@@ -1172,7 +1221,7 @@ rest_api_post (int flags, const char *path, const char *data, int length, const 
             }
         }
 
-        if (flags & (FLAGS_METHOD_PUT | FLAGS_METHOD_PATCH | FLAGS_METHOD_POST) &&
+        if (flags & (FLAGS_METHOD_PATCH | FLAGS_METHOD_POST) &&
             sch_is_leaf_list (api_subtree))
         {
             /* A leaf list entry should be fully defined in the data portion of the set */
@@ -1211,19 +1260,15 @@ rest_api_post (int flags, const char *path, const char *data, int length, const 
         goto exit;
     }
 
+    /* Adjust tree and child if it's a PUT with KEY/VALUE */
+    if (flags & FLAGS_PUT_KEY_VALUE_DATA && flags & FLAGS_METHOD_PUT)
+    {
+        _rest_adjust_tree_for_key_value (tree, &child, api_subtree);
+    }
+
     /* Check for replace  - don't traverse tree if PUT is just setting a leaf */
     if (flags & FLAGS_PUT_REPLACE && flags & FLAGS_METHOD_PUT)
     {
-        GNode *node;
-
-        /* Adjust the tree by ditching the first node under the root node. */
-        node = tree;
-        tree = tree->children;
-        g_node_unlink (tree);
-        g_free (node->data);
-        g_node_destroy (node);
-        g_free (tree->data);
-        tree->data = g_strdup ("/");
         if (!sch_is_leaf (api_subtree))
         {
             sch_traverse_tree (g_schema, api_subtree, tree, schflags | SCH_F_ADD_MISSING_NULL, 0);
