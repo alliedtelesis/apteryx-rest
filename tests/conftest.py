@@ -20,6 +20,25 @@ set_restconf_headers = {"Content-Type": "application/yang-data+json"}
 
 # TEST HELPERS
 
+# Path segments are defined in ABNF grammar as
+# node-identifier = [prefix ":"] identifier
+# prefix = identifier
+# identifier = (ALPHA / "_")*(ALPHA / DIGIT / "_" / "-" / ".")
+# ALPHA = A-Z / a-z
+
+# List keys and leaf-list values in path segments.
+# https://en.wikipedia.org/wiki/Percent-encoding
+# The key value is specified as a string, using the canonical
+# representation for the YANG data type.  Any reserved characters
+# MUST be percent-encoded, according to Sections 2.1 and 2.5 of
+# [RFC3986]. The comma (",") character MUST be percent-encoded if
+# it is present in the key value.
+# NOTE Python requests library will automatically percent-encode
+# or ignore some characters if they are not already percent-encoded
+# e.g. '[]% ' are automatically percent-encoded, '#' is removed?
+# TODO? newline,space,",%,-,.,<,>,\,^,_,`,{,|,},~
+rfc3986_reserved = "!#$&'()*+,/:;=?@[]" + "% "
+
 db_default = [
     # Default namespace
     ('/test/settings/debug', '1'),

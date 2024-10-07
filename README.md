@@ -417,3 +417,13 @@ curl -N -H "X-JSON-Types: on" -H "Accept:application/stream+json" http://localho
 {"state": 1}
 {"state": 0}
 ```
+
+## Character encoding
+
+URI syntax as per RFC3986 and RFC8040. Reserved characters that do not form part of the URI syntax should be percent-encoded. URI components are parsed and separated before the percent-encoded octets within those components are decoded.
+
+e.g.
+```
+curl -s -u manager:friend -k https://<HOST>/api/interface/interfaces=port0%2F0%2F1/name | python -m json.tool
+{ "name": "port0/0/1" }
+```

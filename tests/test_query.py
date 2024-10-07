@@ -2,7 +2,7 @@ import apteryx
 import json
 import pytest
 import requests
-from conftest import server_uri, server_auth, docroot, get_restconf_headers
+from conftest import server_uri, server_auth, docroot, get_restconf_headers, rfc3986_reserved
 
 
 def test_restconf_query_empty():
@@ -916,6 +916,20 @@ def test_restconf_query_field_specific_index_2():
     assert response.status_code == 200
     assert response.headers.get("ETag") is not None and response.headers.get("ETag") != "0"
     assert response.json() == json.loads(_animals_mouse_name)
+
+
+def test_restconf_query_field_specific_index_by_key_with_reserved_characters():
+    for c in rfc3986_reserved:
+        name = f"fred{c}jones"
+        encoded = f"fred%{ord(c):02X}jones"
+        key = name if c != '/' else encoded
+        apteryx.set(f"/test/settings/users/{key}/name", name)
+        apteryx.set(f"/test/settings/users/{key}/age", "82")
+        response = requests.get(f"{server_uri}{docroot}/data/testing:test/settings?fields=users({encoded}/name)", verify=False, auth=server_auth, headers=get_restconf_headers)
+        message = f"Failed to process reserved character '{name}'"
+        assert response.status_code == 200, message
+        assert response.headers["Content-Type"] == "application/yang-data+json", message
+        assert response.json() == {"testing:settings": {"users": [{"name": name}]}}, message
 
 
 @pytest.mark.skip(reason="Needs a fix to query result to json conversion")
