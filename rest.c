@@ -1719,34 +1719,6 @@ rest_api_watch (req_handle handle, int flags, const char *path)
     g_free (req);
 }
 
-static void
-rest_decode_uri (char *path)
-{
-    char *in = path;
-    char *out = path;
-
-    while (*in)
-    {
-        uint8_t value;
-
-        /* We decode all escaped special characters except '/'. W3C
-           recommendations suggest that while '/' in a path indicates
-           hierarchical structure, '%2F' does not and is only interpreted
-           by the application layer. Hence we conclude that it is not
-           likely that a user would encode a '/' that was supposed to
-           be part of the path.
-         */
-        if (sscanf (in, "%%%02hhx", &value) == 1 && value != 0x2F)
-        {
-            *out++ = (char) value;
-            in +=3;
-        }
-        else
-            *out++ = *in++;
-    }
-    *out++ = '\0';
-}
-
 void
 rest_api (req_handle handle, int flags, const char *rpath, const char *path,
           const char *if_match, const char *if_none_match,
@@ -1756,14 +1728,8 @@ rest_api (req_handle handle, int flags, const char *rpath, const char *path,
           const char *data, int length)
 {
     char *resp = NULL;
-    char *new_path = NULL;
 
     VERBOSE ("REQ:\n[0x%x] %s\n", flags, path);
-
-    /* Check for encoded special characters of the form "%" HEXDIG HEXDIG (RFC 3986 section 2.1) */
-    new_path = g_strdup (path);
-    rest_decode_uri (new_path);
-    path = new_path;
 
     if (data && data[0])
     {
@@ -1827,7 +1793,6 @@ rest_api (req_handle handle, int flags, const char *rpath, const char *path,
             VERBOSE ("RESP:\n%s\n", resp);
             send_response (handle, resp, false);
             g_free (resp);
-            g_free (new_path);
             return;
         }
     }
@@ -1838,13 +1803,11 @@ rest_api (req_handle handle, int flags, const char *rpath, const char *path,
         else if (strcmp (path, ".html") == 0)
         {
             rest_api_html (handle);
-            g_free (new_path);
             return;
         }
         else if (flags & (FLAGS_EVENT_STREAM | FLAGS_APPLICATION_STREAM))
         {
             rest_api_watch (handle, flags, path);
-            g_free (new_path);
             return;
         }
         else if (strlen (path) && path[strlen (path) - 1] == '/')
@@ -1873,7 +1836,6 @@ rest_api (req_handle handle, int flags, const char *rpath, const char *path,
     VERBOSE ("RESP:\n%s\n", resp);
     send_response (handle, resp, false);
     g_free (resp);
-    g_free (new_path);
     return;
 }
 

@@ -3,7 +3,7 @@ import pytest
 import requests
 import json
 from lxml import etree
-from conftest import server_uri, server_auth, docroot
+from conftest import server_uri, server_auth, docroot, rfc3986_reserved
 
 
 # TEST CONFIGURATION
@@ -398,6 +398,33 @@ def test_restapi_get_list_select_one_ns_with_colon():
     }
 }
 """)
+
+
+def test_restapi_get_list_by_key_with_reserved_characters():
+    for c in rfc3986_reserved:
+        name = f"fred{c}jones"
+        encoded = f"fred%{ord(c):02X}jones"
+        key = name if c != '/' else encoded
+        apteryx.set(f"/test/settings/users/{key}/name", name)
+        apteryx.set(f"/test/settings/users/{key}/age", "82")
+        response = requests.get(f"{server_uri}{docroot}/test/settings/users/{encoded}", verify=False, auth=server_auth)
+        message = f"Failed to process reserved character '{name}'"
+        assert response.status_code == 200, message
+        assert response.headers["Content-Type"] == "application/json", message
+        assert response.json() == {key: {"name": name, "age": "82"}}, message
+
+
+def test_restapi_get_leaf_list_by_key_with_reserved_characters():
+    for c in rfc3986_reserved:
+        name = f"red{c}ball"
+        encoded = f"red%{ord(c):02X}ball"
+        key = name if c != '/' else encoded
+        apteryx.set(f"/test/animals/animal/rabbit/toys/toy/{key}", name)
+        response = requests.get(f"{server_uri}{docroot}/test/animals/animal/rabbit/toys/toy/{encoded}", verify=False, auth=server_auth)
+        message = f"Failed to process reserved character '{name}'"
+        assert response.status_code == 200, message
+        assert response.headers["Content-Type"] == "application/json", message
+        assert response.json() == {key: name}, message
 
 
 def test_restapi_get_list_select_one_array():
@@ -1193,6 +1220,91 @@ def test_restapi_set_true_false_boolean():
     assert apteryx.get("/test/settings/enable") == "true"
 
 
+def test_restapi_set_list_by_key_with_reserved_characters():
+    for c in rfc3986_reserved:
+        apteryx.prune("/test/settings/users")
+        name = f"fred{c}jones"
+        encoded = f"fred%{ord(c):02X}jones"
+        key = name if c != '/' else encoded
+        data = json.dumps({"name": name, "age": 74})
+        response = requests.post(f"{server_uri}{docroot}/test/settings/users/{encoded}", verify=False, auth=server_auth, data=data)
+        message = f"Failed to process reserved character '{name}'"
+        assert response.status_code == 200 or response.status_code == 204 or response.status_code == 201, message
+        assert len(response.content) == 0, message
+        print(apteryx.get_tree("/test/settings/users"))
+        assert apteryx.get(f"/test/settings/users/{key}/name") == name, message
+        assert apteryx.get(f"/test/settings/users/{key}/age") == "74", message
+
+
+def test_restapi_set_leaf_list_by_key_with_reserved_characters():
+    for c in rfc3986_reserved:
+        apteryx.prune("/test/animals/animal")
+        name = f"red{c}ball"
+        encoded = f"red%{ord(c):02X}ball"
+        key = name if c != '/' else encoded
+        data = json.dumps(name)
+        response = requests.post(f"{server_uri}{docroot}/test/animals/animal/cat/toys/toy/{encoded}", verify=False, auth=server_auth, data=data)
+        message = f"Failed to process reserved character '{name}'"
+        assert response.status_code == 201, message
+        assert len(response.content) == 0, message
+        print(apteryx.get_tree("/test/animals/animal/cat/toys/toy"))
+        assert apteryx.get(f"/test/animals/animal/cat/toys/toy/{key}") == name, message
+
+
+def test_restapi_set_tree_list_with_keys_with_slash():
+    apteryx.prune("/test/animals/animal")
+    c = '/'
+    name = f"skinny{c}frog"
+    encoded = f"skinny%{ord(c):02X}frog"
+    key = name if c != '/' else encoded
+    data = """
+{
+    "animals": {
+        "animal": {
+            """ + '"' + encoded + '"' + """: {
+                "name": """ + '"' + name + '"' + """
+            }
+        }
+    }
+}
+"""
+    response = requests.post("{}{}/test".format(server_uri, docroot), verify=False, auth=server_auth, data=data)
+    message = f"Failed to process reserved character '{name}'"
+    assert response.status_code == 201, message
+    assert len(response.content) == 0, message
+    print(apteryx.get_tree("/test/animals"))
+    assert apteryx.get(f"/test/animals/animal/{key}/name") == name, message
+
+
+def test_restapi_set_tree_leaf_list_with_keys_with_slash():
+    apteryx.prune("/test/animals/animal")
+    c = '/'
+    name = f"skinny{c}frog"
+    encoded = f"skinny%{ord(c):02X}frog"
+    key = name if c != '/' else encoded
+    data = """
+{
+    "animals": {
+        "animal": {
+            "cat": {
+                "toys": {
+                    "toy": {
+                        """ + '"' + encoded + '"' + """: """ + '"' + name + '"' + """
+                    }
+                }
+            }
+        }
+    }
+}
+"""
+    response = requests.post("{}{}/test".format(server_uri, docroot), verify=False, auth=server_auth, data=data)
+    message = f"Failed to process reserved character '{name}'"
+    assert response.status_code == 201, message
+    assert len(response.content) == 0, message
+    print(apteryx.get_tree("/test/animals"))
+    assert apteryx.get(f"/test/animals/animal/cat/toys/toy/{key}") == name, message
+
+
 def test_restapi_delete_not_found():
     response = requests.delete("{}{}/test/settings/invalid".format(server_uri, docroot), verify=False, auth=server_auth)
     assert response.status_code == 403 or response.status_code == 404
@@ -1266,6 +1378,33 @@ def test_restapi_delete_list_entry_with_empty_sublist():
     assert len(response.content) == 0
     print(apteryx.get_tree("/test/settings/users"))
     assert not apteryx.search("/test/settings/users/")
+
+
+def test_restapi_delete_list_by_key_with_reserved_characters():
+    for c in rfc3986_reserved:
+        name = f"fred{c}jones"
+        encoded = f"fred%{ord(c):02X}jones"
+        key = name if c != '/' else encoded
+        apteryx.set(f"/test/settings/users/{key}/name", name)
+        apteryx.set(f"/test/settings/users/{key}/age", "73")
+        response = requests.delete(f"{server_uri}{docroot}/test/settings/users/{encoded}", verify=False, auth=server_auth)
+        message = f"Failed to process reserved character '{name}'"
+        assert response.status_code == 200 or response.status_code == 204, message
+        assert len(response.content) == 0, message
+        assert not apteryx.search("/test/settings/users/"), message
+
+
+def test_restapi_delete_leaf_list_by_key_with_reserved_characters():
+    for c in rfc3986_reserved:
+        name = f"red{c}ball"
+        encoded = f"red%{ord(c):02X}ball"
+        key = name if c != '/' else encoded
+        apteryx.set(f"/test/animals/animal/rabbit/toys/toy/{key}", name)
+        response = requests.delete(f"{server_uri}{docroot}/test/animals/animal/rabbit/toys/toy/{encoded}", verify=False, auth=server_auth)
+        message = f"Failed to process reserved character '{name}'"
+        assert response.status_code == 204, message
+        assert len(response.content) == 0, message
+        assert not apteryx.search("/test/animals/animal/rabbit/toys/toy/"), message
 
 
 def test_restapi_search_node():

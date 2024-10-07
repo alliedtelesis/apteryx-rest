@@ -1,7 +1,7 @@
 import apteryx
 import json
 import requests
-from conftest import server_uri, server_auth, docroot, get_restconf_headers
+from conftest import server_uri, server_auth, docroot, get_restconf_headers, rfc3986_reserved
 
 
 def test_restconf_get_single_node_ns_none():
@@ -494,56 +494,31 @@ def test_restconf_get_leaf_list_integers():
     """)
 
 
-def test_restconf_get_list_leaf_reserved_in_key():
-    characters = "-._~!$&()*+;=@,: /"
-    escaped = "/"
-    for c in characters:
-        key = f"red%{ord(c):02X}ball" if (c in escaped) else f"red{c}ball"
-        apteryx.set(f"/test/animals/animal/cat/toys/toy/{key}", f"red{c}ball")
-    response = requests.get("{}{}/data/test/animals/animal=cat/toys".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
-    print(json.dumps(response.json(), indent=4, sort_keys=True))
-    assert response.status_code == 200
-    assert response.headers["Content-Type"] == "application/yang-data+json"
-    for c in characters:
-        assert f"red{c}ball" in response.json()['toys']['toy']
+def test_restconf_get_list_by_key_with_reserved_characters():
+    for c in rfc3986_reserved:
+        name = f"fred{c}jones"
+        encoded = f"fred%{ord(c):02X}jones"
+        key = name if c != '/' else encoded
+        apteryx.set(f"/test/settings/users/{key}/name", name)
+        apteryx.set(f"/test/settings/users/{key}/age", "82")
+        response = requests.get(f"{server_uri}{docroot}/data/testing:test/settings/users={encoded}", auth=server_auth, headers=get_restconf_headers)
+        message = f"Failed to process reserved character '{name}'"
+        assert response.status_code == 200, message
+        assert response.headers["Content-Type"] == "application/yang-data+json", message
+        assert response.json() == {"testing:users": [{"name": name, "age": 82}]}, message
 
 
-def test_restconf_get_list_leaf_entry_escaped():
-    characters = "-._~!$&()*+;=@,: /"
-    escaped = "/"
-    for c in characters:
-        key = f"red%{ord(c):02X}ball" if (c in escaped) else f"red{c}ball"
-        apteryx.set(f"/test/animals/animal/cat/toys/toy/{key}", f"red{c}ball")
-    for c in characters:
-        response = requests.get("{}{}/data/test/animals/animal=cat/toys/toy={}".format(server_uri, docroot, f"red%{ord(c):02X}ball"),
-                                auth=server_auth, headers=get_restconf_headers)
-        print(json.dumps(response.json(), indent=4, sort_keys=True))
-        assert response.status_code == 200
-        assert response.headers["Content-Type"] == "application/yang-data+json"
-        assert response.json() == json.loads("""
-{
-    "toy": [
-        """ + f'"red{c}ball"' + """
-    ]
-}
-    """)
-
-
-def test_restconf_get_percent_encoded_fields():
-    response = requests.get("{}{}/data/testing:test/animals/animal=mouse?fields=colour%3Btype".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
-    print(json.dumps(response.json(), indent=4, sort_keys=True))
-    assert response.status_code == 200
-    assert response.headers["Content-Type"] == "application/yang-data+json"
-    assert response.json() == json.loads("""
-{
-    "testing:animal": [
-        {
-            "colour": "grey",
-            "type": "animal-testing-types:little"
-        }
-    ]
-}
-    """)
+def test_restconf_get_leaf_list_by_key_with_reserved_characters():
+    for c in rfc3986_reserved:
+        name = f"red{c}ball"
+        encoded = f"red%{ord(c):02X}ball"
+        key = name if c != '/' else encoded
+        apteryx.set(f"/test/animals/animal/rabbit/toys/toy/{key}", name)
+        response = requests.get(f"{server_uri}{docroot}/data/testing:test/animals/animal=rabbit/toys/toy={encoded}", auth=server_auth, headers=get_restconf_headers)
+        message = f"Failed to process reserved character '{name}'"
+        assert response.status_code == 200, message
+        assert response.headers["Content-Type"] == "application/yang-data+json", message
+        assert response.json() == {"testing:toy": [name]}, message
 
 
 def test_restconf_get_proxy_value_string():

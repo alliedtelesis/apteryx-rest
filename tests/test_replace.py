@@ -3,7 +3,7 @@ import json
 import requests
 import time
 import re
-from conftest import server_uri, server_auth, docroot, get_restconf_headers, set_restconf_headers
+from conftest import server_uri, server_auth, docroot, get_restconf_headers, set_restconf_headers, rfc3986_reserved
 
 
 def test_restconf_replace_list_entry_new():
@@ -245,3 +245,21 @@ def test_restconf_replace_with_index_in_path_not_in_data():
     assert apteryx.get("/test/animals/animal/cat/name") == "cat"
     assert apteryx.get("/test/animals/animal/cat/colour") is None
     assert apteryx.get("/test/animals/animal/cat/type") == "1"
+
+
+def test_restconf_replace_list_non_key_by_key_with_reserved_characters():
+    for c in rfc3986_reserved:
+        apteryx.prune("/test/settings/users")
+        name = f"fred{c}jones"
+        encoded = f"fred%{ord(c):02X}jones"
+        key = name if c != '/' else encoded
+        apteryx.set(f"/test/settings/users/{key}/name", name)
+        apteryx.set(f"/test/settings/users/{key}/age", "33")
+        data = json.dumps({"age": 74})
+        response = requests.put(f"{server_uri}{docroot}/data/test/settings/users={encoded}/age", auth=server_auth, data=data, headers=set_restconf_headers)
+        message = f"Failed to process reserved character '{name}'"
+        assert response.status_code == 204, message
+        assert len(response.content) == 0, message
+        print(apteryx.get_tree("/test/settings/users"))
+        assert apteryx.get(f"/test/settings/users/{key}/name") == name, message
+        assert apteryx.get(f"/test/settings/users/{key}/age") == "74", message

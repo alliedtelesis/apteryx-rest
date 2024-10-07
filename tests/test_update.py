@@ -2,7 +2,7 @@ import apteryx
 import json
 import pytest
 import requests
-from conftest import server_uri, server_auth, docroot, set_restconf_headers
+from conftest import server_uri, server_auth, docroot, set_restconf_headers, rfc3986_reserved
 
 
 def test_restconf_update_string():
@@ -85,3 +85,20 @@ def test_restconf_update_existing_list_non_key():
     data = '{"colour" : "pink"}'
     response = requests.patch("{}{}/data/test/animals/animal=cat".format(server_uri, docroot), auth=server_auth, data=data, headers=set_restconf_headers)
     assert response.status_code == 204
+
+
+def test_restconf_update_list_non_key_by_key_with_reserved_characters():
+    for c in rfc3986_reserved:
+        apteryx.prune("/test/settings/users")
+        name = f"fred{c}jones"
+        encoded = f"fred%{ord(c):02X}jones"
+        key = name if c != '/' else encoded
+        apteryx.set(f"/test/settings/users/{key}/name", name)
+        apteryx.set(f"/test/settings/users/{key}/age", "33")
+        data = json.dumps({"age": 74})
+        response = requests.patch(f"{server_uri}{docroot}/data/test/settings/users={encoded}", auth=server_auth, data=data, headers=set_restconf_headers)
+        message = f"Failed to process reserved character '{name}'"
+        assert response.status_code == 204, message
+        assert len(response.content) == 0, message
+        print(apteryx.get_tree("/test/settings/users"))
+        assert apteryx.get(f"/test/settings/users/{key}/age") == "74", message

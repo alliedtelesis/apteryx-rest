@@ -1,7 +1,7 @@
 import apteryx
 import json
 import requests
-from conftest import server_uri, server_auth, docroot, get_restconf_headers, set_restconf_headers
+from conftest import server_uri, server_auth, docroot, get_restconf_headers, set_restconf_headers, rfc3986_reserved
 
 
 def test_restconf_delete_single_node_ns_none():
@@ -167,6 +167,33 @@ def test_restconf_delete_list_by_path_select_list_leaf():
     assert len(response.content) == 0
     assert apteryx.get("/test/animals/animal/parrot/toys/toy/puzzles") is None
     assert apteryx.get("/test/animals/animal/parrot/toys/toy/rings") == 'rings'
+
+
+def test_restconf_delete_list_by_key_with_reserved_characters():
+    for c in rfc3986_reserved:
+        name = f"fred{c}jones"
+        encoded = f"fred%{ord(c):02X}jones"
+        key = name if c != '/' else encoded
+        apteryx.set(f"/test/settings/users/{key}/name", name)
+        apteryx.set(f"/test/settings/users/{key}/age", "73")
+        response = requests.delete(f"{server_uri}{docroot}/data/testing:test/settings/users={encoded}", headers=set_restconf_headers)
+        message = f"Failed to process reserved character '{name}'"
+        assert response.status_code == 204, message
+        assert len(response.content) == 0, message
+        assert not apteryx.search("/test/settings/users/"), message
+
+
+def test_restconf_delete_leaf_list_by_key_with_reserved_characters():
+    for c in rfc3986_reserved:
+        name = f"red{c}ball"
+        encoded = f"red%{ord(c):02X}ball"
+        key = name if c != '/' else encoded
+        apteryx.set(f"/test/animals/animal/rabbit/toys/toy/{key}", name)
+        response = requests.delete(f"{server_uri}{docroot}/data/testing:test/animals/animal=rabbit/toys/toy={encoded}", auth=server_auth, headers=set_restconf_headers)
+        message = f"Failed to process reserved character '{name}'"
+        assert response.status_code == 204, message
+        assert len(response.content) == 0, message
+        assert not apteryx.search("/test/animals/animal/rabbit/toys/toy/"), message
 
 
 def test_restconf_delete_proxy_list_select_one():

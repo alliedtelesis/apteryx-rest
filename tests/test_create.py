@@ -1,7 +1,7 @@
 import apteryx
 import json
 import requests
-from conftest import server_uri, server_auth, docroot, set_restconf_headers
+from conftest import server_uri, server_auth, docroot, set_restconf_headers, rfc3986_reserved
 
 
 def test_restconf_create_single_node_ns_none():
@@ -310,24 +310,6 @@ def test_restconf_create_list_entry_ok():
     assert apteryx.get("/test/animals/animal/frog/name") == "frog"
 
 
-def test_restconf_create_list_entry_reserved_key():
-    characters = "-._~!$&()*+;=@,: /"
-    escaped = "/"
-    tree = """
-{
-    "animal" : [
-        """ + '{"name": "skinny' + 'frog"},\n\t{"name": "skinny'.join(characters) + 'frog"}' + """
-    ]
-}
-"""
-    response = requests.post("{}{}/data/test/animals".format(server_uri, docroot), auth=server_auth, data=tree, headers=set_restconf_headers)
-    assert response.status_code == 201
-    print(apteryx.get_tree("/test/animals/animal"))
-    for c in characters:
-        key = f"skinny%{ord(c):02X}frog" if (c in escaped) else f"skinny{c}frog"
-        assert apteryx.get(f"/test/animals/animal/{key}/name") == f"skinny{c}frog"
-
-
 def test_restconf_create_list_leaf_string_ok():
     tree = """
 {
@@ -344,21 +326,35 @@ def test_restconf_create_list_leaf_string_ok():
     assert apteryx.get("/test/animals/animal/cat/toys/toy/mouse") == "mouse"
 
 
-def test_restconf_create_list_leaf_reserved_in_key():
-    characters = "-._~!$&()*+;=@,: /"
-    escaped = "/"
-    tree = """
-{
-    "toy": [
-        """ + '"red' + 'ball","red'.join(characters) + 'ball"' + """
-    ]
-}
-    """
-    response = requests.post("{}{}/data/test/animals/animal=cat/toys".format(server_uri, docroot), auth=server_auth, data=tree, headers=set_restconf_headers)
-    assert response.status_code == 201
-    for c in characters:
-        key = f"red%{ord(c):02X}ball" if (c in escaped) else f"red{c}ball"
-        assert apteryx.get(f"/test/animals/animal/cat/toys/toy/{key}") == f"red{c}ball"
+def test_restconf_create_list_with_key_with_reserved_characters():
+    for c in rfc3986_reserved:
+        apteryx.prune("/test/settings/users")
+        name = f"fred{c}jones"
+        encoded = f"fred%{ord(c):02X}jones"
+        key = name if c != '/' else encoded
+        data = json.dumps({"users": [{"name": name, "age": 74}]})
+        response = requests.post(f"{server_uri}{docroot}/data/test/settings", auth=server_auth, data=data, headers=set_restconf_headers)
+        message = f"Failed to process reserved character '{name}'"
+        assert response.status_code == 201, message
+        assert len(response.content) == 0, message
+        print(apteryx.get_tree("/test/settings/users"))
+        assert apteryx.get(f"/test/settings/users/{key}/name") == name, message
+        assert apteryx.get(f"/test/settings/users/{key}/age") == "74", message
+
+
+def test_restconf_create_leaf_list_with_key_with_reserved_characters():
+    for c in rfc3986_reserved:
+        apteryx.prune("/test/animals/animal")
+        name = f"red{c}ball"
+        encoded = f"red%{ord(c):02X}ball"
+        key = name if c != '/' else encoded
+        data = json.dumps({"toy": [name]})
+        response = requests.post(f"{server_uri}{docroot}/data/test/animals/animal=cat/toys", auth=server_auth, data=data, headers=set_restconf_headers)
+        message = f"Failed to process reserved character '{name}'"
+        assert response.status_code == 201, message
+        assert len(response.content) == 0, message
+        print(apteryx.get_tree("/test/animals/animal/cat/toys/toy"))
+        assert apteryx.get(f"/test/animals/animal/cat/toys/toy/{key}") == name, message
 
 
 def test_restconf_create_list_leaf_integer_ok():
