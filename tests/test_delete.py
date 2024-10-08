@@ -121,6 +121,17 @@ def test_restconf_delete_trunk_nonschema():
     assert apteryx.get("/test/settings/vegetable") == "cabagge"
 
 
+def test_restconf_delete_trunk_config_only():
+    response = requests.delete("{}{}/data/testing:test/settings".format(server_uri, docroot), auth=server_auth, headers={**set_restconf_headers, 'X-Config-Only': "on"})
+    assert response.status_code == 204
+    assert len(response.content) == 0
+    assert apteryx.get("/test/settings/debug") is None
+    assert apteryx.get("/test/settings/enable") is None
+    assert apteryx.get("/test/settings/priority") is None
+    assert apteryx.get("/test/settings/readonly") == "0"
+    assert apteryx.get("/test/settings/hidden") == "friend"
+
+
 def test_restconf_delete_list_select_one():
     response = requests.delete("{}{}/data/testing:test/animals/animal=cat".format(server_uri, docroot), auth=server_auth, headers=set_restconf_headers)
     assert response.status_code == 204
@@ -194,6 +205,41 @@ def test_restconf_delete_leaf_list_by_key_with_reserved_characters():
         assert response.status_code == 204, message
         assert len(response.content) == 0, message
         assert not apteryx.search("/test/animals/animal/rabbit/toys/toy/"), message
+
+
+def test_restconf_delete_sublist_readonly_leaf():
+    apteryx.set("/test/settings/users/fred/name", "fred")
+    apteryx.set("/test/settings/users/fred/active", "true")
+    response = requests.delete(f"{server_uri}{docroot}/data/test/settings/users/fred", auth=server_auth, headers=set_restconf_headers)
+    assert len(response.content) > 0
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    print(apteryx.get_tree("/test/settings/users"))
+    assert apteryx.get("/test/settings/users/fred/name") == "fred"
+    assert apteryx.get("/test/settings/users/fred/active") == "true"
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.json() == json.loads("""
+{
+    "ietf-restconf:errors" : {
+        "error" : [
+        {
+            "error-type" : "protocol",
+            "error-tag" : "access-denied"
+        }
+        ]
+    }
+}
+    """)
+
+
+def test_restconf_delete_sublist_config_only_readonly_leaf():
+    apteryx.set("/test/settings/users/fred/name", "fred")
+    apteryx.set("/test/settings/users/fred/active", "true")
+    response = requests.delete(f"{server_uri}{docroot}/data/test/settings/users/fred", auth=server_auth, headers={**set_restconf_headers, 'X-Config-Only': "on"})
+    assert response.status_code == 204
+    assert len(response.content) == 0
+    print(apteryx.get_tree("/test/settings/users"))
+    assert apteryx.get("/test/settings/users/fred/name") is None
+    assert apteryx.get("/test/settings/users/fred/active") == "true"
 
 
 def test_restconf_delete_proxy_list_select_one():

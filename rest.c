@@ -1391,7 +1391,7 @@ rest_api_delete (int flags, const char *path, const char *remote_user, const cha
         schflags |= SCH_F_JSON_TYPES;
     if (flags & FLAGS_JSON_FORMAT_NS)
         schflags |= SCH_F_NS_MODEL_NAME;
-    else
+    if (flags & FLAGS_CONFIG_ONLY)
         schflags |= SCH_F_CONFIG; /* We only want to delete config-nodes */
 
     /* Generate an aperyx query from the path */
