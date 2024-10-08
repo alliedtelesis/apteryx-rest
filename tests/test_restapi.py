@@ -1383,6 +1383,17 @@ def test_restapi_delete_list_entry_with_empty_sublist():
     assert not apteryx.search("/test/settings/users/")
 
 
+def test_restapi_delete_list_entry_with_sublist_readonly_leaf():
+    apteryx.set("/test/settings/users/fred/name", "fred")
+    apteryx.set("/test/settings/users/fred/active", "true")
+    response = requests.delete(f"{server_uri}{docroot}/test/settings/users/fred", verify=False, auth=server_auth)
+    assert response.status_code == 200 or response.status_code == 204
+    assert len(response.content) == 0
+    print(apteryx.get_tree("/test/settings/users"))
+    assert apteryx.get("/test/settings/users/fred/name") is None
+    assert apteryx.get("/test/settings/users/fred/active") == "true"
+
+
 def test_restapi_delete_list_by_key_with_reserved_characters():
     for c in rfc3986_reserved:
         name = f"fred{c}jones"

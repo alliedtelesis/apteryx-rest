@@ -387,6 +387,12 @@ curl -u manager:friend -k -H "Content-Type: application/json" -d \
 curl -u manager:friend -k -X "DELETE" https://<HOST>/api/firewall/fw_rules/10
 ```
 
+### Delete options
+* Only delete the config (rw) nodes that are descendants of the requested path
+```
+curl -u manager:friend -k -H "X-Config-Only: on" -X "DELETE" https://<HOST>/api/firewall
+```
+
 ## STREAMS
 * Send a GET request with content type text/event-stream to receive asynchronous changes for a path from the server
 

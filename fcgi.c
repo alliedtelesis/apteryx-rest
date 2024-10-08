@@ -159,6 +159,14 @@ get_flags (FCGX_Request * r)
         flags |= FLAGS_JSON_FORMAT_TYPES;
     if (param && strcmp (param, "off") == 0)
         flags &= ~FLAGS_JSON_FORMAT_TYPES;
+    /* Process config only nodes */
+    param = FCGX_GetParam ("HTTP_X_CONFIG_ONLY", r->envp);
+    if (!param)
+        param = FCGX_GetParam ("HTTP_X-Config-Only", r->envp);
+    if (!(flags & FLAGS_RESTCONF) || (param && strcmp (param, "on") == 0))
+        flags |= FLAGS_CONFIG_ONLY;
+    if (param && strcmp (param, "off") == 0)
+        flags &= ~FLAGS_CONFIG_ONLY;
     /* Prefix model names */
     param = FCGX_GetParam ("HTTP_X_JSON_NAMESPACE", r->envp);
     if (!param)
