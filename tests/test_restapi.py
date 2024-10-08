@@ -1364,6 +1364,8 @@ def test_restapi_delete_list_entry():
 def test_restapi_delete_list_entry_with_sublist():
     apteryx.set("/test/settings/users/fred/name", "fred")
     apteryx.set("/test/settings/users/fred/groups/admin", "admin")
+    apteryx.set("/test/settings/users/fred/groups/software", "software")
+    apteryx.set("/test/settings/users/fred/age", "99")
     response = requests.delete("{}{}/test/settings/users/fred".format(server_uri, docroot), verify=False, auth=server_auth)
     assert response.status_code == 200 or response.status_code == 204
     assert len(response.content) == 0
