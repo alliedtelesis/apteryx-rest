@@ -56,6 +56,23 @@ def test_restconf_yang_library_version():
     assert response.json() == json.loads('{ "yang-library-version" : "2019-01-04" }')
 
 
+def test_restconf_valid_content_length():
+    response = requests.get("{}{}/data/test/settings/enable".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert int(response.headers["Content-Length"]) == len(response.content)
+    assert response.json() == json.loads('{ "enable": true }')
+
+
+def test_restconf_zero_content_length():
+    apteryx.set("/test/settings/priority", "")
+    data = """{"priority": "2"}"""
+    response = requests.post("{}{}/data/test/settings".format(server_uri, docroot), auth=server_auth, headers=set_restconf_headers, data=data)
+    print(response.headers)
+    assert response.status_code == 201
+    assert int(response.headers["Content-Length"]) == len(response.content) == 0
+
+
 def test_restconf_get_timestamp_node():
     response = requests.get("{}{}/data/test/settings/enable".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     print(json.dumps(response.json(), indent=4, sort_keys=True))

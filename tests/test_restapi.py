@@ -29,6 +29,7 @@ def test_restapi_api_xml():
     print(etree.tostring(xml, pretty_print=True, encoding="unicode"))
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "text/xml"
+    assert int(response.headers["Content-Length"]) == len(response.content)
     assert xml.findall('.//*[@mode="h"]') == []
     assert xml.findall('.//*[@mode="hr"]') == []
     assert xml.findall('.//*[@mode="rh"]') == []
