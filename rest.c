@@ -263,18 +263,20 @@ log_delete (int flags, const char *path, GNode *tree, const char *remote_user,
     }
 }
 
-static char *
-rest_api_xml (void)
+static void
+rest_api_xml (req_handle handle)
 {
-    char *resp = NULL;
     char *xmlbuf = sch_dump_xml (g_schema);
-    if (xmlbuf)
-    {
-        resp = g_strdup_printf ("Status: 200\r\n"
-                                "Content-Type: text/xml\r\n" "\r\n" "%s", (char *) xmlbuf);
-        free (xmlbuf);
-    }
-    return resp;
+    char *resp = g_strdup_printf ("Status: 200\r\n"
+                                  "Content-Type: text/xml\r\n"
+                                  "Content-Length: %ld\r\n\r\n",
+                                  strlen (xmlbuf));
+    VERBOSE ("RESP:\n%s\n", resp);
+    send_response (handle, resp, false);
+    free (resp);
+    send_response (handle, xmlbuf, true);
+    free (xmlbuf);
+    return;
 }
 
 extern char api_html[];
@@ -282,7 +284,10 @@ static void
 rest_api_html (req_handle handle)
 {
     char *resp = g_strdup_printf ("Status: 200\r\n"
-                                  "Content-Type: text/html\r\n" "\r\n");
+                                  "Content-Type: text/html\r\n"
+                                  "Content-Length: %ld\r\n\r\n",
+                                  strlen (api_html));
+    VERBOSE ("RESP:\n%s\n", resp);
     send_response (handle, resp, false);
     free (resp);
     send_response (handle, api_html, true);
@@ -501,8 +506,10 @@ exit:
 
     resp = g_strdup_printf ("Status: %d\r\n"
                             "Content-Type: %s\r\n"
+                            "Content-Length: %ld\r\n"
                             "\r\n" "%s", rc,
                             flags & FLAGS_RESTCONF ? "application/yang-data+json" : "application/json",
+                            data ? strlen (data) : 0,
                             data ? : "");
     free (data);
     free (error_string);
@@ -592,7 +599,10 @@ rest_api_search (int flags, const char *path, const char *if_none_match, const c
     resp = g_strdup_printf ("Status: %d\r\n"
                             "Etag: %" PRIX64 "\r\n"
                             "Content-Type: application/json\r\n"
-                            "\r\n" "%s", rc, ts, data ? : "");
+                            "Content-Length: %ld\r\n"
+                            "\r\n" "%s", rc, ts,
+                            data ? strlen (data) : 0,
+                            data ? : "");
     free (data);
     return resp;
 }
@@ -743,7 +753,8 @@ rest_api_get (int flags, const char *path, const char *if_none_match, const char
     {
         VERBOSE ("REST: Path \"%s\" not modified since ETag:%s\n", rpath, if_none_match);
         resp = g_strdup_printf ("Status: %d\r\n"
-                                "Content-Type: application/json\r\n\r\n",
+                                "Content-Type: application/json\r\n"
+                                "Content-Length: 0\r\n\r\n",
                                 HTTP_CODE_NOT_MODIFIED);
         goto exit;
     }
@@ -758,7 +769,8 @@ rest_api_get (int flags, const char *path, const char *if_none_match, const char
             VERBOSE ("REST: Path \"%s\" not modified since Time:%s\n", rpath, if_modified_since);
             rc = HTTP_CODE_NOT_MODIFIED;
             resp = g_strdup_printf ("Status: %d\r\n"
-                                    "Content-Type: application/json\r\n\r\n",
+                                    "Content-Type: application/json\r\n"
+                                    "Content-Length: 0\r\n\r\n",
                                     HTTP_CODE_NOT_MODIFIED);
             goto exit;
         }
@@ -888,8 +900,10 @@ exit:
                                 "Last-Modified: %s\r\n"
                                 "ETag: %" PRIX64 "\r\n"
                                 "Content-Type: %s\r\n"
+                                "Content-Length: %ld\r\n"
                                 "\r\n" "%s", rc, last_modified, ts,
                                 flags & FLAGS_RESTCONF ? "application/yang-data+json" : "application/json",
+                                json_string ? strlen (json_string) : 0,
                                 json_string && (flags & FLAGS_METHOD_HEAD) == 0 ? json_string : "");
     }
     free (json_string);
@@ -1333,17 +1347,21 @@ exit:
         {
             resp = g_strdup_printf ("Status: %d\r\n"
                                     "Content-Type: %s\r\n"
+                                    "Content-Length: %ld\r\n"
                                     "Location: %s\r\n"
                                     "\r\n" "%s", rc,
                                     flags & FLAGS_RESTCONF ? "application/yang-data+json" : "application/json",
+                                    error_string ? strlen (error_string) : 0,
                                     location, error_string ? : "");
             g_free (location);
         }
         else
             resp = g_strdup_printf ("Status: %d\r\n"
                                     "Content-Type: %s\r\n"
+                                    "Content-Length: %ld\r\n"
                                     "\r\n" "%s", rc,
                                     flags & FLAGS_RESTCONF ? "application/yang-data+json" : "application/json",
+                                    error_string ? strlen (error_string) : 0,
                                     error_string ? : "");
     }
     free (error_string);
@@ -1494,8 +1512,10 @@ exit:
         }
         resp = g_strdup_printf ("Status: %d\r\n"
                                 "Content-Type: %s\r\n"
+                                "Content-Length: %ld\r\n"
                                 "\r\n" "%s", rc,
                                 flags & FLAGS_RESTCONF ? "application/yang-data+json" : "application/json",
+                                error_string ? strlen (error_string) : 0,
                                 error_string ? : "");
         free (error_string);
     }
@@ -1565,10 +1585,12 @@ rest_api_options (int flags, const char *path)
     if (rc == HTTP_CODE_OK)
     {
         resp = g_strdup_printf ("Status: %u\r\n"
-                        "Allow: %s\r\n"
-                        "Accept-Patch: %s\r\n"
-                        "Content-Type: text/html\r\n\r\n", rc, options,
-                        flags & FLAGS_RESTCONF ? "application/yang-data+json" : "application/json");
+                                "Allow: %s\r\n"
+                                "Accept-Patch: %s\r\n"
+                                "Content-Type: text/html\r\n"
+                                "Content-Length: 0\r\n"
+                                "\r\n", rc, options,
+                                flags & FLAGS_RESTCONF ? "application/yang-data+json" : "application/json");
         g_free (options);
     }
     else
@@ -1579,8 +1601,10 @@ rest_api_options (int flags, const char *path)
         }
         resp = g_strdup_printf ("Status: %d\r\n"
                                 "Content-Type: %s\r\n"
+                                "Content-Length: %ld\r\n"
                                 "\r\n" "%s", rc,
                                 flags & FLAGS_RESTCONF ? "application/yang-data+json" : "application/json",
+                                error_string ? strlen (error_string) : 0,
                                 error_string ? : "");
         free (error_string);
     }
@@ -1785,9 +1809,12 @@ rest_api (req_handle handle, int flags, const char *rpath, const char *path,
         {
             char *json_str = json_dumps (json, 0);
             resp = g_strdup_printf ("Status: %d\r\n"
-                    "Content-Type: application/yang-data+json\r\n"
-                    "\r\n" "%s",
-                    rc, json_str ? : "");
+                                    "Content-Type: application/yang-data+json\r\n"
+                                    "Content-Length: %ld\r\n"
+                                    "\r\n" "%s",
+                                    rc,
+                                    json_str ? strlen (json_str) : 0,
+                                    json_str ? : "");
             free (json_str);
             json_decref (json);
             VERBOSE ("RESP:\n%s\n", resp);
@@ -1799,7 +1826,10 @@ rest_api (req_handle handle, int flags, const char *rpath, const char *path,
     if (flags & FLAGS_METHOD_GET || flags & FLAGS_METHOD_HEAD)
     {
         if (strcmp (path, ".xml") == 0)
-            resp = rest_api_xml ();
+        {
+            rest_api_xml (handle);
+            return;
+        }
         else if (strcmp (path, ".html") == 0)
         {
             rest_api_html (handle);
