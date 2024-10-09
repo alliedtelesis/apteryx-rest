@@ -1390,8 +1390,44 @@ def test_restapi_delete_list_entry_with_sublist_readonly_leaf():
     assert response.status_code == 200 or response.status_code == 204
     assert len(response.content) == 0
     print(apteryx.get_tree("/test/settings/users"))
+    assert apteryx.get("/test/settings/users") is None
     assert apteryx.get("/test/settings/users/fred/name") is None
     assert apteryx.get("/test/settings/users/fred/active") == "true"
+
+
+def test_restapi_delete_trunk_with_list_containing_readonly_leaf():
+    apteryx.set("/test/settings/hidden", "")
+    apteryx.set("/test/settings/readonly", "")
+    apteryx.set("/test/settings/users/fred/active", "true")
+    apteryx.set("/test/settings/users/barney/active", "true")
+    apteryx.set("/test/settings/users/wilma/active", "true")
+    response = requests.delete(f"{server_uri}{docroot}/test/settings", verify=False, auth=server_auth)
+    assert response.status_code == 200 or response.status_code == 204
+    assert len(response.content) == 0
+    assert apteryx.get("/test/settings/users/fred/active") == "true"
+    assert apteryx.get("/test/settings/users/barney/active") == "true"
+    assert apteryx.get("/test/settings/users/wilma/active") == "true"
+    apteryx.set("/test/settings/users/fred/active", "")
+    apteryx.set("/test/settings/users/barney/active", "")
+    apteryx.set("/test/settings/users/wilma/active", "")
+    print(apteryx.get_tree("/test/settings"))
+    # This checks for a bug where there are no leaves in users/fred to delete
+    # but we accidently left fred in the tree. Hence it looks like a set of
+    # /test/settings/users = fred to apteryx
+    assert apteryx.get("/test/settings/users") is None
+    assert not apteryx.search("/test/settings/users/")
+
+
+def test_restapi_delete_trunk_with_readonly_leaflist():
+    apteryx.set("/test/state/romembers/fred", "fred")
+    apteryx.set("/test/state/romembers/barney", "barney")
+    apteryx.set("/test/state/romembers/wilma", "wilma")
+    response = requests.delete(f"{server_uri}{docroot}/test/state", verify=False, auth=server_auth)
+    assert response.status_code == 404  # Nothing to delete
+    assert len(response.content) == 0
+    assert apteryx.get("/test/state/romembers/fred") == "fred"
+    assert apteryx.get("/test/state/romembers/barney") == "barney"
+    assert apteryx.get("/test/state/romembers/wilma") == "wilma"
 
 
 def test_restapi_delete_list_by_key_with_reserved_characters():
