@@ -1522,6 +1522,20 @@ exit:
     return resp;
 }
 
+static bool
+rest_option_check_children (sch_node *schema)
+{
+    for (sch_node *s = sch_node_child_first (schema); s; s = sch_node_next_sibling (s))
+    {
+        if (sch_is_writable (s))
+            return true;
+
+        if (rest_option_check_children (s))
+            return true;
+    }
+    return false;
+}
+
 static char *
 rest_api_options (int flags, const char *path)
 {
@@ -1536,6 +1550,7 @@ rest_api_options (int flags, const char *path)
     char *ptr = strchr (_path, '=');
     int len = 0;
     int rc = HTTP_CODE_NOT_FOUND;
+    bool read_write = false;
 
     /* Substitute key equals value with a slash to make the sch_lookup work */
     while (ptr)
@@ -1576,9 +1591,17 @@ rest_api_options (int flags, const char *path)
 
     if (schema)
     {
+        if (!sch_is_leaf (schema))
+        {
+            read_write = rest_option_check_children (schema);
+        }
+        else
+        {
+            read_write = sch_is_writable (schema);
+        }
         options = g_strdup_printf ("%s%s%s", sch_is_readable (schema) ? "GET,HEAD,OPTIONS" : "",
-                                    sch_is_writable (schema) ? "," : "",
-                                    sch_is_writable (schema) ? "POST,PUT,PATCH,DELETE" : "");
+                                    read_write ? "," : "",
+                                    read_write ? "POST,PUT,PATCH,DELETE" : "");
         rc = HTTP_CODE_OK;
     }
 

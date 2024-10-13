@@ -447,7 +447,6 @@ def test_restconf_options_rw():
     assert len(response.content) == 0
     assert response.headers["allow"] == "GET,HEAD,OPTIONS,POST,PUT,PATCH,DELETE"
     assert response.headers["accept-patch"] == "application/yang-data+json"
-    assert response.headers["accept-patch"] == "application/yang-data+json"
 
 
 def test_restconf_options_r():
@@ -456,6 +455,21 @@ def test_restconf_options_r():
     assert len(response.content) == 0
     assert response.headers["allow"] == "GET,HEAD,OPTIONS"
     assert response.headers["accept-patch"] == "application/yang-data+json"
+
+
+def test_restconf_options_container():
+    response = requests.options("{}{}/data/test/animals".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    assert response.status_code == 200
+    assert len(response.content) == 0
+    assert response.headers["allow"] == "GET,HEAD,OPTIONS,POST,PUT,PATCH,DELETE"
+    assert response.headers["accept-patch"] == "application/yang-data+json"
+
+
+def test_restconf_options_container_state_r():
+    response = requests.options("{}{}/data/test/state".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    assert response.status_code == 200
+    assert len(response.content) == 0
+    assert response.headers["allow"] == "GET,HEAD,OPTIONS"
     assert response.headers["accept-patch"] == "application/yang-data+json"
 
 
