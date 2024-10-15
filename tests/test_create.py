@@ -633,6 +633,47 @@ def test_restconf_when_condition_false():
     """)
 
 
+def test_restconf_when_condition_translate_true():
+    tree = """
+{
+    "cage": [
+        "box"
+    ]
+}
+"""
+    response = requests.post("{}{}/data/test/animals/animal/cat/cages".format(server_uri, docroot),
+                             auth=server_auth, headers=set_restconf_headers, data=tree)
+    assert response.status_code == 201
+    assert len(response.content) == 0
+    assert apteryx.get("/test/animals/animal/cat/cages/cage/box") == "box"
+
+
+def test_restconf_when_condition_translate_false():
+    tree = """
+{
+    "cage": [
+        "box"
+    ]
+}
+"""
+    response = requests.post("{}{}/data/test/animals/animal/mouse/cages".format(server_uri, docroot),
+                             auth=server_auth, headers=set_restconf_headers, data=tree)
+    assert response.status_code == 404
+    assert response.json() == json.loads("""
+{
+    "ietf-restconf:errors" : {
+        "error" : [
+        {
+            "error-message": "uri path not found",
+            "error-type" : "application",
+            "error-tag" : "invalid-value"
+        }
+        ]
+    }
+}
+    """)
+
+
 def test_restconf_must_condition_true():
     data = """{"friend": "ben"}"""
     response = requests.post("{}{}/data/test/animals/animal/dog".format(server_uri, docroot),
