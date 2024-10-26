@@ -1218,7 +1218,7 @@ def test_restconf_query_with_defaults_empty_node():
     response = requests.get("{}{}/data/testing:test/settings/empty?with-defaults=report-all".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
     if len(response.content) != 0:
         print(json.dumps(response.json(), indent=4, sort_keys=True))
-    assert (response.status_code == 204 and len(response.content) == 0) or (response.status_code == 200 and response.json() == json.loads('{}'))
+    assert (response.status_code == 204 and len(response.content) == 0) or (response.status_code == 200 and response.json() == json.loads('{"testing:empty": {}}'))
 
 
 def test_restconf_query_with_defaults_empty_list():
@@ -1228,10 +1228,7 @@ def test_restconf_query_with_defaults_empty_list():
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.headers["Content-Type"] == "application/yang-data+json"
     assert response.json() == json.loads("""
-{
-    "users": [
-    ]
-}
+{}
     """)
 
 
@@ -1243,10 +1240,7 @@ def test_restconf_query_with_defaults_empty_leaf_list():
     print(json.dumps(response.json(), indent=4, sort_keys=True))
     assert response.headers["Content-Type"] == "application/yang-data+json"
     assert response.json() == json.loads("""
-{
-    "groups": [
-    ]
-}
+{}
     """)
 
 
@@ -1333,6 +1327,222 @@ def test_restconf_query_with_defaults_report_all_list():
             "name": "mildred"
         }
     ]
+}
+    """)
+
+
+def test_restconf_query_animals_animal_report_all_1():
+    response = requests.get("{}{}/data/test/animals?with-defaults=report-all".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    assert response.status_code == 200
+    assert len(response.content) > 0
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.json() == json.loads("""
+{
+    "animals": {
+        "animal": [
+            {
+                "name": "cat",
+                "type": "animal-testing-types:big"
+            },
+            {
+                "colour": "brown",
+                "name": "dog",
+                "type": "animal-testing-types:big"
+            },
+            {
+                "food": [
+                    {
+                        "name": "banana",
+                        "type": "fruit"
+                    },
+                    {
+                        "name": "nuts",
+                        "type": "kibble"
+                    }
+                ],
+                "name": "hamster",
+                "type": "animal-testing-types:little"
+            },
+            {
+                "colour": "grey",
+                "name": "mouse",
+                "type": "animal-testing-types:little"
+            },
+            {
+                "colour": "blue",
+                "name": "parrot",
+                "toys": {
+                    "toy": [
+                        "puzzles",
+                        "rings"
+                    ]
+                },
+                "type": "animal-testing-types:big"
+            }
+        ]
+    }
+}
+    """)
+
+
+def test_restconf_query_animals_animal_report_all_2():
+    response = requests.get("{}{}/data/test/animals/animal?with-defaults=report-all".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    assert response.status_code == 200
+    assert len(response.content) > 0
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.json() == json.loads("""
+{
+    "animal": [
+        {
+            "name": "cat",
+            "type": "animal-testing-types:big"
+        },
+        {
+            "colour": "brown",
+            "name": "dog",
+            "type": "animal-testing-types:big"
+        },
+        {
+            "food": [
+                {
+                    "name": "banana",
+                    "type": "fruit"
+                },
+                {
+                    "name": "nuts",
+                    "type": "kibble"
+                }
+            ],
+            "name": "hamster",
+            "type": "animal-testing-types:little"
+        },
+        {
+            "colour": "grey",
+            "name": "mouse",
+            "type": "animal-testing-types:little"
+        },
+        {
+            "colour": "blue",
+            "name": "parrot",
+            "toys": {
+                "toy": [
+                    "puzzles",
+                    "rings"
+                ]
+            },
+            "type": "animal-testing-types:big"
+        }
+    ]
+}
+    """)
+
+
+def test_restconf_query_animals_animal_report_all_3():
+    response = requests.get("{}{}/data/test/animals/animal/dog?with-defaults=report-all".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    assert response.status_code == 200
+    assert len(response.content) > 0
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.json() == json.loads("""
+{
+    "animal": [
+        {
+            "colour": "brown",
+            "name": "dog",
+            "type": "animal-testing-types:big"
+        }
+    ]
+}
+    """)
+
+
+def test_restconf_query_with_defaults_report_all_level_1():
+    response = requests.get("{}{}/data/interfaces/interface?with-defaults=report-all".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    assert response.status_code == 200
+    assert len(response.content) > 0
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.json() == json.loads("""
+{
+    "interface": [
+        {
+            "mtu": 8192,
+            "name": "eth0",
+            "status": "up"
+        },
+        {
+            "mtu": 1500,
+            "name": "eth1",
+            "status": "up"
+        },
+        {
+            "mtu": 9000,
+            "name": "eth2",
+            "status": "not feeling so good"
+        },
+        {
+            "mtu": 1500,
+            "name": "eth3",
+            "status": "waking up"
+        }
+    ]
+}
+    """)
+
+
+def test_restconf_query_with_defaults_report_all():
+    response = requests.get("{}{}/data/interfaces?with-defaults=report-all".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    assert response.status_code == 200
+    assert len(response.content) > 0
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.json() == json.loads("""
+{
+    "interfaces": {
+        "interface": [
+            {
+                "mtu": 8192,
+                "name": "eth0",
+                "status": "up"
+            },
+            {
+                "mtu": 1500,
+                "name": "eth1",
+                "status": "up"
+            },
+            {
+                "mtu": 9000,
+                "name": "eth2",
+                "status": "not feeling so good"
+            },
+            {
+                "mtu": 1500,
+                "name": "eth3",
+                "status": "waking up"
+            }
+        ]
+    }
+}
+    """)
+
+
+def test_restconf_query_with_defaults_interfaces_report_all_leaf():
+    response = requests.get("{}{}/data/interfaces/interface/eth0/status?with-defaults=report-all".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    assert response.status_code == 200
+    assert len(response.content) > 0
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.json() == json.loads("""
+{
+    "status": "up"
+}
+    """)
+
+
+def test_restconf_query_with_defaults_report_all_specific_leaf():
+    response = requests.get("{}{}/data/interfaces/interface/eth1/status?with-defaults=report-all".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    assert response.status_code == 200
+    assert len(response.content) > 0
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.json() == json.loads("""
+{
+    "status": "up"
 }
     """)
 

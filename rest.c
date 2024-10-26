@@ -852,35 +852,20 @@ rest_api_get (int flags, const char *path, const char *if_none_match, const char
 
     /* Query the database */
     tree = apteryx_query (query);
-    if (schflags & SCH_F_ADD_DEFAULTS)
+    if (query && (schflags & SCH_F_ADD_DEFAULTS) && rschema)
     {
-        if (tree)
-        {
-            rnode = get_response_node (tree, rdepth);
-            sch_traverse_tree (g_schema, rschema, rnode, schflags | SCH_F_ADD_DEFAULTS, 0);
-        }
-        else if (qdepth == rdepth && (sch_node_child_first (rschema) || sch_is_leaf (rschema)))
-        {
-            /* Nothing in the database, but we may have defaults! */
-            tree = query;
-            query = NULL;
-            if (g_node_max_height (tree) > qdepth)
-            {
-                GNode *child = g_node_first_child (qnode);
-                qnode->children = NULL;
-                if (child)
-                    apteryx_free_tree (child);
-            }
-            sch_traverse_tree (g_schema, rschema, qnode, schflags | SCH_F_ADD_DEFAULTS, 0);
-        }
+        GNode *rnode = get_response_node (tree, rdepth);
+        sch_add_defaults (g_schema, rschema, &tree, &query, rnode, qnode, rdepth,
+                          qdepth, schflags);
     }
+
     if (tree)
     {
         /* Get rid of any unwanted nodes */
         if (schflags & SCH_F_TRIM_DEFAULTS)
         {
             rnode = get_response_node (tree, rdepth);
-            sch_traverse_tree (g_schema, rschema, rnode, schflags | SCH_F_TRIM_DEFAULTS, 0);
+            sch_traverse_tree (g_schema, rschema, rnode, schflags);
         }
 
         if ((schflags & SCH_F_DEPTH) && param_depth)
@@ -1334,7 +1319,7 @@ rest_api_post (int flags, const char *path, const char *data, int length, const 
     {
         if (!sch_is_leaf (api_subtree))
         {
-            sch_traverse_tree (g_schema, api_subtree, tree, schflags | SCH_F_ADD_MISSING_NULL, 0);
+            sch_traverse_tree (g_schema, api_subtree, tree, schflags | SCH_F_ADD_MISSING_NULL);
         }
     }
 
@@ -1523,7 +1508,7 @@ rest_api_delete (int flags, const char *path, const char *remote_user, const cha
                 }
             }
         }
-        else if (!sch_traverse_tree (g_schema, api_subtree, rnode, schflags | SCH_F_SET_NULL, 0))
+        else if (!sch_traverse_tree (g_schema, api_subtree, rnode, schflags | SCH_F_SET_NULL))
         {
             rc = HTTP_CODE_FORBIDDEN;
             error_tag = REST_E_TAG_ACCESS_DENIED;

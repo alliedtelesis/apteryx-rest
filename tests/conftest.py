@@ -77,6 +77,18 @@ db_default = [
     ('/t2:test/settings/speed', '2'),
     # Apteryx namespace
     ('/test3/state/age', '99'),
+    # Data for with-defaults testing
+    ('/interfaces/interface/eth0/name', 'eth0'),
+    ('/interfaces/interface/eth0/mtu', '8192'),
+    ('/interfaces/interface/eth0/status', 'up'),
+    ('/interfaces/interface/eth1/name', 'eth1'),
+    ('/interfaces/interface/eth1/status', 'up'),
+    ('/interfaces/interface/eth2/name', 'eth2'),
+    ('/interfaces/interface/eth2/mtu', '9000'),
+    ('/interfaces/interface/eth2/status', 'not feeling so good'),
+    ('/interfaces/interface/eth3/name', 'eth3'),
+    ('/interfaces/interface/eth3/mtu', '1500'),
+    ('/interfaces/interface/eth3/status', 'waking up'),
 ]
 
 
