@@ -102,3 +102,17 @@ def test_restconf_update_list_non_key_by_key_with_reserved_characters():
         assert len(response.content) == 0, message
         print(apteryx.get_tree("/test/settings/users"))
         assert apteryx.get(f"/test/settings/users/{key}/age") == "74", message
+
+
+def test_restconf_update_variable_with_key_value():
+    """
+    PATCHing a variable by specifying the variable in the URI and in the data
+    should not cause a crash. Whether or not it should actually work is another
+    issue. At the moment, it does return a status code 204, but doesn't set the
+    variable as might be hoped.
+    """
+    data = '{"animal":{"name":"wombat","type":"big"}}'
+    response = requests.post(f"{server_uri}{docroot}/data/test/animals", auth=server_auth, data=data, headers=set_restconf_headers)
+    data = '{"claws":"4"}'
+    response = requests.patch(f"{server_uri}{docroot}/data/test/animals/animal=wombat/claws", auth=server_auth, data=data, headers=set_restconf_headers)
+    assert response.status_code == 204
