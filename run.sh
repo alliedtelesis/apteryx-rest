@@ -87,15 +87,15 @@ fi
 # Build web server
 if [ "$1" == "nginx" ]; then
     # Build nginx
-    if [ ! -d nginx-1.20.0 ]; then
+    if [ ! -d nginx-1.27.2 ]; then
             echo "Building nginx from source."
-            wget http://nginx.org/download/nginx-1.20.0.tar.gz
+            wget http://nginx.org/download/nginx-1.27.2.tar.gz
             rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
-            tar -zxf nginx-1.20.0.tar.gz
+            tar -zxf nginx-1.27.2.tar.gz
             rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
     fi
     if [ ! -f $BUILD/usr/sbin/nginx ]; then
-            cd nginx-1.20.0
+            cd nginx-1.27.2
             ./configure --prefix=/var/www/html --sbin-path=/usr/sbin/nginx --conf-path=$BUILD/nginx.conf \
             --http-log-path=$BUILD/access.log --error-log-path=$BUILD/error.log --with-pcre \
             --lock-path=$BUILD/nginx.lock --pid-path=$BUILD/nginx.pid --with-http_ssl_module \
@@ -189,6 +189,7 @@ if [ "$1" == "nginx" ]; then
                 root   html;
             }
         }
+        merge_slashes off; # Just to test our own code
         access_log /dev/stdout;
         client_body_temp_path '$BUILD'/nginx-client-body;
         proxy_temp_path '$BUILD'/nginx-proxy;
