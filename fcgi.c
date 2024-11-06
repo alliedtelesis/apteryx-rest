@@ -76,7 +76,7 @@ get_flags (FCGX_Request * r)
     param = FCGX_GetParam ("HTTP_CONTENT_TYPE", r->envp);
     if (!param)
         param = FCGX_GetParam ("CONTENT_TYPE", r->envp);
-    if (param)
+    if (param && strlen(param) > 0)
     {
         /* Some clients will encode raw values as text/plain,
            but we can pretend it is json encoded */
@@ -103,6 +103,8 @@ get_flags (FCGX_Request * r)
 
     /* Parse accept types */
     param = FCGX_GetParam ("HTTP_ACCEPT", r->envp);
+    if (!param)
+        param = FCGX_GetParam ("HTTP_Accept", r->envp);
     if (param)
     {
         if (g_strrstr (param, "application/json") != 0)
@@ -130,7 +132,7 @@ get_flags (FCGX_Request * r)
     /* JSON formatinng */
     param = FCGX_GetParam ("HTTP_X_JSON_ROOT", r->envp);
     if (!param)
-        param = FCGX_GetParam ("HTTP_X-JSON_Root", r->envp);
+        param = FCGX_GetParam ("HTTP_X-JSON-Root", r->envp);
     flags |= FLAGS_JSON_FORMAT_ROOT;
     if (param && strcmp (param, "off") == 0)
         flags &= ~FLAGS_JSON_FORMAT_ROOT;
@@ -183,11 +185,43 @@ get_flags (FCGX_Request * r)
     return flags;
 }
 
+/* Implementation of
+   https://datatracker.ietf.org/doc/html/rfc3986#section-5.2.4
+   Most web servers will have already done this for us
+   but it is probably faster to do again then trying to
+   figure out if it is even needed.
+ */
+static char *
+normalise_path(const char *path)
+{
+    GString *normalised = g_string_new(NULL);
+    char *copy = g_strdup(path);
+    char *token = strtok((char *)copy, "/");
+    char *last = NULL;
+    while (token) {
+        if (strcmp(token, ".") == 0) {
+            /* Ignore . */
+        } else if (strcmp(token, "..") == 0) {
+            /* Remove the last segment */
+            g_string_truncate(normalised, strlen(last) + 1);
+        } else {
+            /* Add the new segment */
+            g_string_append_printf(normalised, "/%s", token);
+        }
+        last = token;
+        token = strtok(NULL, "/");
+    }
+    free(copy);
+    if (path[strlen(path) - 1] == '/')
+        g_string_append_c(normalised, '/');
+    return g_string_free(normalised, false);
+}
+
 static void *
 handle_http (void *arg)
 {
     FCGX_Request *request = (FCGX_Request *) arg;
-    char *rpath, *path, *length, *if_match, *if_none_match, *if_modified_since, *if_unmodified_since;
+    char *rpath, *uri, *path, *length, *if_match, *if_none_match, *if_modified_since, *if_unmodified_since;
     char *server_name, *server_port, *remote_addr, *remote_user;
     int flags;
     char *data = NULL;
@@ -205,7 +239,16 @@ handle_http (void *arg)
 
     /* Process the request */
     rpath = FCGX_GetParam ("DOCUMENT_ROOT", request->envp);
-    path = FCGX_GetParam ("REQUEST_URI", request->envp);
+    if (!rpath)
+        rpath = FCGX_GetParam ("DOCUMENTS", request->envp);
+    uri = FCGX_GetParam ("REQUEST_URI", request->envp);
+    path = uri ? normalise_path(uri) : NULL;
+    if (!path)
+    {
+        ERROR ("Failed to parse URI path '%s'\n", uri);
+        rc = 500;
+        goto exit;
+    }
     flags = get_flags (request);
     if (flags < 0)
     {
@@ -275,6 +318,7 @@ exit:
     DEBUG ("FCGI(%p): Closing connection\n", request);
     FCGX_Finish_r (request);
     g_free (request);
+    free(path);
     return NULL;
 }
 
