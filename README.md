@@ -64,6 +64,20 @@ http {
 }
 ```
 
+Appweb
+```
+Listen 8080
+FastConnect 127.0.0.1:9047 keep multiplex=1000
+<Route ^/api>
+    Documents "/api"
+    Prefix /api
+    Methods set GET, POST, PUT, DELETE, PATCH, OPTIONS, HEAD
+    SetHandler fastHandler
+    SessionCookie disable
+    Header set Cache-Control   "no-store"
+</Route>
+```
+
 ## Demo and Tests
 * Requires dev packages for glib-2.0 libxml-2.0 jansson-2.12
 * builds apteryx, apteryx-xml, fcgi and lighttpd(or nginx)
@@ -396,8 +410,10 @@ curl -u manager:friend -k -H "X-Config-Only: on" -X "DELETE" https://<HOST>/api/
 ## STREAMS
 * Send a GET request with content type text/event-stream to receive asynchronous changes for a path from the server
 
+https://html.spec.whatwg.org/multipage/server-sent-events.html
+
 ```
-var source = new EventSource("/api/firewall");
+var source = new EventSource("/api/firewall/state");
 source.onmessage = function(event) {
   console.log(event.data);
 };
@@ -409,8 +425,7 @@ source.onmessage = function(event) {
 ```
 
 ```
-curl -N -H "X-JSON-Types: on" -H "Accept:text/event-stream" http://localhost:8080/api/firewall/settings
-
+curl -N -H "X-JSON-Types: on" -H "Accept:text/event-stream" http://localhost:8080/api/firewall/state
 data: {"state": 1}
 
 data: {"state": 0}
@@ -418,8 +433,7 @@ data: {"state": 0}
 ```
 
 ```
-curl -N -H "X-JSON-Types: on" -H "Accept:application/stream+json" http://localhost:8080/api/firewall/settings
-
+curl -N -H "X-JSON-Types: on" -H "Accept:application/stream+json" http://localhost:8080/api/firewall/state
 {"state": 1}
 {"state": 0}
 ```

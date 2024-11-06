@@ -19,6 +19,7 @@ function quit {
         RC=$1
         # Stop lighttpd
         killall lighttpd &> /dev/null
+        killall appweb &> /dev/null
         killall nginx &> /dev/null
         # Stop apteryx-rest
         killall apteryx-rest &> /dev/null
@@ -71,7 +72,7 @@ cp $BUILD/apteryx-xml/models/*.lua $BUILD/usr/share/restconf/
 # Check fcgi
 if [ ! -d fcgi-2.4.0 ]; then
         echo "Building fcgi from source."
-        wget https://github.com/LuaDist/fcgi/archive/2.4.0.tar.gz
+        wget -nc https://github.com/LuaDist/fcgi/archive/2.4.0.tar.gz
         rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
         tar -zxf 2.4.0.tar.gz
 fi
@@ -89,7 +90,7 @@ if [ "$1" == "nginx" ]; then
     # Build nginx
     if [ ! -d nginx-1.27.2 ]; then
             echo "Building nginx from source."
-            wget http://nginx.org/download/nginx-1.27.2.tar.gz
+            wget -nc http://nginx.org/download/nginx-1.27.2.tar.gz
             rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
             tar -zxf nginx-1.27.2.tar.gz
             rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
@@ -102,6 +103,33 @@ if [ "$1" == "nginx" ]; then
             --modules-path=$BUILD/modules
             make install DESTDIR=$BUILD
             rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
+            cd $BUILD
+    fi
+elif [ "$1" == "appweb" ]; then
+    # Build appweb
+    if [ ! -d appweb-8.2.3 ]; then
+            echo "Building appweb from source."
+            wget -nc https://github.com/AbsoluteZero-ljz/appweb/archive/refs/tags/v8.2.3.tar.gz
+            rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
+            tar -zxf v8.2.3.tar.gz
+            rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
+            # Disable appweb redirect handling as we do not need it but do need the location header
+            sed -i 's/scaselesscmp(key, "location")/scaselesscmp(key, "ignore")/g' appweb-8.2.3/src/modules/fastHandler.c
+            rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
+            # Fixup appweb broken chunking
+            sed -i 's/tx->headerSize = mpr/else\n        mprPutStringToBuf(buf, "\\r\\n");\n    tx->headerSize = mpr/g' appweb-8.2.3/src/http/httpLib.c
+            sed -i 's/\\r\\n%zx\\r\\n/%zx\\r\\n/g' appweb-8.2.3/src/http/httpLib.c
+            sed -i 's/\\r\\n0\\r\\n\\r\\n/0\\r\\n\\r\\n/g' appweb-8.2.3/src/http/httpLib.c
+            sed -i 's/setChunkPrefix(q, packet);/setChunkPrefix(q, packet);\n            mprPutStringToBuf(packet->content, "\\r\\n");/g' appweb-8.2.3/src/http/httpLib.c
+    fi
+    if [ ! -f $BUILD/usr/sbin/appweb ]; then
+            cd appweb-8.2.3
+            ME_COM_FAST=1 make
+            rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
+            mkdir -p $BUILD/usr/sbin
+            cp build/linux-x64-default/bin/appweb $BUILD/usr/sbin/
+            mkdir -p $BUILD/usr/lib
+            cp build/linux-x64-default/bin/*.so $BUILD/usr/lib/
             cd $BUILD
     fi
 else
@@ -200,6 +228,23 @@ if [ "$1" == "nginx" ]; then
     ' > $BUILD/nginx.conf
     $BUILD/usr/sbin/nginx
     rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
+elif [ "$1" == "appweb" ]; then
+    echo Running appweb ...
+    killall appweb &> /dev/null
+    echo '
+    Listen 8080
+    FastConnect 127.0.0.1:9047 keep multiplex=1000
+    <Route ^/api>
+        Documents "/api"
+        Prefix /api
+        Methods set GET, POST, PUT, DELETE, PATCH, OPTIONS, HEAD
+        SetHandler fastHandler
+        SessionCookie disable
+        Header set Cache-Control   "no-store"
+    </Route>
+    ' > $BUILD/appweb.conf
+    $BUILD/usr/sbin/appweb --config $BUILD/appweb.conf --log stdout:2 --trace stdout:2 &
+    rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
 else
     echo Running lighttpd ...
     killall lighttpd &> /dev/null
@@ -239,6 +284,11 @@ if [ "$ACTION" == "test" ]; then
 else
         PARAM="-v"
 fi
+if [ "$1" == "appweb" ]; then
+        SOCK="127.0.0.1:9047"
+else
+        SOCK="apteryx-rest.sock"
+fi
 
 # Start apteryx-rest
 rm -f $BUILD/apteryx-rest.sock
@@ -247,7 +297,7 @@ rm -f $BUILD/apteryx-rest.sock
 # TEST_WRAPPER="valgrind --tool=cachegrind"
 # TEST_WRAPPER="valgrind --tool=callgrind"
 G_SLICE=always-malloc LD_LIBRARY_PATH=$BUILD/usr/lib LUA_CPATH="$BUILD/usr/lib/lib?.so;;" \
-        $TEST_WRAPPER ../apteryx-rest $PARAM -m $BUILD/etc/restconf/ -r $BUILD/usr/share/restconf/ -p apteryx-rest.pid -s apteryx-rest.sock
+        $TEST_WRAPPER ../apteryx-rest $PARAM -m $BUILD/etc/restconf/ -r $BUILD/usr/share/restconf/ -p apteryx-rest.pid -s $SOCK
 rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
 sleep 0.5
 cd $BUILD/../
