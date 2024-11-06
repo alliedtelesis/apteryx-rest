@@ -478,3 +478,42 @@ def test_restconf_head():
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/yang-data+json"
     assert response.content == b''
+
+
+def test_restconf_path_normalisation_double_slash():
+    apteryx.set("/test/settings/priority", "")
+    data = """{"priority": 2}"""
+    response = requests.post("{}{}/data//test//settings".format(server_uri, docroot), auth=server_auth, headers=set_restconf_headers, data=data)
+    assert response.status_code == 201
+    assert len(response.content) == 0
+    assert apteryx.get("/test/settings/priority") == "2"
+    response = requests.get("{}{}/data//test//settings//priority".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.json() == json.loads('{ "priority": 2 }')
+
+
+def test_restconf_path_normalisation_relative():
+    apteryx.set("/test/settings/priority", "")
+    data = """{"priority": 2}"""
+    response = requests.post("{}{}/data/test/../test/settings/../settings".format(server_uri, docroot), auth=server_auth, headers=set_restconf_headers, data=data)
+    assert response.status_code == 201
+    assert len(response.content) == 0
+    assert apteryx.get("/test/settings/priority") == "2"
+    response = requests.get("{}{}/data/test/../test/settings/../settings/priority/../priority".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.json() == json.loads('{ "priority": 2 }')
+
+
+def test_restconf_path_normalisation_dot():
+    apteryx.set("/test/settings/priority", "")
+    data = """{"priority": 2}"""
+    response = requests.post("{}{}/data/./test/./settings".format(server_uri, docroot), auth=server_auth, headers=set_restconf_headers, data=data)
+    assert response.status_code == 201
+    assert len(response.content) == 0
+    assert apteryx.get("/test/settings/priority") == "2"
+    response = requests.get("{}{}/data/./test/./settings/./priority".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.json() == json.loads('{ "priority": 2 }')
