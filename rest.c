@@ -1697,8 +1697,9 @@ watch_callback (GNode * root, void *arg)
 
     /* Send the event */
     if (req->flags & FLAGS_EVENT_STREAM)
-        send_response (req->handle, "data: ", true);
-    send_response (req->handle, data, true);
+        send_response (req->handle, "data: ", false);
+    send_response (req->handle, data, false);
+    /* SSE detects end of data via an empty line */
     if (req->flags & FLAGS_EVENT_STREAM)
         send_response (req->handle, "\r\n\r\n", true);
     else
@@ -1743,6 +1744,7 @@ rest_api_watch (req_handle handle, int flags, const char *path)
     add_callback (APTERYX_WATCHERS_PATH, req->wpath, (void *) watch_callback, true,
                   (void *) req, 1, 0);
 
+    /* Response */
     send_response (handle, "Status: 200\r\n", false);
     send_response (handle, "Connection: 'keep-alive'\r\n", false);
     if (flags & FLAGS_APPLICATION_STREAM)
@@ -1750,7 +1752,23 @@ rest_api_watch (req_handle handle, int flags, const char *path)
     else
         send_response (handle, "Content-type: text/event-stream\r\n", false);
     send_response (handle, "Cache-Control: 'no-cache'\r\n", false);
-    send_response (handle, "\r\n\r\n", true);
+    send_response (handle, "\r\n", true);
+
+    /* Initial data */
+    GNode *query = sch_path_to_query (g_schema, NULL, path, 0);
+    GNode *tree = query ? apteryx_query (query) : NULL;
+    if (query)
+        apteryx_free_tree (query);
+    if (tree)
+    {
+        watch_callback (tree, (void *) req);
+    }
+    else
+    {
+        /* Send some empty lines to force the web server
+           to respond to the client */
+        send_response (handle, "\r\n\r\n", true);
+    }
 
     while (is_connected (req->handle, true))
     {
