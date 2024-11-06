@@ -196,7 +196,8 @@ normalise_path(const char *path)
 {
     GString *normalised = g_string_new(NULL);
     char *copy = g_strdup(path);
-    char *token = strtok((char *)copy, "/");
+    char *saveptr = NULL;
+    char *token = strtok_r((char *)copy, "/", &saveptr);
     char *last = NULL;
     while (token) {
         if (strcmp(token, ".") == 0) {
@@ -209,7 +210,7 @@ normalise_path(const char *path)
             g_string_append_printf(normalised, "/%s", token);
         }
         last = token;
-        token = strtok(NULL, "/");
+        token = strtok_r(NULL, "/", &saveptr);
     }
     free(copy);
     if (path[strlen(path) - 1] == '/')
