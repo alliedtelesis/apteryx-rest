@@ -50,6 +50,8 @@ c_apteryx_prune = c_apteryx.apteryx_prune
 c_apteryx_prune.restype = ctypes.c_bool
 c_apteryx_search = c_apteryx.apteryx_search
 c_apteryx_search.restype = ctypes.POINTER(GList)
+c_apteryx_find = c_apteryx.apteryx_find
+c_apteryx_find.restype = ctypes.POINTER(GList)
 c_apteryx_set_tree_full = c_apteryx.apteryx_set_tree_full
 c_apteryx_set_tree_full.argtypes = [ctypes.POINTER(GNode), ctypes.c_int, ctypes.c_bool]
 c_apteryx_set_tree_full.restype = ctypes.c_bool
@@ -78,6 +80,15 @@ def prune(path):
 
 def search(path):
     c_paths = c_apteryx_search(path.encode('utf-8'))
+    paths = []
+    while bool(c_paths):
+        paths.append(c_paths.contents.data.decode('utf-8'))
+        c_paths = c_paths.contents.next
+    return paths
+
+
+def find(path, value):
+    c_paths = c_apteryx_find(path.encode('utf-8'), value.encode('utf-8'))
     paths = []
     while bool(c_paths):
         paths.append(c_paths.contents.data.decode('utf-8'))
