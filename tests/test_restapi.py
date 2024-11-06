@@ -2,6 +2,7 @@ import apteryx
 import pytest
 import requests
 import json
+import time
 from lxml import etree
 from conftest import server_uri, server_auth, docroot, rfc3986_reserved
 
@@ -1556,15 +1557,40 @@ def test_restapi_search_etag_not_modified():
     assert len(response.content) == 0
 
 
+def test_restapi_stream_event_no_initial_value():
+    apteryx.set("/test/settings/priority", "")
+    url = "{}{}/test/settings/priority".format(server_uri, docroot)
+    response = requests.get(url, stream=True, verify=False, auth=server_auth, headers={'Accept': 'text/event-stream'}, timeout=5)
+    assert response.status_code == 200
+    apteryx.set("/test/settings/priority", "1")
+    for line in response.iter_lines(decode_unicode=True):
+        if line == 'data: {"priority": 1}':
+            event = True
+            break
+    response.close()
+    time.sleep(1)
+    assert event is True, "Did not receive an event for the change in data"
+    # assert not apteryx.find("/apteryx/watchers/*", "/test/settings/priority")
+
+
 def test_restapi_stream_event_node():
+    apteryx.set("/test/settings/priority", "1")
     url = "{}{}/test/settings/priority".format(server_uri, docroot)
     response = requests.get(url, stream=True, verify=False, auth=server_auth, headers={'Accept': 'text/event-stream'}, timeout=5)
     assert response.status_code == 200
     apteryx.set("/test/settings/priority", "2")
+    initial = update = False
     for line in response.iter_lines(decode_unicode=True):
-        print(line)
-        if line == 'data: {"priority": 2}':
+        if line == 'data: {"priority": 1}':
+            initial = True
+        elif line == 'data: {"priority": 2}':
+            update = True
             break
+    response.close()
+    time.sleep(1)
+    assert initial is True, "Did not receive the event for initial data"
+    assert update is True, "Did not receive an event for the change in data"
+    # assert not apteryx.find("/apteryx/watchers/*", "/test/settings/priority")
 
 
 def test_restapi_stream_json_node():
