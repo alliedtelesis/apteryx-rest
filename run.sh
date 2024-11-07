@@ -2,6 +2,18 @@
 ROOT=`pwd`
 ACTION=$1
 
+# Defaults
+HTTP_SERVER="${HTTP_SERVER:-lighttpd}"
+if [[ "$HTTP_SERVER" != "lighttpd" && "$HTTP_SERVER" != "nginx" && "$HTTP_SERVER" != "appweb" ]] ; then
+        echo "Invalid HTTP_SERVER. Must be one of; lighttpd, nginx or appweb"
+        exit 1
+fi
+LIGHTTPD_URL="${LIGHTTPD_URL:-https://download.lighttpd.net/lighttpd/releases-1.4.x/lighttpd-1.4.53.tar.xz}"
+NGINX_URL="${NGINX_URL:-http://nginx.org/download/nginx-1.27.2.tar.gz}"
+APPWEB_URL="${APPWEB_URL:-https://github.com/AbsoluteZero-ljz/appweb/archive/refs/tags/v8.2.3.tar.gz}"
+APPWEB_HANDLER="${APPWEB_HANDLER:-fastHandler}"
+FCGI_URL="${FCGI_URL:-https://github.com/LuaDist/fcgi/archive/2.4.0.tar.gz}"
+
 # Check required libraries and tools
 if ! pkg-config --exists glib-2.0 libxml-2.0 cunit jansson; then
         echo "Please install glib-2.0, libxml-2.0, jansson and cunit"
@@ -17,15 +29,15 @@ cd $BUILD
 # Generic cleanup
 function quit {
         RC=$1
-        # Stop lighttpd
-        killall lighttpd &> /dev/null
-        killall appweb &> /dev/null
-        killall nginx &> /dev/null
+        # Stop web-server
+        killall -q lighttpd
+        killall -q appweb
+        killall -q nginx
         # Stop apteryx-rest
-        killall apteryx-rest &> /dev/null
+        killall -q apteryx-rest
         kill `pidof valgrind.bin` &> /dev/null
         # Stop Apteryx
-        killall -9 apteryxd &> /dev/null
+        killall -q -9 apteryxd
         rm -f /tmp/apteryx
         exit $RC
 }
@@ -70,14 +82,17 @@ mkdir -p $BUILD/usr/share/restconf
 cp $BUILD/apteryx-xml/models/*.lua $BUILD/usr/share/restconf/
 
 # Check fcgi
-if [ ! -d fcgi-2.4.0 ]; then
-        echo "Building fcgi from source."
-        wget -nc https://github.com/LuaDist/fcgi/archive/2.4.0.tar.gz
-        rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
-        tar -zxf 2.4.0.tar.gz
-fi
 if [ ! -f $BUILD/usr/lib/libfcgi.so ]; then
-        cd fcgi-2.4.0
+        echo "Building fcgi."
+        wget -nc $FCGI_URL
+        rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
+        FILE="$(basename $FCGI_URL)"
+        DIR=$(tar tf $FILE | sed -e 's@/.*@@' | uniq)
+        if [ ! -d $DIR ]; then
+                tar -zxf $FILE
+                rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
+        fi
+        cd $DIR
         ./configure --prefix=/usr
         sed -i 's/SUBDIRS = libfcgi cgi-fcgi examples include/SUBDIRS = libfcgi cgi-fcgi include/g' Makefile
         make install DESTDIR=$BUILD
@@ -86,68 +101,69 @@ if [ ! -f $BUILD/usr/lib/libfcgi.so ]; then
 fi
 
 # Build web server
-if [ "$1" == "nginx" ]; then
-    # Build nginx
-    if [ ! -d nginx-1.27.2 ]; then
-            echo "Building nginx from source."
-            wget -nc http://nginx.org/download/nginx-1.27.2.tar.gz
-            rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
-            tar -zxf nginx-1.27.2.tar.gz
-            rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
-    fi
-    if [ ! -f $BUILD/usr/sbin/nginx ]; then
-            cd nginx-1.27.2
-            ./configure --prefix=/var/www/html --sbin-path=/usr/sbin/nginx --conf-path=$BUILD/nginx.conf \
-            --http-log-path=$BUILD/access.log --error-log-path=$BUILD/error.log --with-pcre \
-            --lock-path=$BUILD/nginx.lock --pid-path=$BUILD/nginx.pid --with-http_ssl_module \
-            --modules-path=$BUILD/modules
-            make install DESTDIR=$BUILD
-            rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
-            cd $BUILD
-    fi
-elif [ "$1" == "appweb" ]; then
-    # Build appweb
-    if [ ! -d appweb-8.2.3 ]; then
-            echo "Building appweb from source."
-            wget -nc https://github.com/AbsoluteZero-ljz/appweb/archive/refs/tags/v8.2.3.tar.gz
-            rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
-            tar -zxf v8.2.3.tar.gz
-            rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
-            # Disable appweb redirect handling as we do not need it but do need the location header
-            sed -i 's/scaselesscmp(key, "location")/scaselesscmp(key, "ignore")/g' appweb-8.2.3/src/modules/fastHandler.c
-            rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
-            # Fixup appweb broken chunking
-            sed -i 's/tx->headerSize = mpr/else\n        mprPutStringToBuf(buf, "\\r\\n");\n    tx->headerSize = mpr/g' appweb-8.2.3/src/http/httpLib.c
-            sed -i 's/\\r\\n%zx\\r\\n/%zx\\r\\n/g' appweb-8.2.3/src/http/httpLib.c
-            sed -i 's/\\r\\n0\\r\\n\\r\\n/0\\r\\n\\r\\n/g' appweb-8.2.3/src/http/httpLib.c
-            sed -i 's/setChunkPrefix(q, packet);/setChunkPrefix(q, packet);\n            mprPutStringToBuf(packet->content, "\\r\\n");/g' appweb-8.2.3/src/http/httpLib.c
-    fi
-    if [ ! -f $BUILD/usr/sbin/appweb ]; then
-            cd appweb-8.2.3
-            ME_COM_FAST=1 make
-            rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
-            mkdir -p $BUILD/usr/sbin
-            cp build/linux-x64-default/bin/appweb $BUILD/usr/sbin/
-            mkdir -p $BUILD/usr/lib
-            cp build/linux-x64-default/bin/*.so $BUILD/usr/lib/
-            cd $BUILD
-    fi
-else
-    # Build lighttpd
-    if [ ! -d lighttpd-1.4.53 ]; then
-            echo "Building lighttpd from source."
-            wget https://download.lighttpd.net/lighttpd/releases-1.4.x/lighttpd-1.4.53.tar.xz
-            rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
-            tar -xf lighttpd-1.4.53.tar.xz
-            rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
-    fi
-    if [ ! -f $BUILD/usr/sbin/lighttpd ]; then
-            cd lighttpd-1.4.53
-            ./configure --prefix=/usr --disable-ipv6 CFLAGS=-Wno-error
-            make install DESTDIR=$BUILD
-            rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
-            cd $BUILD
-    fi
+if [ "$HTTP_SERVER" == "lighttpd" ] && [ ! -f $BUILD/usr/sbin/lighttpd ]; then
+        echo "Building lighttpd."
+        wget -nc $LIGHTTPD_URL
+        rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
+        FILE="$(basename $LIGHTTPD_URL)"
+        DIR=$(tar tf $FILE | sed -e 's@/.*@@' | uniq)
+        if [ ! -d $DIR ]; then
+                tar -xf $FILE
+                rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
+        fi
+        cd $DIR
+        ./configure --prefix=/usr --disable-ipv6 CFLAGS=-Wno-error
+        make install DESTDIR=$BUILD
+        rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
+        cd $BUILD
+elif [ "$HTTP_SERVER" == "nginx" ] && [ ! -f $BUILD/usr/sbin/nginx ]; then
+        echo "Building nginx."
+        wget -nc $NGINX_URL
+        rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
+        FILE="$(basename $NGINX_URL)"
+        DIR=$(tar ztf $FILE | sed -e 's@/.*@@' | uniq)
+        if [ ! -d $DIR ]; then
+                tar -zxf $FILE
+                rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
+        fi
+        cd $DIR
+        ./configure --prefix=/var/www/html --sbin-path=/usr/sbin/nginx --conf-path=$BUILD/nginx.conf \
+        --http-log-path=$BUILD/access.log --error-log-path=$BUILD/error.log --with-pcre \
+        --lock-path=$BUILD/nginx.lock --pid-path=$BUILD/nginx.pid --with-http_ssl_module \
+        --modules-path=$BUILD/modules
+        make install DESTDIR=$BUILD
+        rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
+        cd $BUILD
+elif [ "$HTTP_SERVER" == "appweb" ] && [ ! -f $BUILD/usr/sbin/appweb ]; then
+        echo "Building appweb."
+        wget -nc $APPWEB_URL
+        rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
+        FILE="$(basename $APPWEB_URL)"
+        DIR=$(tar ztf $FILE | sed -e 's@/.*@@' | uniq)
+        if [ ! -d $DIR ]; then
+                tar -zxf $FILE
+                rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
+                cd $DIR
+                # Disable appweb redirect handling as we do not need it but do need the location header
+                sed -i 's/scaselesscmp(key, "location")/scaselesscmp(key, "ignore")/g' src/modules/fastHandler.c
+                rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
+                # Fixup appweb broken chunking
+                sed -i 's/tx->headerSize = mpr/else\n        mprPutStringToBuf(buf, "\\r\\n");\n    tx->headerSize = mpr/g' src/http/httpLib.c
+                sed -i 's/\\r\\n%zx\\r\\n/%zx\\r\\n/g' src/http/httpLib.c
+                sed -i 's/\\r\\n0\\r\\n\\r\\n/0\\r\\n\\r\\n/g' src/http/httpLib.c
+                sed -i 's/setChunkPrefix(q, packet);/setChunkPrefix(q, packet);\n            mprPutStringToBuf(packet->content, "\\r\\n");/g' src/http/httpLib.c
+                cd ..
+        fi
+        cd $DIR
+        export LDFLAGS="$(pkg-config --libs glib-2.0) -L$BUILD/usr/lib"
+        export CFLAGS="$(pkg-config --cflags glib-2.0) -I$BUILD/usr/include"
+        ME_COM_FAST=1 ME_COM_APTERYX=1 make
+        rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
+        mkdir -p $BUILD/usr/sbin
+        cp build/linux-x64-default/bin/appweb $BUILD/usr/sbin/
+        mkdir -p $BUILD/usr/lib
+        cp build/linux-x64-default/bin/*.so $BUILD/usr/lib/
+        cd $BUILD
 fi
 
 # Build
@@ -182,100 +198,108 @@ $BUILD/usr/bin/apteryxd -b
 rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
 
 # Run web server
-if [ "$1" == "nginx" ]; then
-    echo Running nginx ...
-    killall nginx &> /dev/null
-    echo '
-    daemon on;
-    error_log /dev/stdout debug;
-    pid '$BUILD'/nginx.pid;
-    events {
-        worker_connections 768;
-    }
-    http {
-        server {
-            listen 8080;
-            location /api {
-                root /api;
-                fastcgi_pass unix:'$BUILD'/apteryx-rest.sock;
-                fastcgi_buffering off;
-                fastcgi_read_timeout 1d;
-                fastcgi_param NO_BUFFERING "";
-                fastcgi_param DOCUMENT_ROOT      $document_root;
-                fastcgi_param REQUEST_METHOD     $request_method;
-                fastcgi_param REQUEST_URI        $request_uri;
-                fastcgi_param QUERY_STRING       $query_string;
-                fastcgi_param CONTENT_TYPE       $content_type;
-                fastcgi_param CONTENT_LENGTH     $content_length;
-                fastcgi_param HTTP_IF_MATCH      $http_if_match;
-                fastcgi_param HTTP_IF_NONE_MATCH $http_if_none_match;
-                fastcgi_param HTTP_IF_MODIFIED_SINCE $http_if_modified_since;
-                fastcgi_param HTTP_IF_UNMODIFIED_SINCE $http_if_unmodified_since;
-            }
-            error_page   500 502 503 504  /50x.html;
-            location = /50x.html {
-                root   html;
-            }
-        }
-        merge_slashes off; # Just to test our own code
-        access_log /dev/stdout;
-        client_body_temp_path '$BUILD'/nginx-client-body;
-        proxy_temp_path '$BUILD'/nginx-proxy;
-        fastcgi_temp_path '$BUILD'/nginx-fastcgi;
-        uwsgi_temp_path '$BUILD'/nginx-uwsgi;
-        scgi_temp_path '$BUILD'/nginx-scgi;
-    }
-    ' > $BUILD/nginx.conf
-    $BUILD/usr/sbin/nginx
-    rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
-elif [ "$1" == "appweb" ]; then
-    echo Running appweb ...
-    killall appweb &> /dev/null
-    echo '
-    Listen 8080
-    FastConnect 127.0.0.1:9047 keep multiplex=1000
-    <Route ^/api>
-        Documents "/api"
-        Prefix /api
-        Methods set GET, POST, PUT, DELETE, PATCH, OPTIONS, HEAD
-        SetHandler fastHandler
-        SessionCookie disable
-        Header set Cache-Control   "no-store"
-    </Route>
-    ' > $BUILD/appweb.conf
-    $BUILD/usr/sbin/appweb --config $BUILD/appweb.conf --log stdout:2 --trace stdout:2 &
-    rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
-else
-    echo Running lighttpd ...
-    killall lighttpd &> /dev/null
-    echo '
-    server.document-root = "'$BUILD'/../"
-    index-file.names = ( "index.html" )
-    server.port = 8080
-    server.modules += ("mod_fastcgi")
-    mimetype.assign = (
-    ".html" => "text/html",
-    ".txt" => "text/plain",
-    ".xml" => "text/xml",
-    ".jpg" => "image/jpeg",
-    ".png" => "image/png",
-    ".css" => "text/css",
-    )
-    server.stream-response-body = 2
-    fastcgi.debug = 1
-    fastcgi.server = (
-      "/api" => (
-        "fastcgi.handler" => (
-          "docroot" => "/api",
-          "socket" => "'$BUILD'/apteryx-rest.sock",
-          "check-local" => "disable",
+if [ "$HTTP_SERVER" == "lighttpd" ]; then
+        echo Running lighttpd ...
+        killall lighttpd &> /dev/null
+        echo '
+        server.document-root = "'$BUILD'/../"
+        index-file.names = ( "index.html" )
+        server.port = 8080
+        server.modules += ("mod_fastcgi")
+        mimetype.assign = (
+        ".html" => "text/html",
+        ".txt" => "text/plain",
+        ".xml" => "text/xml",
+        ".jpg" => "image/jpeg",
+        ".png" => "image/png",
+        ".css" => "text/css",
         )
-      ),
-    )
-    server.errorlog = "'$BUILD'/lighttpd.log"
-    ' > $BUILD/lighttpd.conf
-    $BUILD/usr/sbin/lighttpd -f $BUILD/lighttpd.conf -m $BUILD/usr/lib
-    rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
+        server.stream-response-body = 2
+        fastcgi.debug = 1
+        fastcgi.server = (
+        "/api" => (
+                "fastcgi.handler" => (
+                "docroot" => "/api",
+                "socket" => "'$BUILD'/apteryx-rest.sock",
+                "check-local" => "disable",
+                )
+        ),
+        )
+        server.errorlog = "'$BUILD'/lighttpd.log"
+        ' > $BUILD/lighttpd.conf
+        $BUILD/usr/sbin/lighttpd -f $BUILD/lighttpd.conf -m $BUILD/usr/lib
+        rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
+elif [ "$HTTP_SERVER" == "nginx" ]; then
+        echo Running nginx ...
+        killall nginx &> /dev/null
+        echo '
+        daemon on;
+        # error_log /dev/stdout debug;
+        pid '$BUILD'/nginx.pid;
+        events {
+                worker_connections 768;
+        }
+        http {
+                server {
+                        listen 8080;
+                        access_log off;
+                        location /api {
+                                root /api;
+                                fastcgi_pass unix:'$BUILD'/apteryx-rest.sock;
+                                fastcgi_buffering off;
+                                fastcgi_read_timeout 1d;
+                                fastcgi_param NO_BUFFERING "";
+                                fastcgi_param DOCUMENT_ROOT      $document_root;
+                                fastcgi_param REQUEST_METHOD     $request_method;
+                                fastcgi_param REQUEST_URI        $request_uri;
+                                fastcgi_param QUERY_STRING       $query_string;
+                                fastcgi_param CONTENT_TYPE       $content_type;
+                                fastcgi_param CONTENT_LENGTH     $content_length;
+                                fastcgi_param HTTP_IF_MATCH      $http_if_match;
+                                fastcgi_param HTTP_IF_NONE_MATCH $http_if_none_match;
+                                fastcgi_param HTTP_IF_MODIFIED_SINCE $http_if_modified_since;
+                                fastcgi_param HTTP_IF_UNMODIFIED_SINCE $http_if_unmodified_since;
+                        }
+                        error_page   500 502 503 504  /50x.html;
+                        location = /50x.html {
+                                root   html;
+                        }
+                }
+                merge_slashes off; # Just to test our own code
+                access_log /dev/stdout;
+                client_body_temp_path '$BUILD'/nginx-client-body;
+                proxy_temp_path '$BUILD'/nginx-proxy;
+                fastcgi_temp_path '$BUILD'/nginx-fastcgi;
+                uwsgi_temp_path '$BUILD'/nginx-uwsgi;
+                scgi_temp_path '$BUILD'/nginx-scgi;
+        }
+        ' > $BUILD/nginx.conf
+        $BUILD/usr/sbin/nginx
+        rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
+elif [ "$HTTP_SERVER" == "appweb" ]; then
+        echo Running appweb ...
+        killall appweb &> /dev/null
+        > $BUILD/appweb.conf
+        if [ "$APPWEB_HANDLER" == "apteryxHandler" ]; then
+                echo '
+        LoadModule ApteryxHandler '$BUILD'/usr/lib/libmod_apteryx.so
+        ApteryxSchemaPath '$BUILD'/etc/restconf/
+                ' > $BUILD/appweb.conf
+        fi
+        echo '
+        Listen 8080
+        FastConnect 127.0.0.1:9047 keep multiplex=1000
+        <Route ^/api>
+                Documents "/api"
+                Prefix /api
+                Methods set GET, POST, PUT, DELETE, PATCH, OPTIONS, HEAD
+                SetHandler '$APPWEB_HANDLER'
+                SessionCookie disable
+                Header set Cache-Control   "no-store"
+        </Route>
+        ' >> $BUILD/appweb.conf
+        (set -m; $BUILD/usr/sbin/appweb --config $BUILD/appweb.conf &)
+        rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
 fi
 
 # Parameters
@@ -284,7 +308,7 @@ if [ "$ACTION" == "test" ]; then
 else
         PARAM="-v"
 fi
-if [ "$1" == "appweb" ]; then
+if [ "$HTTP_SERVER" == "appweb" ]; then
         SOCK="127.0.0.1:9047"
 else
         SOCK="apteryx-rest.sock"
