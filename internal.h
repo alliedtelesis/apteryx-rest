@@ -48,6 +48,10 @@ extern bool verbose;
 #define NOTICE(fmt, args...) { if (debug) printf (fmt, ## args); else syslog (LOG_NOTICE, fmt, ## args); }
 #define ERROR(fmt, args...) { if (debug) printf (fmt, ## args); else syslog (LOG_CRIT, fmt, ## args); }
 
+/* For very long logging lines split the output message up. */
+#define LOG_CHUNK 128
+#define LOG_FLEX 24
+
 typedef enum
 {
     LOG_NONE                    = 0,
