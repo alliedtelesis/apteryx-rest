@@ -164,12 +164,44 @@ log_get_head (int flags, const char *path, const char *remote_user,
     }
 }
 
+static void
+log_long_value (char *ptr, int len)
+{
+    bool chunk = false;
+    char temp;
+
+    while (len)
+    {
+        if (len < LOG_CHUNK + LOG_FLEX)
+            chunk = false;
+        else
+        {
+            temp = ptr[LOG_CHUNK];
+            ptr[LOG_CHUNK] = '\0';
+            chunk = true;
+        }
+        NOTICE ("%s\n", ptr);
+        if (chunk)
+        {
+            ptr[LOG_CHUNK] = temp;
+            ptr += LOG_CHUNK;
+            len -= LOG_CHUNK;
+        }
+        else
+            break;
+    }
+}
+
 static gboolean
 log_modified_leafs (GNode *node, gpointer arg)
 {
     log_params *params = (log_params *) arg;
     char *path = NULL;
     char *value = NULL;
+    char *ptr;
+    char temp;
+    int len = 0;
+    bool chunk = false;
 
     path = apteryx_node_path (node);
     value = strrchr (path, '/');
@@ -182,9 +214,26 @@ log_modified_leafs (GNode *node, gpointer arg)
     {
         value = "";
     }
+    len = strlen (value);
+    /* LOG_FLEX is used to stop a remaining log message having only a few characters */
+    if (len > LOG_CHUNK + LOG_FLEX)
+    {
+        temp = value[LOG_CHUNK];
+        value[LOG_CHUNK] = '\0';
+        chunk = true;
+    }
+
     NOTICE ("%s[%3d] %s@%s %s=%s\n",
             params->key, params->rc, params->remote_user, params->remote_addr, path, value);
 
+    if (chunk)
+    {
+        /* The value is a long string, break it up into chunks */
+        value[LOG_CHUNK] = temp;
+        ptr = &value[LOG_CHUNK];
+        len -= LOG_CHUNK;
+        log_long_value (ptr, len);
+    }
     g_free (path);
     return FALSE;
 }
