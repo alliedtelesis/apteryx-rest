@@ -1341,15 +1341,24 @@ def test_restconf_query_animals_animal_report_all_1():
     "animals": {
         "animal": [
             {
+                "config": {
+                    "type": "big"
+                },
                 "name": "cat",
                 "type": "animal-testing-types:big"
             },
             {
                 "colour": "brown",
+                "config": {
+                    "type": "big"
+                },
                 "name": "dog",
                 "type": "animal-testing-types:big"
             },
             {
+                "config": {
+                    "type": "big"
+                },
                 "food": [
                     {
                         "name": "banana",
@@ -1365,18 +1374,18 @@ def test_restconf_query_animals_animal_report_all_1():
             },
             {
                 "colour": "grey",
+                "config": {
+                    "type": "big"
+                },
                 "name": "mouse",
                 "type": "animal-testing-types:little"
             },
             {
                 "colour": "blue",
-                "name": "parrot",
-                "toys": {
-                    "toy": [
-                        "puzzles",
-                        "rings"
-                    ]
+                "config": {
+                    "type": "big"
                 },
+                "name": "parrot",
                 "type": "animal-testing-types:big"
             }
         ]
@@ -1394,15 +1403,24 @@ def test_restconf_query_animals_animal_report_all_2():
 {
     "animal": [
         {
+            "config": {
+                "type": "big"
+            },
             "name": "cat",
             "type": "animal-testing-types:big"
         },
         {
             "colour": "brown",
+            "config": {
+                "type": "big"
+            },
             "name": "dog",
             "type": "animal-testing-types:big"
         },
         {
+            "config": {
+                "type": "big"
+            },
             "food": [
                 {
                     "name": "banana",
@@ -1418,18 +1436,18 @@ def test_restconf_query_animals_animal_report_all_2():
         },
         {
             "colour": "grey",
+            "config": {
+                "type": "big"
+            },
             "name": "mouse",
             "type": "animal-testing-types:little"
         },
         {
             "colour": "blue",
-            "name": "parrot",
-            "toys": {
-                "toy": [
-                    "puzzles",
-                    "rings"
-                ]
+            "config": {
+                "type": "big"
             },
+            "name": "parrot",
             "type": "animal-testing-types:big"
         }
     ]
@@ -1447,6 +1465,9 @@ def test_restconf_query_animals_animal_report_all_3():
     "animal": [
         {
             "colour": "brown",
+            "config": {
+                "type": "big"
+            },
             "name": "dog",
             "type": "animal-testing-types:big"
         }
