@@ -169,6 +169,7 @@ log_long_value (char *ptr, int len)
 {
     bool chunk = false;
     char temp;
+    GString *chunk_str;
 
     while (len)
     {
@@ -180,7 +181,10 @@ log_long_value (char *ptr, int len)
             ptr[LOG_CHUNK] = '\0';
             chunk = true;
         }
-        NOTICE ("%s\n", ptr);
+        chunk_str = g_string_new (ptr);
+        g_string_replace (chunk_str, "\n", "\\n", 0);
+        NOTICE ("%s\n", chunk_str->str);
+        g_string_free (chunk_str, TRUE);
         if (chunk)
         {
             ptr[LOG_CHUNK] = temp;
@@ -202,6 +206,7 @@ log_modified_leafs (GNode *node, gpointer arg)
     char temp;
     int len = 0;
     bool chunk = false;
+    GString *value_str;
 
     path = apteryx_node_path (node);
     value = strrchr (path, '/');
@@ -223,8 +228,11 @@ log_modified_leafs (GNode *node, gpointer arg)
         chunk = true;
     }
 
+    value_str = g_string_new (value);
+    g_string_replace (value_str, "\n", "\\n", 0);
     NOTICE ("%s[%3d] %s@%s %s=%s\n",
-            params->key, params->rc, params->remote_user, params->remote_addr, path, value);
+            params->key, params->rc, params->remote_user, params->remote_addr, path, value_str->str);
+    g_string_free (value_str, TRUE);
 
     if (chunk)
     {
