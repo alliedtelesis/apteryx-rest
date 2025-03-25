@@ -804,7 +804,6 @@ rest_api_get (int flags, const char *path, const char *if_none_match, const char
     /* Get a timestamp for the root of the query path */
     apath = apteryx_node_path (rnode);
     ts = apteryx_timestamp (apath);
-    free (apath);
     if (if_none_match && if_none_match[0] != '\0' &&
         ts == strtoull (if_none_match, NULL, 16))
     {
@@ -930,6 +929,9 @@ exit:
 
     if (!resp)
     {
+        /* Get timestamp after refresher, as there may be some refreshed descendants. */
+        ts = apteryx_timestamp (apath);
+
         if (flags & FLAGS_RESTCONF && rc >= 400 && rc <= 499 && !json_string)
         {
             json_string = restconf_error (rc, error_tag);
@@ -948,6 +950,7 @@ exit:
                                 json_string ? strlen (json_string) : 0,
                                 json_string && (flags & FLAGS_METHOD_HEAD) == 0 ? json_string : "");
     }
+    free (apath);
     free (json_string);
     if (json)
         json_decref (json);
