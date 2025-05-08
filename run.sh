@@ -12,7 +12,7 @@ LIGHTTPD_URL="${LIGHTTPD_URL:-https://download.lighttpd.net/lighttpd/releases-1.
 NGINX_URL="${NGINX_URL:-http://nginx.org/download/nginx-1.27.2.tar.gz}"
 APPWEB_URL="${APPWEB_URL:-https://github.com/AbsoluteZero-ljz/appweb/archive/refs/tags/v8.2.3.tar.gz}"
 APPWEB_HANDLER="${APPWEB_HANDLER:-fastHandler}"
-FCGI_URL="${FCGI_URL:-https://github.com/LuaDist/fcgi/archive/2.4.0.tar.gz}"
+FCGI_URL="${FCGI_URL:-https://github.com/FastCGI-Archives/fcgi2/archive/refs/tags/2.4.6.tar.gz}"
 
 # Check required libraries and tools
 if ! pkg-config --exists glib-2.0 libxml-2.0 cunit jansson; then
@@ -93,6 +93,7 @@ if [ ! -f $BUILD/usr/lib/libfcgi.so ]; then
                 rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
         fi
         cd $DIR
+        autoreconf -fi
         ./configure --prefix=/usr
         sed -i 's/SUBDIRS = libfcgi cgi-fcgi examples include/SUBDIRS = libfcgi cgi-fcgi include/g' Makefile
         make install DESTDIR=$BUILD
