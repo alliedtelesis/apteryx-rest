@@ -21,6 +21,10 @@
 #include <sys/socket.h>
 #include <poll.h>
 #undef PACKAGE
+#undef PACKAGE_NAME
+#undef PACKAGE_STRING
+#undef PACKAGE_TARNAME
+#undef PACKAGE_VERSION
 #undef VERSION
 #include <fcgi_config.h>
 #include <fcgiapp.h>
