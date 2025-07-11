@@ -310,6 +310,19 @@ def test_restconf_create_list_entry_ok():
     assert apteryx.get("/test/animals/animal/frog/name") == "frog"
 
 
+def test_restconf_create_list_empty():
+    tree = """
+{
+    "animal" : []
+}
+"""
+    apteryx.prune("/test/animals/animal")
+    response = requests.post("{}{}/data/test/animals".format(server_uri, docroot), auth=server_auth, data=tree, headers=set_restconf_headers)
+    assert response.status_code == 201
+    print(apteryx.get_tree("/test/animals"))
+    assert apteryx.get_tree("/test/animals") == {}
+
+
 def test_restconf_create_list_leaf_string_ok():
     tree = """
 {
@@ -324,6 +337,20 @@ def test_restconf_create_list_leaf_string_ok():
     print(apteryx.get_tree("/test/animals/animal/cat"))
     assert apteryx.get("/test/animals/animal/cat/toys/toy/ball") == "ball"
     assert apteryx.get("/test/animals/animal/cat/toys/toy/mouse") == "mouse"
+
+
+def test_restconf_create_list_leaf_empty():
+    tree = """
+{
+    "toy" : []
+}
+"""
+    apteryx.prune("/test/animals/animal")
+    response = requests.post("{}{}/data/test/animals/animal=cat/toys".format(server_uri, docroot), auth=server_auth, data=tree, headers=set_restconf_headers)
+    assert response.status_code == 201
+    print(apteryx.get("/test/animals/animal/cat/toys"))
+    assert apteryx.get("/test/animals/animal/cat/toys") is None
+    assert apteryx.get_tree("/test/animals") == {}
 
 
 def test_restconf_create_list_with_key_with_reserved_characters():
@@ -471,6 +498,33 @@ def test_restconf_create_list_entry_exists():
             "type": "little"
         }
     ]
+}
+"""
+    response = requests.post("{}{}/data/test/animals".format(server_uri, docroot), auth=server_auth, data=tree, headers=set_restconf_headers)
+    assert response.status_code == 409
+    assert len(response.content) > 0
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.json() == json.loads("""
+{
+    "ietf-restconf:errors" : {
+        "error" : [
+        {
+            "error-type" : "application",
+            "error-tag" : "data-exists",
+            "error-message" : "object already exists"
+        }
+        ]
+    }
+}
+    """)
+    assert apteryx.get("/test/animals/animal/cat/type") == "1"
+
+
+def test_restconf_create_list_empty_exists():
+    tree = """
+{
+    "animal" : []
 }
 """
     response = requests.post("{}{}/data/test/animals".format(server_uri, docroot), auth=server_auth, data=tree, headers=set_restconf_headers)
