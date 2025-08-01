@@ -976,31 +976,34 @@ restconf_is_list_key_leaf_update (sch_node *api_subtree, GNode *child, GNode *tn
     }
     if (list_parent)
     {
-        char *key = sch_list_key (list_parent);
+        GList *keys = sch_list_keys (list_parent);
         char *list_name = sch_name (list_parent);
         if (g_strcmp0 (list_name, APTERYX_NAME (tnode)) == 0)
         {
             tnode = tnode->children;
         }
-        for (GNode *node = g_node_first_sibling (tnode); node; node = g_node_next_sibling (node))
+        for (GNode *node = g_node_first_sibling (tnode); !key_update && node; node = g_node_next_sibling (node))
         {
-            if (g_strcmp0 (key, APTERYX_NAME (node)) == 0 && node->children)
+            for (GList *key = keys; !key_update && key != NULL; key = key->next)
             {
-                char *value = APTERYX_NAME (node->children);
-                char *path = apteryx_node_path (child);
-                char *query = case1 ? g_strdup_printf ("%s/%s", path, key) : g_strdup (path);
-                char *res = apteryx_get (query);
-                if (res && g_strcmp0 (res, value))
-                    key_update = true;
+                if (g_strcmp0 ((char *)key->data, APTERYX_NAME (node)) == 0 && node->children)
+                {
+                    char *value = APTERYX_NAME (node->children);
+                    char *path = apteryx_node_path (child);
+                    char *query = case1 ? g_strdup_printf ("%s/%s", path, (char *)key->data) : g_strdup (path);
+                    char *res = apteryx_get (query);
+                    if (res && g_strcmp0 (res, value))
+                        key_update = true;
 
-                g_free (res);
-                g_free (path);
-                g_free (query);
-                break;
+                    g_free (res);
+                    g_free (path);
+                    g_free (query);
+                    break;
+                }
             }
         }
         g_free (list_name);
-        g_free (key);
+        g_list_free_full (keys, g_free);
     }
     return key_update;
 }

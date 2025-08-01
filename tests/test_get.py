@@ -347,6 +347,25 @@ def test_restconf_get_list_select_one_by_path_trunk():
     """)
 
 
+def test_restconf_get_list_with_2keys():
+    apteryx.set("/test/friends/fred_73/name", "fred")
+    apteryx.set("/test/friends/fred_73/age", "73")
+    response = requests.get("{}{}/data/testing:test/friends=fred,73".format(server_uri, docroot), auth=server_auth, headers=get_restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.json() == json.loads("""
+{
+    "testing:friends": [
+        {
+            "name": "fred",
+            "age": 73
+        }
+    ]
+}
+    """)
+
+
 def test_restconf_get_list_reserved_in_key():
     characters = "-._~!$&()*+;=@,: /"
     escaped = "/"

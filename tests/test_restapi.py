@@ -402,6 +402,23 @@ def test_restapi_get_list_select_one_ns_with_colon():
 """)
 
 
+def test_restapi_get_list_by_2keys():
+    apteryx.set("/test/friends/fred_73/name", "fred")
+    apteryx.set("/test/friends/fred_73/age", "73")
+    response = requests.get("{}{}/test/friends/fred_73".format(server_uri, docroot), verify=False, auth=server_auth)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/json"
+    assert response.json() == json.loads("""
+{
+    "fred_73": {
+        "name": "fred",
+        "age": "73"
+    }
+}
+""")
+
+
 def test_restapi_get_list_by_key_with_reserved_characters():
     for c in rfc3986_reserved:
         name = f"fred{c}jones"

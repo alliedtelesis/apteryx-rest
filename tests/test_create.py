@@ -489,6 +489,24 @@ def test_restconf_create_complex_ok():
     assert apteryx.get("/test/settings/users/fred/groups/5") == "5"
 
 
+def test_restconf_create_list_with_2keys():
+    tree = """
+{
+    "friends" : [
+        {
+            "name": "fred",
+            "age": 99
+        }
+    ]
+}
+"""
+    response = requests.post("{}{}/data/test".format(server_uri, docroot), auth=server_auth, data=tree, headers=set_restconf_headers)
+    assert response.status_code == 201
+    print(apteryx.get_tree("/test/friends"))
+    assert apteryx.get("/test/friends/fred_99/name") == "fred"
+    assert apteryx.get("/test/friends/fred_99/age") == "99"
+
+
 def test_restconf_create_list_entry_exists():
     tree = """
 {
