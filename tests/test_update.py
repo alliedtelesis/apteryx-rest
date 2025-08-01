@@ -81,6 +81,31 @@ def test_restconf_update_existing_list_key():
     assert response.status_code == 405
 
 
+def test_restconf_update_existing_list_2key():
+    apteryx.set("/test/friends/fred_73/name", "fred")
+    apteryx.set("/test/friends/fred_73/age", "73")
+    data = '{"name" : "barney"}'
+    response = requests.patch("{}{}/data/test/friends=fred,73".format(server_uri, docroot), auth=server_auth, data=data, headers=set_restconf_headers)
+    assert response.status_code == 405
+    data = '{"age" : 65}'
+    response = requests.patch("{}{}/data/test/friends=fred,73".format(server_uri, docroot), auth=server_auth, data=data, headers=set_restconf_headers)
+    assert response.status_code == 405
+    data = '{"name" : "fred", "age" : 65}'
+    response = requests.patch("{}{}/data/test/friends=fred,73".format(server_uri, docroot), auth=server_auth, data=data, headers=set_restconf_headers)
+    assert response.status_code == 405
+    data = '{"name" : "barney", "age" : 73}'
+    response = requests.patch("{}{}/data/test/friends=fred,73".format(server_uri, docroot), auth=server_auth, data=data, headers=set_restconf_headers)
+    assert response.status_code == 405
+    data = '{"name" : "barney", "age" : 65}'
+    response = requests.patch("{}{}/data/test/friends=fred,73".format(server_uri, docroot), auth=server_auth, data=data, headers=set_restconf_headers)
+    assert response.status_code == 405
+    data = '{"name" : "fred", "age" : 73}'
+    response = requests.patch("{}{}/data/test/friends=fred,73".format(server_uri, docroot), auth=server_auth, data=data, headers=set_restconf_headers)
+    assert response.status_code == 204
+    assert apteryx.get("/test/friends/fred_73/name") == "fred"
+    assert apteryx.get("/test/friends/fred_73/age") == "73"
+
+
 def test_restconf_update_existing_list_non_key():
     data = '{"colour" : "pink"}'
     response = requests.patch("{}{}/data/test/animals/animal=cat".format(server_uri, docroot), auth=server_auth, data=data, headers=set_restconf_headers)

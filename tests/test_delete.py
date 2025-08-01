@@ -180,6 +180,15 @@ def test_restconf_delete_list_by_path_select_list_leaf():
     assert apteryx.get("/test/animals/animal/parrot/toys/toy/rings") == 'rings'
 
 
+def test_restconf_delete_list_with_2keys():
+    apteryx.set("/test/friends/fred_73/name", "fred")
+    apteryx.set("/test/friends/fred_73/age", "73")
+    response = requests.delete(f"{server_uri}{docroot}/data/testing:test/friends=fred,73", headers=set_restconf_headers)
+    assert response.status_code == 204
+    assert len(response.content) == 0
+    assert not apteryx.search("/test/friends/fred_73/")
+
+
 def test_restconf_delete_list_by_key_with_reserved_characters():
     for c in rfc3986_reserved:
         name = f"fred{c}jones"
