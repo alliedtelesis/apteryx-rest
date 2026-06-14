@@ -649,6 +649,45 @@ def test_restconf_get_when_condition_false():
     """)
 
 
+def test_restconf_get_when_starts_with_true():
+    apteryx.set("/test/animals/animal/cat/legs", "4")
+    response = requests.get("{}{}/data/testing:test/animals/animal=cat".format(server_uri, docroot),
+                            auth=server_auth, headers=get_restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.json() == json.loads("""
+{
+    "testing:animal": [
+        {
+            "legs": "4",
+            "name": "cat",
+            "type": "animal-testing-types:big"
+        }
+    ]
+}
+    """)
+
+
+def test_restconf_get_when_starts_with_false():
+    apteryx.set("/test/animals/animal/dog/legs", "4")
+    response = requests.get("{}{}/data/testing:test/animals/animal=dog".format(server_uri, docroot),
+                            auth=server_auth, headers=get_restconf_headers)
+    print(json.dumps(response.json(), indent=4, sort_keys=True))
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/yang-data+json"
+    assert response.json() == json.loads("""
+{
+    "testing:animal": [
+        {
+            "colour": "brown",
+            "name": "dog"
+        }
+    ]
+}
+    """)
+
+
 def test_restconf_get_must_condition_true():
     apteryx.set("/test/animals/animal/dog/friend", "ben")
     response = requests.get("{}{}/data/testing:test/animals/animal=dog".format(server_uri, docroot),
