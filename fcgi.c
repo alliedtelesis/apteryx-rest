@@ -181,6 +181,10 @@ get_flags (FCGX_Request * r)
         flags |= FLAGS_JSON_FORMAT_NS;
     if (param && strcmp (param, "off") == 0)
         flags &= ~FLAGS_JSON_FORMAT_NS;
+    /* Always include namespace prefix if server is configured to force it */
+    param = FCGX_GetParam ("REST_FORCE_NS_PREFIX", r->envp);
+    if (param && strcmp (param, "on") == 0)
+        flags |= FLAGS_FORCE_NS_PREFIX;
     if (flags & FLAGS_RESTCONF)
         flags |= FLAGS_CONDITIONS | FLAGS_IDREF_VALUES;
     /* PUT flags for RESTCONF compliance */
