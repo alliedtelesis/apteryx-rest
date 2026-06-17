@@ -720,14 +720,21 @@ rest_api_get (int flags, const char *path, const char *if_none_match, const char
     if (flags & FLAGS_JSON_FORMAT_NS)
     {
         schflags |= SCH_F_NS_MODEL_NAME;
-        /* If the prefix/model name is not specified in the request
-           then dont include it in the reply */
-        char *colon = strchr (path, ':');
-        char *slash = strchr (path, '/');
-        if (slash)
-            slash = strchr (slash + 1, '/');
-        if (colon && (!slash || colon < slash))
+        if (flags & FLAGS_FORCE_NS_PREFIX)
+        {
             schflags |= SCH_F_NS_PREFIX;
+        }
+        else
+        {
+            /* If the prefix/model name is not specified in the request
+               then dont include it in the reply */
+            char *colon = strchr (path, ':');
+            char *slash = strchr (path, '/');
+            if (slash)
+                slash = strchr (slash + 1, '/');
+            if (colon && (!slash || colon < slash))
+                schflags |= SCH_F_NS_PREFIX;
+        }
     }
 
     /* Convert the path to a GNode tree to use as the base of the apteryx query */

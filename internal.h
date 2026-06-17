@@ -89,6 +89,7 @@ typedef enum
 #define FLAGS_PUT_KEY_VALUE_DATA    (1 << 21)   /* PUT data must be a key:value object */
 #define FLAGS_PUT_REPLACE           (1 << 22)   /* PUT data replaces current contents */
 #define FLAGS_CONFIG_ONLY           (1 << 23)   /* DELETE config only nodes */
+#define FLAGS_FORCE_NS_PREFIX       (1 << 24)   /* Always include namespace prefix in output */
 extern int default_accept_encoding;
 extern int default_content_encoding;
 typedef void *req_handle;
