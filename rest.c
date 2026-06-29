@@ -1533,8 +1533,16 @@ rest_api_delete (int flags, const char *path, const char *remote_user, const cha
         }
         else if (g_node_max_height (tree) <= query_depth)
         {
-            rc = HTTP_CODE_NOT_FOUND;
-            error_tag = REST_E_TAG_INVALID_VALUE;
+            if (flags & FLAGS_RESTCONF)
+            {
+                rc = HTTP_CODE_NOT_FOUND;
+                error_tag = REST_E_TAG_INVALID_VALUE;
+            }
+            else
+            {
+                /* Non-RESTCONF DELETE is idempotent: nothing to delete is success */
+                rc = HTTP_CODE_NO_CONTENT;
+            }
         }
         else if (apteryx_set_tree (tree))
         {

@@ -1337,9 +1337,12 @@ def test_restapi_delete_read_only_node():
 
 
 def test_restapi_delete_read_only_trunk():
+    # Non-RESTCONF is config-only and idempotent: a read-only trunk has nothing
+    # config to delete, so this succeeds (no longer 404) and leaves state intact
     response = requests.delete("{}{}/test/state".format(server_uri, docroot), verify=False, auth=server_auth)
-    assert response.status_code == 403 or response.status_code == 404
+    assert response.status_code == 200 or response.status_code == 204
     assert len(response.content) == 0
+    assert apteryx.get("/test/state/counter") == "42"
 
 
 def test_restapi_delete_hidden_node():
@@ -1441,7 +1444,8 @@ def test_restapi_delete_trunk_with_readonly_leaflist():
     apteryx.set("/test/state/romembers/barney", "barney")
     apteryx.set("/test/state/romembers/wilma", "wilma")
     response = requests.delete(f"{server_uri}{docroot}/test/state", verify=False, auth=server_auth)
-    assert response.status_code == 404  # Nothing to delete
+    # Non-RESTCONF DELETE is idempotent: nothing to delete is success, not 404
+    assert response.status_code == 200 or response.status_code == 204
     assert len(response.content) == 0
     assert apteryx.get("/test/state/romembers/fred") == "fred"
     assert apteryx.get("/test/state/romembers/barney") == "barney"
