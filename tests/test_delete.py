@@ -251,6 +251,15 @@ def test_restconf_delete_sublist_config_only_readonly_leaf():
     assert apteryx.get("/test/settings/users/fred/active") == "true"
 
 
+def test_restconf_delete_trunk_nothing_to_delete():
+    # With config-only filtering a read-only trunk has nothing to delete, which
+    # reaches the same code path as the non-RESTCONF idempotent case in
+    # test_restapi_delete_read_only_trunk. RESTCONF mode keeps the strict 404 here.
+    response = requests.delete("{}{}/data/testing:test/state".format(server_uri, docroot), auth=server_auth, headers={**set_restconf_headers, 'X-Config-Only': "on"})
+    assert response.status_code == 404
+    assert apteryx.get("/test/state/counter") == "42"
+
+
 def test_restconf_delete_proxy_list_select_one():
     apteryx.set("/logical-elements/logical-element/loop/name", "loopy")
     apteryx.set("/logical-elements/logical-element/loop/root", "root")
