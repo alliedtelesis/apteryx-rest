@@ -780,7 +780,8 @@ rest_api_get (int flags, const char *path, const char *if_none_match, const char
     diff = qdepth - rdepth;
     while (diff--)
         rschema = sch_node_parent (rschema);
-    if (sch_node_parent (rschema) && sch_is_list (sch_node_parent (rschema)))
+    if (!(flags & FLAGS_LEGACY_KEY_AS_OBJECT) &&
+        sch_node_parent (rschema) && sch_is_list (sch_node_parent (rschema)))
     {
         /* We need to present the list rather than the key */
         rschema = sch_node_parent (rschema);
