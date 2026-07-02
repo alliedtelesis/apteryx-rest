@@ -185,6 +185,10 @@ get_flags (FCGX_Request * r)
     param = FCGX_GetParam ("REST_FORCE_NS_PREFIX", r->envp);
     if (param && strcmp (param, "on") == 0)
         flags |= FLAGS_FORCE_NS_PREFIX;
+    /* Legacy appweb /api compatibility: present a single list entry keyed by its key, not as a 1-element array */
+    param = FCGX_GetParam ("REST_LEGACY_KEY_AS_OBJECT", r->envp);
+    if (param && strcmp (param, "on") == 0)
+        flags |= FLAGS_LEGACY_KEY_AS_OBJECT;
     if (flags & FLAGS_RESTCONF)
         flags |= FLAGS_CONDITIONS | FLAGS_IDREF_VALUES;
     /* PUT flags for RESTCONF compliance */

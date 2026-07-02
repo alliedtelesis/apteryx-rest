@@ -90,6 +90,7 @@ typedef enum
 #define FLAGS_PUT_REPLACE           (1 << 22)   /* PUT data replaces current contents */
 #define FLAGS_CONFIG_ONLY           (1 << 23)   /* DELETE config only nodes */
 #define FLAGS_FORCE_NS_PREFIX       (1 << 24)   /* Always include namespace prefix in output */
+#define FLAGS_LEGACY_KEY_AS_OBJECT  (1 << 25)   /* Legacy appweb /api: present a by-key list entry as {key:{...}} not [{...}] */
 extern int default_accept_encoding;
 extern int default_content_encoding;
 typedef void *req_handle;
