@@ -35,6 +35,7 @@ static req_callback g_cb;
 static const char *g_socket = NULL;
 static int g_sock = -1;
 static GThread *g_thread = NULL;
+static bool g_running = false;
 
 static void
 dump_request (FCGX_Request * r)
@@ -339,6 +340,7 @@ static void *
 handle_fcgi (void *arg)
 {
     GThreadPool *workers = g_thread_pool_new ((GFunc) handle_http, NULL, -1, FALSE, NULL);
+    g_running = true;
     while (workers)
     {
         FCGX_Request *request = g_malloc0 (sizeof (FCGX_Request));
@@ -352,7 +354,8 @@ handle_fcgi (void *arg)
         g_thread_pool_push (workers, request, NULL);
     }
     DEBUG ("Stopping FCGI handler\n");
-    g_thread_pool_free (workers, true, false);
+    g_running = false;
+    g_thread_pool_free (workers, true, true);
     return NULL;
 }
 
@@ -402,6 +405,8 @@ is_connected (req_handle handle, bool block)
 {
     FCGX_Request *request = (FCGX_Request *) handle;
     struct pollfd pfd;
+    if (!g_running)
+        return false;
     pfd.fd = request->ipcFd;
     pfd.events = POLLERR | POLLHUP;
     pfd.revents = 0;
