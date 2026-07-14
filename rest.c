@@ -1831,9 +1831,9 @@ rest_api_watch (req_handle handle, int flags, const char *path)
         send_response (handle, "\r\n\r\n", true);
     }
 
-    while (is_connected (req->handle, true))
+    while (is_connected (req->handle, false))
     {
-        usleep (1000000);
+        /* still alive */
     }
     DEBUG ("REST(%p): Removing watch for \"%s\"\n", req->handle, path);
     pthread_mutex_lock (&g_watch_lock);
