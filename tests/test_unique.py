@@ -94,3 +94,120 @@ def test_restconf_create_unique_violation_multi_key():
     response = requests.post("{}{}/data/test".format(server_uri, docroot), auth=server_auth, headers=set_restconf_headers, data=data)
     assert response.status_code == 409
     assert apteryx.get("/test/friends/mary_25/email") is None
+
+
+def test_restconf_create_unique_nested_violation():
+    """
+    Creating a gateway using a duplicate prefix should be rejected, even
+    though the duplicate value is nested.
+    """
+    apteryx.set("/test/gateways/vlan10/name", "vlan10")
+    apteryx.set("/test/gateways/vlan10/config/sag/prefix", "10.0.0.0/24")
+    apteryx.set("/test/gateways/vlan10/config/sag/mac", "00:00:00:00:00:01")
+    data = """{"gateways":[{"name":"vlan11","config":{"sag":{"prefix":"10.0.0.0/24","mac":"00:00:00:00:00:01"}}}]}"""
+    response = requests.post("{}{}/data/test".format(server_uri, docroot), auth=server_auth, headers=set_restconf_headers, data=data)
+    assert response.status_code == 409
+    assert apteryx.get("/test/gateways/vlan11/config/sag/prefix") is None
+
+
+def test_restconf_create_unique_nested_ok():
+    """
+    Creating a new gateway with a distinct prefix should succeed, even
+    though it shares its mac with an existing gateway.
+    """
+    apteryx.set("/test/gateways/vlan10/name", "vlan10")
+    apteryx.set("/test/gateways/vlan10/config/sag/prefix", "10.0.0.0/24")
+    apteryx.set("/test/gateways/vlan10/config/sag/mac", "00:00:00:00:00:01")
+    data = """{"gateways":[{"name":"vlan11","config":{"sag":{"prefix":"10.0.1.0/24","mac":"00:00:00:00:00:01"}}}]}"""
+    response = requests.post("{}{}/data/test".format(server_uri, docroot), auth=server_auth, headers=set_restconf_headers, data=data)
+    assert response.status_code == 201
+    assert apteryx.get("/test/gateways/vlan11/config/sag/prefix") == "10.0.1.0/24"
+
+
+def test_restconf_create_unique_nested_violation_mac_differs():
+    """
+    Creating a new gateway whose prefix duplicates an existing gateway's,
+    but whose mac differs, should still be rejected, ensuring mac plays no
+    part in the unique constraint check.
+    """
+    apteryx.set("/test/gateways/vlan10/name", "vlan10")
+    apteryx.set("/test/gateways/vlan10/config/sag/prefix", "10.0.0.0/24")
+    apteryx.set("/test/gateways/vlan10/config/sag/mac", "00:00:00:00:00:01")
+    data = """{"gateways":[{"name":"vlan11","config":{"sag":{"prefix":"10.0.0.0/24","mac":"00:00:00:00:00:02"}}}]}"""
+    response = requests.post("{}{}/data/test".format(server_uri, docroot), auth=server_auth, headers=set_restconf_headers, data=data)
+    assert response.status_code == 409
+    assert apteryx.get("/test/gateways/vlan11/config/sag/prefix") is None
+
+
+def test_restconf_replace_unique_nested_self_ok():
+    """
+    Replacing a gateway's own prefix with the value it already holds should
+    succeed. The unique check must exclude an entry from being compared
+    against its own current value.
+    """
+    apteryx.set("/test/gateways/vlan10/name", "vlan10")
+    apteryx.set("/test/gateways/vlan10/config/sag/prefix", "10.0.0.0/24")
+    apteryx.set("/test/gateways/vlan10/config/sag/mac", "00:00:00:00:00:01")
+    data = """{"gateways":[{"name":"vlan10","config":{"sag":{"prefix":"10.0.0.0/24","mac":"00:00:00:00:00:01"}}}]}"""
+    response = requests.put("{}{}/data/test/gateways=vlan10".format(server_uri, docroot), auth=server_auth, headers=set_restconf_headers, data=data)
+    assert response.status_code == 204
+    assert apteryx.get("/test/gateways/vlan10/config/sag/prefix") == "10.0.0.0/24"
+
+
+def test_restconf_swap_unique_nested_ok():
+    """
+    Check that swapping the prefixes of two existing gateways in a single
+    request succeeds.
+    """
+    apteryx.set("/test/gateways/vlan10/name", "vlan10")
+    apteryx.set("/test/gateways/vlan10/config/sag/prefix", "10.0.0.0/24")
+    apteryx.set("/test/gateways/vlan10/config/sag/mac", "00:00:00:00:00:01")
+    apteryx.set("/test/gateways/vlan11/name", "vlan11")
+    apteryx.set("/test/gateways/vlan11/config/sag/prefix", "10.0.1.0/24")
+    apteryx.set("/test/gateways/vlan11/config/sag/mac", "00:00:00:00:00:01")
+    data = """
+{
+    "gateways": [
+        {"name": "vlan10", "config": {"sag": {"prefix": "10.0.1.0/24"}}},
+        {"name": "vlan11", "config": {"sag": {"prefix": "10.0.0.0/24"}}}
+    ]
+}
+"""
+    response = requests.patch("{}{}/data/test".format(server_uri, docroot), auth=server_auth, headers=set_restconf_headers, data=data)
+    assert response.status_code == 204
+    assert apteryx.get("/test/gateways/vlan10/config/sag/prefix") == "10.0.1.0/24"
+    assert apteryx.get("/test/gateways/vlan11/config/sag/prefix") == "10.0.0.0/24"
+
+
+def test_restconf_reuse_unique_nested_after_delete_ok():
+    """
+    Deleting a gateway's prefix, then assigning that exact prefix to a
+    different gateway in a later request, should succeed. E.g., deleting
+    it must correctly free it up.
+    """
+    apteryx.set("/test/gateways/vlan10/name", "vlan10")
+    apteryx.set("/test/gateways/vlan10/config/sag/prefix", "10.0.0.0/24")
+    apteryx.set("/test/gateways/vlan10/config/sag/mac", "00:00:00:00:00:01")
+    response = requests.delete("{}{}/data/test/gateways=vlan10/config/sag/prefix".format(server_uri, docroot), auth=server_auth, headers=set_restconf_headers)
+    assert response.status_code == 204
+    assert apteryx.get("/test/gateways/vlan10/config/sag/prefix") is None
+
+    data = """{"gateways":[{"name":"vlan11","config":{"sag":{"prefix":"10.0.0.0/24","mac":"00:00:00:00:00:02"}}}]}"""
+    response = requests.post("{}{}/data/test".format(server_uri, docroot), auth=server_auth, headers=set_restconf_headers, data=data)
+    assert response.status_code == 201
+    assert apteryx.get("/test/gateways/vlan11/config/sag/prefix") == "10.0.0.0/24"
+
+
+def test_restconf_create_unique_nested_batch_violation():
+    """
+    Creating two new gateways with the same prefix in a single request
+    should be rejected due to the unique prefix requirement.
+    """
+    data = """{"gateways":[
+        {"name":"vlan12","config":{"sag":{"prefix":"10.0.2.0/24","mac":"00:00:00:00:00:03"}}},
+        {"name":"vlan13","config":{"sag":{"prefix":"10.0.2.0/24","mac":"00:00:00:00:00:04"}}}
+    ]}"""
+    response = requests.post("{}{}/data/test".format(server_uri, docroot), auth=server_auth, headers=set_restconf_headers, data=data)
+    assert response.status_code == 409
+    assert apteryx.get("/test/gateways/vlan12/config/sag/prefix") is None
+    assert apteryx.get("/test/gateways/vlan13/config/sag/prefix") is None

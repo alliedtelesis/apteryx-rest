@@ -976,15 +976,28 @@ _gnode_find_leaf_value (GNode *tree, const char *leaf_name)
     {
         return NULL;
     }
-    if (g_strcmp0 (APTERYX_NAME (tree), leaf_name) == 0 && tree->children)
+    gchar **parts = g_strsplit (leaf_name, "/", -1);
+    GNode *node = tree;
+    int i = 0;
+    if (parts[0] && g_strcmp0 (APTERYX_NAME (tree), parts[0]) == 0)
     {
-        return g_strdup (APTERYX_NAME (tree->children));
+        i = 1;
     }
-    char *val = NULL;
-    for (GNode *child = tree->children; !val && child; child = child->next)
+    for (; parts[i] && node; i++)
     {
-        val = _gnode_find_leaf_value (child, leaf_name);
+        GNode *found = NULL;
+        for (GNode *child = node->children; child; child = child->next)
+        {
+            if (g_strcmp0 (APTERYX_NAME (child), parts[i]) == 0)
+            {
+                found = child;
+                break;
+            }
+        }
+        node = found;
     }
+    char *val = (node && node->children) ? g_strdup (APTERYX_NAME (node->children)) : NULL;
+    g_strfreev (parts);
     return val;
 }
 
