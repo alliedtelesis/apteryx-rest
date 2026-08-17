@@ -2,6 +2,12 @@ import apteryx
 import json
 import requests
 from conftest import server_uri, server_auth, docroot, set_restconf_headers, rfc3986_reserved
+from fcgi import fcgi_request
+
+# Largest request body apteryx-rest will accept (REST_MAX_CONTENT_LENGTH in fcgi.c).
+REST_MAX_CONTENT_LENGTH = 16 * 1024 * 1024
+# Body returned by handle_http() when it rejects a request before the handler.
+REST_ERROR_BODY = "Error. Check device log for more detail"
 
 
 def test_restconf_create_single_node_ns_none():
@@ -774,3 +780,73 @@ def test_restconf_must_condition_false():
     }
 }
     """)
+
+
+def test_restconf_create_valid_content_length(fcgi_sock):
+    apteryx.set("/test/settings/priority", "")
+    data = """{"priority": "2"}"""
+    status, body = fcgi_request(fcgi_sock, "POST", docroot, "/data/test/settings", body=data)
+    assert status == 201
+    assert body == ""
+    assert apteryx.get("/test/settings/priority") == "2"
+
+
+def test_restconf_create_content_length_not_a_number(fcgi_sock):
+    apteryx.set("/test/settings/priority", "")
+    data = """{"priority": "2"}"""
+    status, body = fcgi_request(fcgi_sock, "POST", docroot, "/data/test/settings",
+                                body=data, content_length="not-a-number")
+    assert status == 400
+    assert REST_ERROR_BODY in body
+    assert apteryx.get("/test/settings/priority") is None
+
+
+def test_restconf_create_content_length_trailing_junk(fcgi_sock):
+    apteryx.set("/test/settings/priority", "")
+    data = """{"priority": "2"}"""
+    status, body = fcgi_request(fcgi_sock, "POST", docroot, "/data/test/settings",
+                                body=data, content_length="17bytes")
+    assert status == 400
+    assert REST_ERROR_BODY in body
+    assert apteryx.get("/test/settings/priority") is None
+
+
+def test_restconf_create_content_length_negative(fcgi_sock):
+    apteryx.set("/test/settings/priority", "")
+    data = """{"priority": "2"}"""
+    status, body = fcgi_request(fcgi_sock, "POST", docroot, "/data/test/settings",
+                                body=data, content_length="-1")
+    assert status == 400
+    assert REST_ERROR_BODY in body
+    assert apteryx.get("/test/settings/priority") is None
+
+
+def test_restconf_create_content_length_at_limit_ok(fcgi_sock):
+    status, body = fcgi_request(fcgi_sock, "POST", docroot, "/data/test/settings",
+                                body=b"", content_length=str(REST_MAX_CONTENT_LENGTH))
+    # No body is actually sent, so this is not a successful create; the point is
+    # that the size check does not reject it with 413 (it is a short read -> 400).
+    assert status != 413
+    assert status == 400
+    assert REST_ERROR_BODY in body
+
+
+def test_restconf_create_content_length_too_large(fcgi_sock):
+    status, body = fcgi_request(fcgi_sock, "POST", docroot, "/data/test/settings",
+                                body=b"", content_length=str(REST_MAX_CONTENT_LENGTH + 1))
+    assert status == 413
+    assert REST_ERROR_BODY in body
+
+
+def test_restconf_create_content_length_2g(fcgi_sock):
+    status, body = fcgi_request(fcgi_sock, "POST", docroot, "/data/test/settings",
+                                body=b"", content_length="2147483647")
+    assert status == 413
+    assert REST_ERROR_BODY in body
+
+
+def test_restconf_create_content_length_overflow(fcgi_sock):
+    status, body = fcgi_request(fcgi_sock, "POST", docroot, "/data/test/settings",
+                                body=b"", content_length="9999999999")
+    assert status == 413
+    assert REST_ERROR_BODY in body
