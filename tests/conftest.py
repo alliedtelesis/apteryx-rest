@@ -7,6 +7,19 @@ import subprocess
 import time
 
 
+# Path to the FastCGI socket of the shared apteryx-rest instance (created by
+# run.sh). Some checks must bypass the front-end web server -- which normalises
+# the request before proxying -- and speak FastCGI directly to this socket.
+FCGI_SOCK_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".build", "apteryx-rest.sock"))
+
+
+@pytest.fixture
+def fcgi_sock():
+    if not os.path.exists(FCGI_SOCK_PATH):
+        pytest.skip("apteryx-rest FastCGI socket not available: %s" % FCGI_SOCK_PATH)
+    return FCGI_SOCK_PATH
+
+
 # TEST CONFIGURATION
 
 server_uri = 'http://localhost:8080'

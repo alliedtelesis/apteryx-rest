@@ -20,6 +20,7 @@
 #include "internal.h"
 #include <sys/socket.h>
 #include <poll.h>
+#include <errno.h>
 #undef PACKAGE
 #undef PACKAGE_NAME
 #undef PACKAGE_STRING
@@ -30,6 +31,9 @@
 #include <fcgiapp.h>
 
 #define UNKNOWN_STR "unknown"
+
+/* Largest request body we will accept, in bytes. */
+#define REST_MAX_CONTENT_LENGTH (16 * 1024 * 1024)
 
 static req_callback g_cb;
 static const char *g_socket = NULL;
@@ -304,8 +308,32 @@ handle_http (void *arg, void *user_data)
     }
     if (length != NULL)
     {
-        len = strtol (length, NULL, 10);
-        data = calloc (len + 1, 1);
+        char *endptr = NULL;
+        long clen;
+
+        errno = 0;
+        clen = strtol (length, &endptr, 10);
+        if (errno != 0 || endptr == length || *endptr != '\0' || clen < 0)
+        {
+            ERROR ("Invalid CONTENT_LENGTH \"%s\"\n", length);
+            rc = 400;
+            goto exit;
+        }
+        if (clen > REST_MAX_CONTENT_LENGTH)
+        {
+            ERROR ("CONTENT_LENGTH %ld exceeds maximum of %d\n",
+                   clen, REST_MAX_CONTENT_LENGTH);
+            rc = 413;
+            goto exit;
+        }
+        len = (int) clen;
+        data = calloc ((size_t) len + 1, 1);
+        if (data == NULL)
+        {
+            ERROR ("Failed to allocate %d bytes for request body\n", len);
+            rc = 500;
+            goto exit;
+        }
         for (i = 0; i < len; i++)
         {
             if ((data[i] = FCGX_GetChar (request->in)) < 0)
