@@ -1177,7 +1177,7 @@ rest_api_post (int flags, const char *path, const char *data, int length, const 
     {
         char *data_resource_name;
         sch_node *parent = sch_node_parent (api_subtree);
-        json_t *put_value = json_loadb (data, strlen (data), JSON_DECODE_ANY, &error);
+        json_t *put_value = json_loadb (data, length, JSON_DECODE_ANY, &error);
 
         /* Find the data resource node name - go up one if we are at a list key node */
         if (sch_is_list (parent))
@@ -1206,10 +1206,10 @@ rest_api_post (int flags, const char *path, const char *data, int length, const 
     {
         char *name;
         sch_node *pschema = sch_node_parent (api_subtree);
-        json_t *value = json_loadb (data, strlen (data), JSON_DECODE_ANY, &error);
+        json_t *value = json_loadb (data, length, JSON_DECODE_ANY, &error);
         if (!value && data && data[0] != '{' && data[0] != '[')
         {
-            value = json_stringn (data, strlen (data));
+            value = json_stringn (data, length);
         }
         if (sch_is_leaf_list (pschema))
         {
@@ -1235,7 +1235,7 @@ rest_api_post (int flags, const char *path, const char *data, int length, const 
     }
     else if (length)
     {
-        json = json_loads (data, 0, &error);
+        json = json_loadb (data, length, 0, &error);
         if (!json && rpcschema && !(flags & FLAGS_RESTCONF))
         {
             /* In non RESTCONF mode we support single input parameters without keys in RPC's */
@@ -1243,9 +1243,9 @@ rest_api_post (int flags, const char *path, const char *data, int length, const 
             sch_node *ichild = ischema ? sch_node_child_first (ischema) : NULL;
             if (ischema && ichild && !sch_node_next_sibling (ichild))
             {
-                json_t *value = json_loads (data, JSON_DECODE_ANY, &error);
+                json_t *value = json_loadb (data, length, JSON_DECODE_ANY, &error);
                 if (!value && data && data[0] != '{' && data[0] != '[')
-                    value = json_stringn (data, strlen (data));
+                    value = json_stringn (data, length);
                 if (value)
                 {
                     char *name = sch_name (ichild);
