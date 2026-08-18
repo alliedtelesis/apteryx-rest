@@ -183,7 +183,7 @@ _lua_apteryx_tree2dict (lua_State *L, GNode *this)
 {
     GNode *child = NULL;
 
-    if (!(this->children))
+    if (!this || !(this->children))
     {
         /* Something is wrong, either a value has been stored on a trunk
          * or get_tree was called on a leaf node. Both we do not support */
@@ -191,15 +191,17 @@ _lua_apteryx_tree2dict (lua_State *L, GNode *this)
     }
 
     lua_pushstring (L, APTERYX_NAME (this));
-    /* is this a leaf? */
-    if (APTERYX_HAS_VALUE (this))
+    /* is this a leaf? (resolve the first child once so the value access below
+     * is provably non-NULL) */
+    child = g_node_first_child (this);
+    if (child && G_NODE_IS_LEAF (child))
     {
-        lua_pushstring (L, APTERYX_VALUE (this));
+        lua_pushstring (L, (char *) child->data);
     }
     else
     {
         lua_newtable (L);
-        for (child = g_node_first_child (this); child; child = g_node_next_sibling (child))
+        for (; child; child = g_node_next_sibling (child))
         {
             _lua_apteryx_tree2dict (L, child);
         }
