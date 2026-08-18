@@ -850,3 +850,25 @@ def test_restconf_create_content_length_overflow(fcgi_sock):
                                 body=b"", content_length="9999999999")
     assert status == 413
     assert REST_ERROR_BODY in body
+
+
+def test_restconf_create_content_length_short_body(fcgi_sock):
+    apteryx.set("/test/settings/priority", "")
+    data = """{"priority": "2"}"""
+    status, body = fcgi_request(fcgi_sock, "POST", docroot, "/data/test/settings",
+                                body=data, content_length="1048576")
+    assert status == 400
+    assert REST_ERROR_BODY in body
+    assert "malformed request syntax" not in body
+    assert apteryx.get("/test/settings/priority") is None
+
+
+def test_restconf_create_content_length_body_mismatch(fcgi_sock):
+    apteryx.set("/test/settings/priority", "")
+    data = """{"priority": "2"}"""
+    status, body = fcgi_request(fcgi_sock, "POST", docroot, "/data/test/settings",
+                                body=data, content_length=str(len(data) + 8))
+    assert status == 400
+    assert REST_ERROR_BODY in body
+    assert "malformed request syntax" not in body
+    assert apteryx.get("/test/settings/priority") is None
