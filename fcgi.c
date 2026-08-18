@@ -245,7 +245,6 @@ handle_http (void *arg, void *user_data)
     int flags;
     char *data = NULL;
     int len = 0;
-    int i;
     int rc = 0;
 
     DEBUG ("FCGI(%p): New connection\n", request);
@@ -334,13 +333,11 @@ handle_http (void *arg, void *user_data)
             rc = 500;
             goto exit;
         }
-        for (i = 0; i < len; i++)
+        if (len && FCGX_GetStr (data, len, request->in) != len)
         {
-            if ((data[i] = FCGX_GetChar (request->in)) < 0)
-            {
-                ERROR ("ERROR: Not enough bytes received on standard input\n");
-                break;
-            }
+            ERROR ("Not enough bytes received on standard input (expected %d)\n", len);
+            rc = 400;
+            goto exit;
         }
     }
     g_cb ((req_handle) request, flags, rpath, path, if_match, if_none_match, if_modified_since,
