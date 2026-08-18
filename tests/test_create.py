@@ -872,3 +872,21 @@ def test_restconf_create_content_length_body_mismatch(fcgi_sock):
     assert REST_ERROR_BODY in body
     assert "malformed request syntax" not in body
     assert apteryx.get("/test/settings/priority") is None
+
+
+def test_restconf_put_binary_payload_not_truncated(fcgi_sock):
+    apteryx.set("/test/settings/description", "original")
+    body = b'{"description":"hi"}\x00'
+    status, _ = fcgi_request(fcgi_sock, "PUT", docroot, "/data/test/settings/description",
+                             body=body)
+    assert status == 400
+    assert apteryx.get("/test/settings/description") == "original"
+
+
+def test_restconf_post_object_payload_not_truncated(fcgi_sock):
+    apteryx.set("/test/settings/description", "")
+    body = b'{"description": "hello"}\x00XYZ'
+    status, _ = fcgi_request(fcgi_sock, "POST", docroot, "/data/test/settings",
+                             body=body)
+    assert status == 400
+    assert apteryx.get("/test/settings/description") is None
