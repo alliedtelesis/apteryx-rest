@@ -587,6 +587,8 @@ apteryx_json_search (const char *path, char **data)
 
     /* Create a version of the path without the trailing '/' */
     _path = strdup (path);
+    if (!_path)
+        return HTTP_CODE_INTERNAL_SERVER_ERROR;
     len = strlen (path);
     _path[len - 1] = '\0';
 
@@ -705,6 +707,11 @@ rest_api_get (int flags, const char *path, const char *if_none_match, const char
     if (qmark)
     {
         path = (const char *) (rpath = strndup (path, rpath - path));
+        if (!path)
+        {
+            rc = HTTP_CODE_INTERNAL_SERVER_ERROR;
+            goto exit;
+        }
         qmark += 1;
     }
 

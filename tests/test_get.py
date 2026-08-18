@@ -2,6 +2,7 @@ import apteryx
 import json
 import requests
 from conftest import server_uri, server_auth, docroot, get_restconf_headers, rfc3986_reserved
+from fcgi import fcgi_request
 
 
 def test_restconf_get_single_node_ns_none():
@@ -727,6 +728,16 @@ def test_restconf_get_must_condition_false():
     ]
 }
     """)
+
+
+def test_restconf_get_path_normalise_leading_dotdot(fcgi_sock):
+    request_uri = "/.." + docroot + "/data/test/state/counter"
+    status, body = fcgi_request(fcgi_sock, "GET", docroot, "/data/test/state/counter",
+                                request_uri=request_uri)
+    assert status == 200
+    assert json.loads(body) == json.loads('{ "counter": 42 }')
+    status2, _ = fcgi_request(fcgi_sock, "GET", docroot, "/data/test/state/counter")
+    assert status2 == 200
 
 
 # TODO multiple keys

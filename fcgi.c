@@ -215,18 +215,19 @@ normalise_path(const char *path)
     char *copy = g_strdup(path);
     char *saveptr = NULL;
     char *token = strtok_r((char *)copy, "/", &saveptr);
-    char *last = NULL;
+    char *slash = NULL;
     while (token) {
         if (strcmp(token, ".") == 0) {
             /* Ignore . */
         } else if (strcmp(token, "..") == 0) {
-            /* Remove the last segment */
-            g_string_truncate(normalised, strlen(last) + 1);
+            /* Remove the last segment, if there is one */
+            slash = strrchr(normalised->str, '/');
+            if (slash)
+                g_string_truncate(normalised, slash - normalised->str);
         } else {
             /* Add the new segment */
             g_string_append_printf(normalised, "/%s", token);
         }
-        last = token;
         token = strtok_r(NULL, "/", &saveptr);
     }
     free(copy);
