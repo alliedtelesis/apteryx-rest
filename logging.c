@@ -70,12 +70,13 @@ load_logging_options (void)
             }
             g_strfreev (split);
         }
-        fclose (fp);
     }
     else
     {
         ret = -1;
     }
+    if (fp)
+        fclose (fp);
     g_free (filename);
     g_free (buf);
     logging = flags;
@@ -127,6 +128,9 @@ logging_file_update (void)
 static gboolean
 logging_options_reload (GIOChannel *source, GIOCondition condition, gpointer data)
 {
+    (void) source;
+    (void) condition;
+    (void) data;
     logging_file_update ();
     return TRUE;
 }

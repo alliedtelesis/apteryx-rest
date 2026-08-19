@@ -34,8 +34,11 @@ static GList *g_rpcs = NULL;
 static lua_State *g_ls = NULL;
 
 static void
-rpc_free (struct rpc_handler *rpc)
+rpc_free (void *data, void *user_data)
 {
+    struct rpc_handler *rpc = data;
+
+    (void) user_data;
     free (rpc->path);
     free (rpc);
 }
@@ -61,6 +64,7 @@ rpc_cmp (struct rpc_handler *rpc, const char *path)
 static GList *
 rpc_find (int flags, const char *path)
 {
+    (void) flags;
     return g_list_find_custom (g_rpcs, (gpointer) path, (GCompareFunc) rpc_cmp);
 }
 
@@ -589,7 +593,7 @@ rest_rpc_init (const char *path)
 void
 rest_rpc_shutdown (void)
 {
-    g_list_foreach (g_rpcs, (GFunc) rpc_free, NULL);
+    g_list_foreach (g_rpcs, rpc_free, NULL);
     if (g_ls)
     {
         lua_close (g_ls);

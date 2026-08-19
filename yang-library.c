@@ -213,6 +213,8 @@ restconf_monitoring_create (sch_instance *schema)
     GNode *root;
     char **cap = restconf_capabilities;
 
+    (void) schema;
+
     root = APTERYX_NODE (NULL, g_strdup (RESTCONF_STATE_CAPABILITIES_CAPABILITY));
     for (; *cap != NULL; cap++)
     {
