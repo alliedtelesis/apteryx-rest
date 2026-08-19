@@ -1,0 +1,27 @@
+# Valgrind suppressions for apteryx-rest test runs.
+#
+# apteryx-rest runs its FastCGI handlers on a GLib thread pool and lets GLib
+# spawn a helper thread for UNIX signal handling. GLib does not join every one
+# of those threads before the process exits, so the per-thread stack/TLS that
+# glibc allocates in pthread_create() is still owned by the thread when valgrind
+# takes its snapshot. Valgrind reports it as "possibly lost", and occasionally
+# (depending on the exact teardown interleaving) as "definitely lost" - a 0-byte
+# block. None of this is an apteryx-rest heap leak; it is thread-lifecycle noise
+# from GLib, so suppress the per-thread TLS allocation regardless of leak kind.
+#
+# Scope is deliberately tight: only the dynamic linker's thread-local storage
+# allocated by pthread_create() is matched (apteryx-rest never allocates heap
+# through that path). Regenerate/extend with valgrind --gen-suppressions=all.
+
+{
+   glib-pthread-tls-stack
+   Memcheck:Leak
+   match-leak-kinds: definite,possible
+   fun:calloc
+   fun:calloc
+   fun:allocate_dtv
+   fun:_dl_allocate_tls
+   fun:allocate_stack
+   fun:pthread_create@@*
+   ...
+}
