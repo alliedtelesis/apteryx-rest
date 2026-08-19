@@ -170,8 +170,8 @@ fi
 # Build
 echo "Building apteryx-restconf"
 if [ ! -f $BUILD/../Makefile ]; then
-        export CFLAGS="-g -Wall -Werror -I$BUILD/usr/include -fprofile-arcs -ftest-coverage"
-        export LDFLAGS=-L$BUILD/usr/lib
+        export CFLAGS="-g -Wall -Werror -I$BUILD/usr/include -fprofile-arcs -ftest-coverage $REST_EXTRA_CFLAGS"
+        export LDFLAGS="-L$BUILD/usr/lib $REST_EXTRA_LDFLAGS"
         export PKG_CONFIG_PATH=$BUILD/usr/lib/pkgconfig
         cd $BUILD/../
         ./autogen.sh
@@ -317,19 +317,43 @@ fi
 
 # Start apteryx-rest
 rm -f $BUILD/apteryx-rest.sock
-# TEST_WRAPPER="gdb -ex run --args"
-# TEST_WRAPPER="valgrind --leak-check=full"
-# TEST_WRAPPER="valgrind --tool=cachegrind"
-# TEST_WRAPPER="valgrind --tool=callgrind"
-G_SLICE=always-malloc LD_LIBRARY_PATH=$BUILD/usr/lib LUA_CPATH="$BUILD/usr/lib/lib?.so;;" \
-        $TEST_WRAPPER ../apteryx-rest $PARAM -m $BUILD/etc/restconf/ -r $BUILD/usr/share/restconf/ -p apteryx-rest.pid -s $SOCK
-rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
-sleep 0.5
+# Optional wrapper for the daemon, set via the environment, e.g:
+#   TEST_WRAPPER="gdb -ex run --args"
+#   TEST_WRAPPER="valgrind --leak-check=full --show-leak-kinds=definite \
+#                 --errors-for-leak-kinds=definite --error-exitcode=1 \
+#                 --track-origins=yes --suppressions=tests/valgrind.supp"
+TEST_WRAPPER="${TEST_WRAPPER:-}"
+REST_ARGS="-m $BUILD/etc/restconf/ -r $BUILD/usr/share/restconf/ -p apteryx-rest.pid -s $SOCK"
+if [ -n "$TEST_WRAPPER" ]; then
+        # Under a wrapper (e.g. valgrind) run in the foreground so the wrapper
+        # supervises the daemon directly (no fork from -b), backgrounding the
+        # whole command and waiting for the socket to appear.
+        G_SLICE=always-malloc LD_LIBRARY_PATH=$BUILD/usr/lib LUA_CPATH="$BUILD/usr/lib/lib?.so;;" \
+                $TEST_WRAPPER ../apteryx-rest $REST_ARGS &
+        WRAPPER_PID=$!
+        for i in $(seq 1 300); do [ -S $BUILD/apteryx-rest.sock ] && break; sleep 0.2; done
+else
+        G_SLICE=always-malloc LD_LIBRARY_PATH=$BUILD/usr/lib LUA_CPATH="$BUILD/usr/lib/lib?.so;;" \
+                ../apteryx-rest $PARAM $REST_ARGS
+        rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
+        sleep 0.5
+fi
 cd $BUILD/../
 
 if [ "$ACTION" == "test" ]; then
         python3 -m pytest -v
         rc=$?; if [[ $rc != 0 ]]; then quit $rc; fi
+fi
+
+# When wrapped, stop the daemon cleanly (SIGTERM -> handler -> clean exit) and
+# honour the wrapper's exit code so e.g. valgrind errors fail the build.
+if [ -n "$TEST_WRAPPER" ]; then
+        kill -TERM $WRAPPER_PID 2>/dev/null
+        wait $WRAPPER_PID; wrc=$?
+        if [[ $wrc != 0 ]]; then
+                echo "TEST_WRAPPER reported errors (exit $wrc)"
+                quit $wrc
+        fi
 fi
 
 # Gcov

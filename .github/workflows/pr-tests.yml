@@ -20,3 +20,38 @@ jobs:
       run: HTTP_SERVER=nginx ./run.sh test
     - name: Build and run appweb tests
       run: HTTP_SERVER=appweb ./run.sh test
+
+  # valgrind and ubsan run as two parallel legs of a matrix (fail-fast: false so
+  # one failing does not cancel the other).
+  sanitizers:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - tool: valgrind
+            apt: valgrind
+            cflags: ""
+            ldflags: ""
+          - tool: ubsan
+            apt: ""
+            cflags: "-fsanitize=undefined -fno-sanitize-recover=all"
+            ldflags: "-fsanitize=undefined"
+    name: ${{ matrix.tool }}
+    steps:
+    - uses: actions/checkout@v3
+    - name: Install dependencies
+      run: sudo apt-get update -y && sudo apt-get install -y build-essential libglib2.0-dev libxml2-dev libcunit1-dev libjansson-dev libpcre3-dev zlib1g zlib1g-dev libssl-dev libgd-dev libxml2-dev uuid-dev libbz2-dev liblua5.3-dev lcov flake8 python3-pytest python3-lxml ${{ matrix.apt }} && pip install pyang
+    - name: Build and run lighttpd tests (${{ matrix.tool }})
+      env:
+        REST_EXTRA_CFLAGS: ${{ matrix.cflags }}
+        REST_EXTRA_LDFLAGS: ${{ matrix.ldflags }}
+        UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1:log_path=${{ github.workspace }}/.build/ubsan.log
+      run: |
+        if [ "${{ matrix.tool }}" = "valgrind" ]; then
+          export TEST_WRAPPER="valgrind --leak-check=full --show-leak-kinds=definite --errors-for-leak-kinds=definite --error-exitcode=1 --track-origins=yes --suppressions=$PWD/tests/valgrind.supp --log-file=$PWD/.build/valgrind.log"
+        fi
+        HTTP_SERVER=lighttpd ./run.sh test
+    - name: Show sanitizer logs
+      if: always()
+      run: cat .build/valgrind.log 2>/dev/null || true; cat .build/ubsan.log.* 2>/dev/null || true
