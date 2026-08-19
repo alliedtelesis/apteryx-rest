@@ -302,7 +302,7 @@ handle_http (void *arg, void *user_data)
     if (!rpath || !path)
     {
         ERROR ("Invalid server configuration (flags:0x%x, rpath:%s, path:%s)\n",
-               flags, rpath, path);
+               flags, rpath ? rpath : "(null)", path ? path : "(null)");
         rc = 500;
         goto exit;
     }
