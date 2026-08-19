@@ -231,10 +231,11 @@ normalise_path(const char *path)
     return g_string_free(normalised, false);
 }
 
-static void *
-handle_http (void *arg)
+static void
+handle_http (void *arg, void *user_data)
 {
     FCGX_Request *request = (FCGX_Request *) arg;
+    (void) user_data;
     char *rpath, *uri, *path, *length, *if_match, *if_none_match, *if_modified_since, *if_unmodified_since;
     char *server_name, *server_port, *remote_addr, *remote_user;
     int flags;
@@ -333,13 +334,16 @@ exit:
     FCGX_Finish_r (request);
     g_free (request);
     free(path);
-    return NULL;
+    return;
 }
 
 static void *
 handle_fcgi (void *arg)
 {
-    GThreadPool *workers = g_thread_pool_new ((GFunc) handle_http, NULL, -1, FALSE, NULL);
+    GThreadPool *workers;
+
+    (void) arg;
+    workers = g_thread_pool_new (handle_http, NULL, -1, FALSE, NULL);
     g_running = true;
     while (workers)
     {
