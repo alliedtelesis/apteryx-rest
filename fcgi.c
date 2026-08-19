@@ -306,7 +306,7 @@ handle_http (void *arg, void *user_data)
         rc = 500;
         goto exit;
     }
-    if (length != NULL)
+    if (length != NULL && length[0] != '\0')
     {
         char *endptr = NULL;
         long clen;
