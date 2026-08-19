@@ -52,6 +52,23 @@ jobs:
           export TEST_WRAPPER="valgrind --leak-check=full --show-leak-kinds=definite --errors-for-leak-kinds=definite --error-exitcode=1 --track-origins=yes --suppressions=$PWD/tests/valgrind.supp --log-file=$PWD/.build/valgrind.log"
         fi
         HTTP_SERVER=lighttpd ./run.sh test
-    - name: Show sanitizer logs
+    - name: Verify UBSan instrumentation is active
+      if: matrix.tool == 'ubsan'
+      run: |
+        if ! nm -u apteryx-rest | grep -q __ubsan_handle; then
+          echo "ERROR: apteryx-rest was not built with UBSan (no __ubsan_handle symbols) -" \
+               "the sanitizer flags did not take effect, so a green result proves nothing."
+          exit 1
+        fi
+        echo "UBSan instrumentation present:"
+        nm -u apteryx-rest | grep __ubsan_handle
+    - name: Check for sanitizer findings
       if: always()
-      run: cat .build/valgrind.log 2>/dev/null || true; cat .build/ubsan.log.* 2>/dev/null || true
+      run: |
+        cat .build/valgrind.log 2>/dev/null || true
+        if ls .build/ubsan.log.* >/dev/null 2>&1; then
+          echo "ERROR: UBSan reported undefined behaviour:"
+          cat .build/ubsan.log.*
+          exit 1
+        fi
+        echo "No UBSan reports."
