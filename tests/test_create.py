@@ -791,6 +791,16 @@ def test_restconf_create_valid_content_length(fcgi_sock):
     assert apteryx.get("/test/settings/priority") == "2"
 
 
+def test_restconf_content_length_empty_is_not_rejected(fcgi_sock):
+    # Some front-end servers (e.g. nginx) always pass CONTENT_LENGTH, empty for
+    # a request with no body. An empty value must be treated as "no body", not
+    # rejected as a malformed length.
+    status, body = fcgi_request(fcgi_sock, "GET", docroot, "/data/test/settings/priority",
+                                content_length="")
+    assert status == 200
+    assert json.loads(body) == json.loads('{ "priority": 1 }')
+
+
 def test_restconf_create_content_length_not_a_number(fcgi_sock):
     apteryx.set("/test/settings/priority", "")
     data = """{"priority": "2"}"""
