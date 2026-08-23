@@ -198,7 +198,7 @@ yang_library_create (sch_instance *schema)
 
     /* Each time this routine is run the content-id will be set to a unique id based
      * on the clock */
-    snprintf (set_id, sizeof (set_id), "%" PRIx64 "", now);
+    snprintf (set_id, sizeof (set_id), "%" PRIx64 "", (uint64_t) now);
     apteryx_set (YANG_LIBRARY_CONTENT_ID, set_id);
 }
 

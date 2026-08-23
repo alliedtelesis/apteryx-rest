@@ -424,7 +424,7 @@ void
 send_response (req_handle handle, const char *data, bool flush)
 {
     FCGX_Request *request = (FCGX_Request *) handle;
-    DEBUG ("FCGI(%p): send %lu bytes\n", request, strlen (data));
+    DEBUG ("FCGI(%p): send %zu bytes\n", request, strlen (data));
     FCGX_PutS (data, request->out);
     if (flush)
         FCGX_FFlush (request->out);
