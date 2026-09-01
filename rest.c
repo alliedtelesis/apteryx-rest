@@ -423,7 +423,7 @@ rest_rpc (int flags, GNode *node, sch_node *schema, json_t *json)
             if (json_object_size (json) == 1)
             {
                 key = json_object_iter_key (json_object_iter(json));
-                char *colon = key ? strchr (key, ':') : NULL;
+                const char *colon = key ? strchr (key, ':') : NULL;
                 if (colon) key = colon + 1;
                 if (g_strcmp0 (key, "input") != 0)
                     key = NULL;
@@ -737,8 +737,8 @@ rest_api_get (int flags, const char *path, const char *if_none_match, const char
         {
             /* If the prefix/model name is not specified in the request
                then dont include it in the reply */
-            char *colon = strchr (path, ':');
-            char *slash = strchr (path, '/');
+            const char *colon = strchr (path, ':');
+            const char *slash = strchr (path, '/');
             if (slash)
                 slash = strchr (slash + 1, '/');
             if (colon && (!slash || colon < slash))
