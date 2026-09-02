@@ -122,7 +122,10 @@ restconf_error (int status, rest_e_tag error_tag)
     else if (status == HTTP_CODE_CONFLICT)
     {
         json_object_set_new (error, "error-type", json_string ("application"));
-        json_object_set_new (error, "error-message", json_string ("object already exists"));
+        if (error_tag == REST_E_TAG_OPER_FAILED)
+            json_object_set_new (error, "error-message", json_string ("value violates a unique constraint"));
+        else
+            json_object_set_new (error, "error-message", json_string ("object already exists"));
     }
     else if (status == HTTP_CODE_PRECONDITION_FAILED)
     {
@@ -973,6 +976,204 @@ exit:
     return resp;
 }
 
+/* Search a GNode tree for a leaf named leaf_name and return its value,
+ * or NULL if not found. */
+static char *
+_gnode_find_leaf_value (GNode *tree, const char *leaf_name)
+{
+    if (!tree)
+    {
+        return NULL;
+    }
+    gchar **parts = g_strsplit (leaf_name, "/", -1);
+    GNode *node = tree;
+    int i = 0;
+    if (parts[0] && g_strcmp0 (APTERYX_NAME (tree), parts[0]) == 0)
+    {
+        i = 1;
+    }
+    for (; parts[i] && node; i++)
+    {
+        GNode *found = NULL;
+        for (GNode *child = node->children; child; child = child->next)
+        {
+            if (g_strcmp0 (APTERYX_NAME (child), parts[i]) == 0)
+            {
+                found = child;
+                break;
+            }
+        }
+        node = found;
+    }
+    char *val = (node && node->children) ? g_strdup (APTERYX_NAME (node->children)) : NULL;
+    g_strfreev (parts);
+    return val;
+}
+
+/* Strip the last n path segments from path, returning a new string. */
+static char *
+_path_strip_right (const char *path, int n)
+{
+    char *result = g_strdup (path);
+    for (int i = 0; i < n; i++)
+    {
+        char *slash = strrchr (result, '/');
+        if (slash && slash != result)
+        {
+            *slash = '\0';
+        }
+        else
+        {
+            break;
+        }
+    }
+    return result;
+}
+
+/* Generic leaf function to be passed to shared apteryx-xml code for 
+ * resolving a leaf's value. */
+static char *
+_rest_unique_leaf (const char *entry_path, const char *leaf_name, void *arg)
+{
+    GNode *entry_node = g_hash_table_lookup ((GHashTable *) arg, entry_path);
+    char *value = entry_node ? _gnode_find_leaf_value (entry_node, leaf_name) : NULL;
+    if (!value)
+    {
+        char *lpath = g_strdup_printf ("%s/%s", entry_path, leaf_name);
+        value = apteryx_get (lpath);
+        g_free (lpath);
+    }
+    return value;
+}
+
+/* Collect (path, GNode*) pairs for every list entry found depth levels below
+ * the sibling chain in siblings. */
+static void
+_collect_entry_nodes (GNode *siblings, const char *base_path, int depth, GHashTable *out)
+{
+    for (GNode *child = siblings; child; child = child->next)
+    {
+        char *path = g_strdup_printf ("%s/%s", base_path, APTERYX_NAME (child));
+        if (depth <= 1)
+        {
+            g_hash_table_insert (out, path, child);
+        }
+        else
+        {
+            _collect_entry_nodes (child->children, path, depth - 1, out);
+            g_free (path);
+        }
+    }
+}
+
+/* Validate every entry found under entries against list_schema's unique 
+ * constraint, via the shared apteryx-xml implementation. */
+static bool
+_check_list_unique (sch_node *list_schema, const char *list_path, GNode *entries)
+{
+    GHashTable *entry_nodes = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
+    _collect_entry_nodes (entries, list_path, 1, entry_nodes);
+
+    GList *new_paths = g_hash_table_get_keys (entry_nodes);
+    bool valid = sch_check_unique (list_schema, list_path, new_paths, _rest_unique_leaf,
+                                   entry_nodes, verbose ? SCH_F_DEBUG : 0);
+
+    g_list_free (new_paths);
+    g_hash_table_destroy (entry_nodes);
+    return valid;
+}
+
+/* Look for YANG lists at or below (schema, path) that this write's data
+ * actually populates, and validate the unique constraint on each one found. */
+static bool
+_check_unique_below (sch_node *schema, const char *path, GNode *data)
+{
+    if (!schema)
+    {
+        return true;
+    }
+
+    char *self_name = sch_name (schema);
+    while (data && !data->next && g_strcmp0 (APTERYX_NAME (data), self_name) == 0)
+    {
+        data = data->children;
+    }
+    free (self_name);
+
+    if (!data)
+    {
+        return true;
+    }
+
+    if (sch_is_list (schema))
+    {
+        return _check_list_unique (schema, path, data);
+    }
+
+    bool valid = true;
+    for (GNode *dchild = data; dchild && valid; dchild = dchild->next)
+    {
+        sch_node *cschema = sch_node_child (schema, APTERYX_NAME (dchild));
+        if (!cschema)
+        {
+            continue;
+        }
+        char *cpath = g_strdup_printf ("%s/%s", path, APTERYX_NAME (dchild));
+        valid = _check_unique_below (cschema, cpath, dchild->children);
+        g_free (cpath);
+    }
+    return valid;
+}
+
+/* Validate the unique constraint on the list that api_subtree belongs to (or
+ * is), preferring the direct single-entry path built from child/new_data when
+ * the write target sits below a list, and falling back to searching for any
+ * lists at or below api_subtree otherwise. */
+static bool
+restconf_check_unique (sch_node *api_subtree, GNode *child, GNode *new_data)
+{
+    sch_node *list_schema = api_subtree;
+    int levels_above = 0;
+
+    /* Walk up until we find the list this write belongs to, however deep the
+     * write target sits below it. */
+    while (list_schema && !sch_is_list (list_schema))
+    {
+        list_schema = sch_node_parent (list_schema);
+        levels_above++;
+    }
+
+    char *child_path = apteryx_node_path (child);
+    bool valid = true;
+
+    if (list_schema && levels_above > 0)
+    {
+        /* Child is somewhere below the entry (the entry itself, a leaf, or a
+         * container nested inside it), so strip everything but the entry path */
+        char *entry_path = _path_strip_right (child_path, levels_above - 1);
+        char *list_path = _path_strip_right (entry_path, 1);
+
+        GHashTable *entry_nodes = g_hash_table_new (g_str_hash, g_str_equal);
+        g_hash_table_insert (entry_nodes, entry_path, new_data);
+        GList *new_paths = g_list_append (NULL, entry_path);
+
+        valid = sch_check_unique (list_schema, list_path, new_paths, _rest_unique_leaf,
+                                  entry_nodes, verbose ? SCH_F_DEBUG : 0);
+
+        g_list_free (new_paths);
+        g_hash_table_destroy (entry_nodes);
+        g_free (entry_path);
+        g_free (list_path);
+    }
+    else
+    {
+        valid = _check_unique_below (api_subtree, child_path, new_data);
+    }
+
+    g_free (child_path);
+    return valid;
+}
+
 static bool
 restconf_is_list_key_leaf_update (sch_node *api_subtree, GNode *child, GNode *tnode)
 {
@@ -1348,6 +1549,19 @@ rest_api_post (int flags, const char *path, const char *data, int length, const 
         if (!sch_is_leaf (api_subtree))
         {
             sch_traverse_tree (g_schema, api_subtree, tree, schflags | SCH_F_ADD_MISSING_NULL);
+        }
+    }
+
+    /* Check YANG unique constraints */
+    if (flags & (FLAGS_METHOD_PUT | FLAGS_METHOD_PATCH | FLAGS_METHOD_POST))
+    {
+        if (!restconf_check_unique (api_subtree, child, tree->children))
+        {
+            apteryx_free_tree (tree);
+            tree = NULL;
+            rc = HTTP_CODE_CONFLICT;
+            error_tag = REST_E_TAG_OPER_FAILED;
+            goto exit;
         }
     }
 
