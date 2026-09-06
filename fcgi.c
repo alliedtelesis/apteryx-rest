@@ -211,11 +211,21 @@ get_flags (FCGX_Request * r)
 static char *
 normalise_path(const char *path)
 {
-    GString *normalised = g_string_new(NULL);
-    char *copy = g_strdup(path);
+    GString *normalised;
+    char *copy;
     char *saveptr = NULL;
-    char *token = strtok_r((char *)copy, "/", &saveptr);
+    char *token;
     char *slash = NULL;
+
+    /* The trailing-slash check below reads the last byte of "path", so an
+       empty string would read path[-1]. Neither that nor a NULL path is a
+       URI we can normalise. */
+    if (!path || !path[0])
+        return NULL;
+
+    normalised = g_string_new(NULL);
+    copy = g_strdup(path);
+    token = strtok_r(copy, "/", &saveptr);
     while (token) {
         if (strcmp(token, ".") == 0) {
             /* Ignore . */
