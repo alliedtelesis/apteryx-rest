@@ -1624,11 +1624,17 @@ rest_api_options (int flags, const char *path)
     char *options = NULL;
     char *key;
     char *colon;
-    char *_path = g_strdup (path);
-    char *ptr = strchr (_path, '=');
+    char *_path;
+    char *ptr;
     int len = 0;
     int rc = HTTP_CODE_NOT_FOUND;
     bool read_write = false;
+
+    if (!path)
+        return NULL;
+
+    _path = g_strdup (path);
+    ptr = strchr (_path, '=');
 
     /* Substitute key equals value with a slash to make the sch_lookup work */
     while (ptr)
