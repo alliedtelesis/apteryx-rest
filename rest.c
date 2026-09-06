@@ -373,7 +373,7 @@ rest_rpc_schema (sch_node *schema)
 static char *
 rest_rpc (int flags, GNode *node, sch_node *schema, json_t *json)
 {
-    char *path = apteryx_node_path (node);
+    char *path;
     int schflags = 0;
     GNode *input = NULL;
     GNode *output = NULL;
@@ -383,6 +383,14 @@ rest_rpc (int flags, GNode *node, sch_node *schema, json_t *json)
     char *resp;
     rest_rpc_error error;
     int rc;
+
+    /* get_response_node() walks down a fixed number of levels and returns
+       NULL if the tree is shallower than that, so the node we are asked to
+       execute may not exist. */
+    if (!node)
+        return NULL;
+
+    path = apteryx_node_path (node);
 
     /* Special case: We consider /operations to be a root node and hence
        support non-native namespaces at this node. This allows us to have
