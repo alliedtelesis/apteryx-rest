@@ -126,3 +126,26 @@ def test_key_with_equals_delete_read_only_proxy(fcgi_sock):
                                      "/data/logical-elements:logical-elements/logical-element-ro/loopy/testing:test="
                                      + KEY_TAIL + "/animals/animal=dog")
         assert status == 404
+
+
+def test_list_key_bad_child_get(fcgi_sock):
+    # A RESTCONF list key on the list node, then an element with no schema node
+    for _ in range(10):
+        status, _body = fcgi_request(fcgi_sock, "GET", docroot,
+                                     "/data/test/settings/users=" + KEY_TAIL + "/nosuch")
+        assert status == 404
+
+
+def test_watch_write_only_leaf(fcgi_sock):
+    # The watch is accepted, then its query for the initial data fails. The
+    # status is sent before that query, so it is the same as for a readable
+    # leaf (the control below); only valgrind shows the difference.
+    for _ in range(10):
+        status = _watch_once(fcgi_sock, "/test/settings/writeonly")
+        assert status == b"Status: 200"
+
+
+def test_watch_readable_leaf(fcgi_sock):
+    for _ in range(10):
+        status = _watch_once(fcgi_sock, "/test/settings/priority")
+        assert status == b"Status: 200"
